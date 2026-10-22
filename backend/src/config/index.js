@@ -1,0 +1,40 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const required = (key, fallback = undefined) => {
+  const val = process.env[key] ?? fallback;
+  return val;
+};
+
+export const config = {
+  port: Number(required('PORT', 4000)),
+  nodeEnv: required('NODE_ENV', 'development'),
+  corsOrigin: required('CORS_ORIGIN', 'http://localhost:3000'),
+
+  llm: {
+    engineBaseUrl: required('LLM_ENGINE_BASE_URL', 'http://localhost:3001/v1'),
+    engineApiKey: required('LLM_ENGINE_API_KEY', ''),
+    defaultModel: required('LLM_DEFAULT_MODEL', 'gemini-2.0-flash'),
+    embeddingModel: required('LLM_EMBEDDING_MODEL', 'text-embedding-004'),
+    fallbackBaseUrl: required('FALLBACK_PROVIDER_BASE_URL', ''),
+    fallbackApiKey: required('FALLBACK_PROVIDER_API_KEY', ''),
+    fallbackModel: required('FALLBACK_MODEL', ''),
+  },
+
+  supabase: {
+    url: required('SUPABASE_URL', ''),
+    serviceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY', ''),
+    anonKey: required('SUPABASE_ANON_KEY', ''),
+  },
+
+  automation: {
+    bookingWebhook: required('N8N_BOOKING_WEBHOOK_URL', ''),
+    escalationWebhook: required('N8N_ESCALATION_WEBHOOK_URL', ''),
+  },
+
+  agent: {
+    maxToolIterations: Number(required('AGENT_MAX_TOOL_ITERATIONS', 5)),
+    turnTimeoutMs: Number(required('AGENT_TURN_TIMEOUT_MS', 30000)),
+  },
+};

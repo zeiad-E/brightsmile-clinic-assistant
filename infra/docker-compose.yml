@@ -1,0 +1,32 @@
+version: "3.9"
+
+# Local dev stack: the LLM engine (freellmapi) + n8n automation.
+# Supabase is used as a hosted free service (no container needed here).
+
+services:
+  llm-engine:
+    # freellmapi — OpenAI-compatible gateway over many free providers.
+    # See https://github.com/tashfeenahmed/freellmapi for the image / build.
+    image: freellmapi/freellmapi:latest
+    container_name: caredesk-llm-engine
+    ports:
+      - "3001:3001"
+    volumes:
+      - llm_engine_data:/data
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: caredesk-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - GENERIC_TIMEZONE=Africa/Cairo
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
+volumes:
+  llm_engine_data:
+  n8n_data:

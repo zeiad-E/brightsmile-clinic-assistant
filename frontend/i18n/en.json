@@ -1,0 +1,15 @@
+{
+  "clinicName": "BrightSmile Dental Clinic",
+  "tagline": "Your smile, our priority. Ask us anything or book an appointment — anytime.",
+  "chat": {
+    "placeholder": "Ask a question or book an appointment…",
+    "send": "Send",
+    "you": "You"
+  },
+  "nav": {
+    "services": "Services",
+    "hours": "Hours",
+    "location": "Location",
+    "book": "Book now"
+  }
+}
