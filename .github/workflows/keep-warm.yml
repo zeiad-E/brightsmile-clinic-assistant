@@ -1,0 +1,16 @@
+name: keep-warm
+
+# Pings the API every 10 minutes so the free instance never spins down
+# (it sleeps after 15 minutes without traffic).
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping API health endpoint
+        run: curl -fsS --max-time 90 --retry 2 --retry-delay 5 https://brightsmile-api-3si7.onrender.com/health
