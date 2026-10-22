@@ -1,0 +1,20 @@
+# Render Blueprint: backend API + private LLM engine in one free web service.
+services:
+  - type: web
+    name: brightsmile-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./infra/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+        - infra/render/**
+    envVars:
+      - key: FREEAPI_CONFIG_JSON
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false

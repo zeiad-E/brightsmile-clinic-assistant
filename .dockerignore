@@ -1,0 +1,12 @@
+# Never send secrets or local state into an image build.
+**/.env
+**/.env.*
+!**/.env.example
+**/*.local
+infra/llm-engine/freellmapi.config.json
+
+**/node_modules
+**/.next
+.git
+docs
+frontend

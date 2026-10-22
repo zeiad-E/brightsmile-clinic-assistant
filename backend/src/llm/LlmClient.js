@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { resolveEngineApiKey } from './engineAuth.js';
 
 /**
  * LlmClient — the ONLY place in the backend that knows the LLM engine exists.
@@ -12,14 +13,39 @@ import { logger } from '../utils/logger.js';
  */
 class LlmClient {
   constructor() {
-    this.engine = new OpenAI({
-      baseURL: config.llm.engineBaseUrl,
-      apiKey: config.llm.engineApiKey || 'engine',
-    });
+    this.enginePromise = null;
 
-    this.fallback = config.llm.fallbackBaseUrl
+    this.fallback = config.llm.fallbackBaseUrl && config.llm.fallbackApiKey
       ? new OpenAI({ baseURL: config.llm.fallbackBaseUrl, apiKey: config.llm.fallbackApiKey })
       : null;
+  }
+
+  /** Engine client, created on first use once the unified key is resolved. */
+  getEngine() {
+    if (!this.enginePromise) {
+      this.enginePromise = resolveEngineApiKey()
+        .then((apiKey) => new OpenAI({ baseURL: config.llm.engineBaseUrl, apiKey }))
+        .catch((err) => {
+          this.enginePromise = null;
+          throw err;
+        });
+    }
+    return this.enginePromise;
+  }
+
+  /**
+   * Run a request against the engine. If the engine rejects our key (it restarted
+   * and generated a new one), re-resolve the key once and retry.
+   */
+  async withEngine(fn) {
+    try {
+      return await fn(await this.getEngine());
+    } catch (err) {
+      if (err?.status !== 401) throw err;
+      logger.warn('LLM engine rejected the API key; re-resolving');
+      this.enginePromise = null;
+      return fn(await this.getEngine());
+    }
   }
 
   /**
@@ -41,9 +67,11 @@ class LlmClient {
     let lastError;
     for (const candidate of chain) {
       try {
-        return await this.engine.chat.completions.create(
-          { ...base, model: candidate },
-          { timeout: config.llm.chatTimeoutMs, maxRetries: 0 },
+        return await this.withEngine((engine) =>
+          engine.chat.completions.create(
+            { ...base, model: candidate },
+            { timeout: config.llm.chatTimeoutMs, maxRetries: 0 },
+          ),
         );
       } catch (err) {
         lastError = err;
@@ -70,12 +98,14 @@ class LlmClient {
    */
   async embed(input) {
     const { embeddingModel, embeddingDimensions } = config.llm;
-    const res = await this.engine.embeddings.create({
-      model: embeddingModel,
-      input,
-      dimensions: embeddingDimensions,
-      encoding_format: 'float',
-    });
+    const res = await this.withEngine((engine) =>
+      engine.embeddings.create({
+        model: embeddingModel,
+        input,
+        dimensions: embeddingDimensions,
+        encoding_format: 'float',
+      }),
+    );
 
     if (res.model && res.model !== embeddingModel) {
       throw new Error(`embedding model mismatch: expected ${embeddingModel}, got ${res.model}`);

@@ -7,6 +7,17 @@ const required = (key, fallback = undefined) => {
   return val;
 };
 
+// When the LLM engine runs in the same container, its admin account comes from the
+// engine's own startup config (FREEAPI_CONFIG_JSON); reuse it instead of duplicating secrets.
+function engineAdminFromConfig() {
+  try {
+    return JSON.parse(process.env.FREEAPI_CONFIG_JSON || '{}').admin ?? {};
+  } catch {
+    return {};
+  }
+}
+const engineAdmin = engineAdminFromConfig();
+
 export const config = {
   port: Number(required('PORT', 4000)),
   nodeEnv: required('NODE_ENV', 'development'),
@@ -15,6 +26,8 @@ export const config = {
   llm: {
     engineBaseUrl: required('LLM_ENGINE_BASE_URL', 'http://localhost:3001/v1'),
     engineApiKey: required('LLM_ENGINE_API_KEY', ''),
+    adminEmail: required('ENGINE_ADMIN_EMAIL', engineAdmin.email ?? ''),
+    adminPassword: required('ENGINE_ADMIN_PASSWORD', engineAdmin.password ?? ''),
     defaultModel: required('LLM_DEFAULT_MODEL', 'auto'),
     // Ordered chat model chain (tried in order on error/timeout); chosen by benchmark.
     chatModels: required('LLM_CHAT_MODELS', 'gpt-oss-120b,qwen3.8-27b,command-a-2,gemini-3.5-flash-lite,auto')
