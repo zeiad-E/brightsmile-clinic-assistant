@@ -6,7 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test:llm": "node scripts/test-llm.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

@@ -1,0 +1,31 @@
+name: brightsmile-llm-engine
+
+# Local LLM gateway (freellmapi): one OpenAI-compatible /v1 endpoint in front of
+# many free LLM providers, with routing, failover and per-key quota tracking.
+# The backend talks to it through backend/src/llm/LlmClient.js.
+
+services:
+  llm-engine:
+    image: ghcr.io/tashfeenahmed/freellmapi:v0.16.7
+    container_name: brightsmile-llm-engine
+    ports:
+      - "127.0.0.1:3001:3001"
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      FREEAPI_CONFIG_PATH: /config/freellmapi.config.json
+      FREELLMAPI_UPDATE_CHECK: "off"
+    volumes:
+      - llm-engine-data:/app/server/data
+      - ./freellmapi.config.json:/config/freellmapi.config.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  llm-engine-data:

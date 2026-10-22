@@ -1,0 +1,18 @@
+name: brightsmile-n8n
+
+# Optional workflow automation (booking confirmations, staff alerts).
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: brightsmile-n8n
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - GENERIC_TIMEZONE=Africa/Cairo
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
+volumes:
+  n8n_data:

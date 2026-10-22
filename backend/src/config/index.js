@@ -15,8 +15,15 @@ export const config = {
   llm: {
     engineBaseUrl: required('LLM_ENGINE_BASE_URL', 'http://localhost:3001/v1'),
     engineApiKey: required('LLM_ENGINE_API_KEY', ''),
-    defaultModel: required('LLM_DEFAULT_MODEL', 'gemini-2.0-flash'),
-    embeddingModel: required('LLM_EMBEDDING_MODEL', 'text-embedding-004'),
+    defaultModel: required('LLM_DEFAULT_MODEL', 'auto'),
+    // Ordered chat model chain (tried in order on error/timeout); chosen by benchmark.
+    chatModels: required('LLM_CHAT_MODELS', 'gpt-oss-120b,qwen3.8-27b,command-a-2,gemini-3.5-flash-lite,auto')
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean),
+    chatTimeoutMs: Number(required('LLM_CHAT_TIMEOUT_MS', 20000)),
+    embeddingModel: required('LLM_EMBEDDING_MODEL', 'gemini-embedding-001'),
+    embeddingDimensions: Number(required('LLM_EMBEDDING_DIMENSIONS', 768)),
     fallbackBaseUrl: required('FALLBACK_PROVIDER_BASE_URL', ''),
     fallbackApiKey: required('FALLBACK_PROVIDER_API_KEY', ''),
     fallbackModel: required('FALLBACK_MODEL', ''),

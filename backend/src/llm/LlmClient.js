@@ -24,45 +24,67 @@ class LlmClient {
 
   /**
    * Chat completion with optional tool definitions.
-   * Tries the engine first; on failure, falls back to the direct provider.
+   *
+   * Walks the configured model chain in order (each model capped by a timeout),
+   * so a slow or exhausted model never stalls the conversation. The engine still
+   * rotates keys/providers underneath each request. If the whole chain fails
+   * (e.g. the engine is down), falls back to the direct provider.
    */
   async chat({ messages, tools, model, temperature = 0.2 }) {
-    const payload = {
-      model: model || config.llm.defaultModel,
+    const base = {
       messages,
       temperature,
       ...(tools ? { tools, tool_choice: 'auto' } : {}),
     };
+    const chain = model ? [model] : config.llm.chatModels;
 
-    try {
-      return await this.engine.chat.completions.create(payload);
-    } catch (err) {
-      logger.warn(`LLM engine failed (${err.message}); trying fallback`);
-      if (!this.fallback) throw err;
-      return await this.fallback.chat.completions.create({
-        ...payload,
-        model: config.llm.fallbackModel || payload.model,
-      });
+    let lastError;
+    for (const candidate of chain) {
+      try {
+        return await this.engine.chat.completions.create(
+          { ...base, model: candidate },
+          { timeout: config.llm.chatTimeoutMs, maxRetries: 0 },
+        );
+      } catch (err) {
+        lastError = err;
+        logger.warn(`LLM model ${candidate} failed (${err.message}); trying next in chain`);
+      }
     }
+
+    if (!this.fallback) throw lastError;
+    logger.warn('LLM engine chain exhausted; using direct fallback provider');
+    return this.fallback.chat.completions.create({
+      ...base,
+      model: config.llm.fallbackModel,
+    });
   }
 
-  /** Create embeddings for RAG. */
+  /**
+   * Create embeddings for RAG.
+   *
+   * Embeddings are pinned to ONE model and dimension: vectors from different
+   * models live in different spaces, so a silent switch would corrupt retrieval.
+   * There is deliberately no cross-provider fallback here — fail loudly instead.
+   * `encoding_format: 'float'` is required: the SDK otherwise requests base64 and
+   * mis-decodes the engine's plain float arrays into NaNs.
+   */
   async embed(input) {
-    try {
-      const res = await this.engine.embeddings.create({
-        model: config.llm.embeddingModel,
-        input,
-      });
-      return res.data.map((d) => d.embedding);
-    } catch (err) {
-      logger.warn(`Embedding via engine failed (${err.message}); trying fallback`);
-      if (!this.fallback) throw err;
-      const res = await this.fallback.embeddings.create({
-        model: config.llm.embeddingModel,
-        input,
-      });
-      return res.data.map((d) => d.embedding);
+    const { embeddingModel, embeddingDimensions } = config.llm;
+    const res = await this.engine.embeddings.create({
+      model: embeddingModel,
+      input,
+      dimensions: embeddingDimensions,
+      encoding_format: 'float',
+    });
+
+    if (res.model && res.model !== embeddingModel) {
+      throw new Error(`embedding model mismatch: expected ${embeddingModel}, got ${res.model}`);
     }
+    const vectors = res.data.map((d) => d.embedding);
+    if (vectors.some((v) => v.length !== embeddingDimensions)) {
+      throw new Error(`embedding dimension mismatch: expected ${embeddingDimensions}`);
+    }
+    return vectors;
   }
 }
 

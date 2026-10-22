@@ -1,0 +1,12 @@
+{
+  "admin": { "email": "admin@example.com", "password": "use-a-long-random-password" },
+  "keys": [
+    { "platform": "google", "key": "", "label": "main" },
+    { "platform": "groq", "key": "", "label": "main" },
+    { "platform": "cerebras", "key": "", "label": "main" },
+    { "platform": "openrouter", "key": "", "label": "main" },
+    { "platform": "cohere", "key": "", "label": "main" },
+    { "platform": "nvidia", "key": "", "label": "main" }
+  ],
+  "routing": { "strategy": "balanced" }
+}
