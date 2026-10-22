@@ -18,3 +18,15 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
+      # Admin door to the private LLM engine dashboard (see backend/src/middlewares/llmAdminDoor.js)
+      - key: LLM_ADMIN_DOOR_KEY
+        sync: false
+      # Encrypted engine DB backup (keeps dashboard changes across restarts)
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: FREEAPI_DB_BACKUP_TARGET
+        sync: false
+      - key: FREEAPI_DB_BACKUP_TOKEN
+        sync: false
+      - key: FREEAPI_DB_BACKUP_INTERVAL_MS
+        sync: false

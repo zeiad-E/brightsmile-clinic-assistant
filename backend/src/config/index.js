@@ -42,6 +42,11 @@ export const config = {
     fallbackModel: required('FALLBACK_MODEL', ''),
   },
 
+  // Secret entry key for the LLM engine dashboard proxy; empty disables the door.
+  adminDoor: {
+    key: required('LLM_ADMIN_DOOR_KEY', ''),
+  },
+
   supabase: {
     url: required('SUPABASE_URL', ''),
     serviceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY', ''),

@@ -3,8 +3,13 @@ import cors from 'cors';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import chatRouter from './routes/chat.js';
+import { llmAdminDoor } from './middlewares/llmAdminDoor.js';
 
 const app = express();
+app.disable('x-powered-by');
+
+// Must run before body parsing: it proxies raw requests to the LLM engine dashboard.
+app.use(llmAdminDoor());
 
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());

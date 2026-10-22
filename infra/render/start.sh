@@ -8,9 +8,18 @@ PUBLIC_PORT="${PORT:-10000}"
 # The disk is ephemeral and provider keys are re-applied from FREEAPI_CONFIG_JSON on
 # every boot, so a per-boot encryption key is enough unless one is configured
 # (configure a stable ENCRYPTION_KEY if encrypted DB backups are enabled).
+BACKUP_TARGET="${FREEAPI_DB_BACKUP_TARGET:-${FREEAPI_DB_BACKUP_URL:-${FREEAPI_DB_BACKUP_PATH:-}}}"
 if [ -z "${ENCRYPTION_KEY:-}" ]; then
+  if [ -n "$BACKUP_TARGET" ]; then
+    # A per-boot key would make every backup undecryptable after the next restart.
+    echo "[start] ENCRYPTION_KEY is required when encrypted DB backups are enabled" >&2
+    exit 1
+  fi
   ENCRYPTION_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
   export ENCRYPTION_KEY
+fi
+if [ -n "$BACKUP_TARGET" ]; then
+  echo "[start] encrypted DB backup enabled (restored at boot when the database is missing)"
 fi
 
 echo "[start] launching LLM engine on 127.0.0.1:3001"
