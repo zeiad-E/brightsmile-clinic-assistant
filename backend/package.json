@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "test:llm": "node scripts/test-llm.js"
+    "test:llm": "node scripts/test-llm.js",
+    "ingest": "node scripts/ingest-knowledge.js",
+    "seed:accounts": "node scripts/seed-accounts.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

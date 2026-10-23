@@ -1,37 +1,49 @@
 import { supabase } from '../db/supabase.js';
 import { embedMany } from './embed.js';
+import { chunkText } from './chunk.js';
+import { logger } from '../utils/logger.js';
 
 /**
- * Ingest knowledge docs into pgvector.
- * TODO: wire to a seed of clinic docs (services, pricing, hours, policies...) in EN + AR.
- *
- * Steps:
- *  1. chunk each doc,
- *  2. embed chunks,
- *  3. upsert into knowledge_chunks with source_ref for citations.
+ * Turn one knowledge doc into searchable chunks:
+ * split → embed (title + chunk, so each piece keeps its context) → replace the doc's
+ * chunks → mark the doc ready. On failure the doc is marked failed with the reason.
  */
-export async function ingestDoc({ docId, title, content, category }) {
-  const chunks = chunkText(content);
-  const embeddings = await embedMany(chunks);
+export async function ingestDoc(doc) {
+  if (!supabase) throw new Error('Supabase is not configured');
 
-  if (!supabase) return { ok: false, reason: 'no_db' };
+  await supabase.from('knowledge_docs').update({ ingest_status: 'processing', ingest_error: null }).eq('id', doc.id);
 
-  const rows = chunks.map((text, i) => ({
-    doc_id: docId,
-    chunk_text: text,
-    embedding: embeddings[i],
-    source_ref: `${title}#${i + 1}`,
-    category,
-  }));
+  try {
+    const chunks = chunkText(doc.content);
+    if (chunks.length === 0) throw new Error('document has no text');
 
-  const { error } = await supabase.from('knowledge_chunks').insert(rows);
-  return { ok: !error, inserted: rows.length };
-}
+    const embeddings = await embedMany(chunks.map((chunk) => `${doc.title}\n${chunk}`));
 
-function chunkText(text, size = 800, overlap = 100) {
-  const chunks = [];
-  for (let i = 0; i < text.length; i += size - overlap) {
-    chunks.push(text.slice(i, i + size));
+    const { error: deleteError } = await supabase.from('knowledge_chunks').delete().eq('doc_id', doc.id);
+    if (deleteError) throw deleteError;
+
+    const rows = chunks.map((content, index) => ({
+      doc_id: doc.id,
+      chunk_index: index,
+      content,
+      embedding: JSON.stringify(embeddings[index]),
+    }));
+    const { error: insertError } = await supabase.from('knowledge_chunks').insert(rows);
+    if (insertError) throw insertError;
+
+    const { error: readyError } = await supabase
+      .from('knowledge_docs')
+      .update({ ingest_status: 'ready', ingest_error: null })
+      .eq('id', doc.id);
+    if (readyError) throw readyError;
+
+    return { ok: true, chunks: rows.length };
+  } catch (err) {
+    logger.error(`Ingest failed for doc ${doc.id}: ${err.message}`);
+    await supabase
+      .from('knowledge_docs')
+      .update({ ingest_status: 'failed', ingest_error: String(err.message).slice(0, 500) })
+      .eq('id', doc.id);
+    return { ok: false, error: err.message };
   }
-  return chunks;
 }
