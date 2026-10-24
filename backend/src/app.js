@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config/index.js';
-import chatRouter from './routes/chat.js';
+import { createApiRouter } from './routes/index.js';
 import { llmAdminDoor } from './middlewares/llmAdminDoor.js';
 import { requestContext } from './middlewares/requestContext.js';
 import { notFound } from './middlewares/notFound.js';
@@ -16,7 +16,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
  *
  * Order matters: each request flows top to bottom through this list.
  */
-export function createApp() {
+export function createApp({ rateLimit = true } = {}) {
   const app = express();
   app.disable('x-powered-by');
   // Render puts one proxy in front of us; trust it so `req.ip` is the real client IP.
@@ -36,8 +36,8 @@ export function createApp() {
     res.json({ status: 'ok', service: 'caredesk-backend', time: new Date().toISOString() });
   });
 
-  // Routes
-  app.use('/api/chat', chatRouter);
+  // Routes (tests can switch rate limiting off to send many requests quickly)
+  app.use('/api', createApiRouter({ rateLimit }));
 
   // Nothing matched → 404, and every error → one JSON shape. These two always stay last.
   app.use(notFound());

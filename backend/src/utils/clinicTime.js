@@ -31,6 +31,40 @@ export function addDays(day, count) {
   return date.toISOString().slice(0, 10);
 }
 
+/** How many minutes `timeZone` is ahead of UTC at a given moment (Cairo: +120 or +180 with DST). */
+function zoneOffsetMinutes(instant, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(instant);
+  const get = (type) => Number(parts.find((part) => part.type === type).value);
+  const asIfUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  return Math.round((asIfUtc - instant.getTime()) / 60000);
+}
+
+/** The exact moment a clinic day starts (midnight in Cairo), e.g. for "appointments on this date". */
+export function startOfDayInZone(day, timeZone = CLINIC_TIMEZONE) {
+  const utcMidnight = new Date(`${day}T00:00:00Z`);
+  const guess = new Date(utcMidnight.getTime() - zoneOffsetMinutes(utcMidnight, timeZone) * 60000);
+  // Second pass: the offset at the real moment can differ when daylight saving starts that night.
+  return new Date(utcMidnight.getTime() - zoneOffsetMinutes(guess, timeZone) * 60000);
+}
+
+/** A human date + time in the patient's language, e.g. "Sunday, 25 October 2026 at 10:30". */
+export function formatDateTime(instant, language = 'en', timeZone = CLINIC_TIMEZONE) {
+  return new Intl.DateTimeFormat(language === 'ar' ? 'ar-EG' : 'en-GB', {
+    timeZone,
+    dateStyle: 'full',
+    timeStyle: 'short',
+  }).format(new Date(instant));
+}
+
 /** 0 = Sunday … 6 = Saturday, the same numbering as the `working_hours.weekday` column. */
 export function weekdayOf(day) {
   return new Date(`${day}T00:00:00Z`).getUTCDay();

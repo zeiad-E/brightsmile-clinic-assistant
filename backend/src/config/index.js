@@ -50,13 +50,40 @@ const EnvSchema = z
 
     AGENT_MAX_TOOL_ITERATIONS: positiveInt(5),
     AGENT_TURN_TIMEOUT_MS: positiveInt(30000),
+
+    // Fingerprints personal sign-in codes (HMAC). Changing it invalidates every issued code.
+    PERSONAL_CODE_SECRET: text(),
+    // Where the frontend lives; used for links in emails.
+    APP_URL: text('http://localhost:3000'),
+
+    // log = print only (dev/tests) · smtp = Gmail via nodemailer · brevo = Brevo HTTPS API
+    EMAIL_PROVIDER: z.enum(['log', 'smtp', 'brevo']).default('log'),
+    MAIL_FROM: text(), // e.g. "BrightSmile Dental <clinic@gmail.com>"
+    SMTP_HOST: text('smtp.gmail.com'),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),
+    SMTP_USER: text(),
+    SMTP_PASS: text(),
+    BREVO_API_KEY: text(),
   })
   .superRefine((env, ctx) => {
+    const requireKeys = (keys, why) => {
+      for (const key of keys) {
+        if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: `is required ${why}` });
+      }
+    };
+
+    if (env.EMAIL_PROVIDER === 'smtp') requireKeys(['SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'], 'when EMAIL_PROVIDER=smtp');
+    if (env.EMAIL_PROVIDER === 'brevo') requireKeys(['BREVO_API_KEY', 'MAIL_FROM'], 'when EMAIL_PROVIDER=brevo');
+
     if (env.NODE_ENV !== 'production') return;
-    for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
-      if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'is required in production' });
+    requireKeys(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY', 'PERSONAL_CODE_SECRET'], 'in production');
+    if (env.PERSONAL_CODE_SECRET && env.PERSONAL_CODE_SECRET.length < 32) {
+      ctx.addIssue({ code: 'custom', path: ['PERSONAL_CODE_SECRET'], message: 'must be at least 32 characters' });
     }
   });
+
+// Local development and tests may run without a real secret; production never does (checked above).
+const DEV_PERSONAL_CODE_SECRET = 'dev-only-personal-code-secret-never-use-in-production';
 
 // When the LLM engine runs in the same container, its admin account comes from the
 // engine's own startup config (FREEAPI_CONFIG_JSON); reuse it instead of duplicating secrets.
@@ -121,6 +148,19 @@ export function loadConfig(rawEnv = process.env) {
     agent: {
       maxToolIterations: env.AGENT_MAX_TOOL_ITERATIONS,
       turnTimeoutMs: env.AGENT_TURN_TIMEOUT_MS,
+    },
+
+    appUrl: env.APP_URL,
+
+    auth: {
+      personalCodeSecret: env.PERSONAL_CODE_SECRET || DEV_PERSONAL_CODE_SECRET,
+    },
+
+    email: {
+      provider: env.EMAIL_PROVIDER,
+      from: env.MAIL_FROM || 'BrightSmile Dental <no-reply@localhost>',
+      smtp: { host: env.SMTP_HOST, port: env.SMTP_PORT, user: env.SMTP_USER, pass: env.SMTP_PASS },
+      brevoApiKey: env.BREVO_API_KEY,
     },
   };
 }

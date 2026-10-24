@@ -31,14 +31,33 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/SUPABASE_URL: is required in production/);
   });
 
-  it('starts in production once the database secrets are present', () => {
-    const config = loadConfig({
-      NODE_ENV: 'production',
-      SUPABASE_URL: 'https://example.supabase.co',
-      SUPABASE_SERVICE_ROLE_KEY: 'service-key',
-    });
+  const productionEnv = {
+    NODE_ENV: 'production',
+    SUPABASE_URL: 'https://example.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY: 'service-key',
+    SUPABASE_ANON_KEY: 'anon-key',
+    PERSONAL_CODE_SECRET: 'x'.repeat(32),
+  };
+
+  it('starts in production once the required secrets are present', () => {
+    const config = loadConfig(productionEnv);
 
     expect(config.supabase.url).toBe('https://example.supabase.co');
+    expect(config.auth.personalCodeSecret).toBe('x'.repeat(32));
+  });
+
+  it('refuses a short personal-code secret in production', () => {
+    expect(() => loadConfig({ ...productionEnv, PERSONAL_CODE_SECRET: 'short' })).toThrow(/at least 32/);
+  });
+
+  it('uses a development-only code secret outside production', () => {
+    expect(loadConfig({}).auth.personalCodeSecret).toMatch(/^dev-only/);
+  });
+
+  it('requires the matching credentials for the chosen email provider', () => {
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'smtp' })).toThrow(/SMTP_USER/);
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'brevo' })).toThrow(/BREVO_API_KEY/);
+    expect(loadConfig({}).email.provider).toBe('log');
   });
 
   it('reuses the engine admin account from FREEAPI_CONFIG_JSON', () => {
