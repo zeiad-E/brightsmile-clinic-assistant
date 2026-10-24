@@ -325,3 +325,137 @@ select test.assert(
   public.mask_text('Call 01001234567 or ahmed@gmail.com on 2026-11-10') = 'Call [phone hidden] or a***@gmail.com on 2026-11-10',
   'masking hides phones and emails but keeps dates');
 select test.assert(public.mask_person_name('Ahmed Mahmoud Ali') = 'Ahmed M.', 'names are shortened for the viewer');
+
+-- ---------- reschedule (backend part 1) ----------
+-- Day 4 is free of other fixtures. Paul (a4) books 10:00; another patient books 11:00.
+select public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.at('10:00', 4),
+  'Paul Patient', '1990-01-01', p_email => 'paul@example.com');
+select public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.at('11:00', 4),
+  'Rana Reschedule', '1991-02-02', p_email => 'rana@example.com');
+
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
+select test.assert(
+  public.reschedule_appointment(
+    (select id from public.appointments where starts_at = test.at('10:00', 4) and status = 'booked'),
+    test.at('10:15', 4)) ->> 'ok' = 'true',
+  'patient moves own booking by 15 minutes (overlapping its own old time is fine)');
+select test.assert(
+  public.reschedule_appointment(
+    (select id from public.appointments where starts_at = test.at('10:15', 4) and status = 'booked'),
+    test.at('11:00', 4)) ->> 'error' = 'slot_taken',
+  'reschedule into a booked time is refused as slot_taken');
+select test.assert(
+  public.reschedule_appointment(
+    (select id from public.appointments where starts_at = test.at('10:15', 4) and status = 'booked'),
+    test.at('03:00', 4)) ->> 'error' = 'slot_unavailable',
+  'reschedule outside working hours is refused as slot_unavailable');
+select test.assert(
+  public.reschedule_appointment(
+    (select id from public.appointments where starts_at = test.at('11:00', 4) and status = 'booked'),
+    test.at('12:00', 4)) ->> 'error' = 'not_found',
+  'patient cannot reschedule someone else''s booking (looks like not found)');
+commit;
+
+select test.assert(
+  (select ends_at - starts_at from public.appointments where starts_at = test.at('10:15', 4)) = interval '30 minutes',
+  'rescheduled booking keeps the service duration');
+
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}';
+select test.assert(
+  public.reschedule_appointment(
+    (select id from public.appointments where starts_at = test.at('11:00', 4) and status = 'booked'),
+    test.at('12:00', 4)) ->> 'error' = 'read_only',
+  'viewer cannot reschedule');
+commit;
+
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+select test.assert(
+  public.reschedule_appointment(
+    (select id from public.appointments where starts_at = test.at('11:00', 4) and status = 'booked'),
+    test.at('12:00', 4), '00000000-0000-0000-0000-0000000000b2') ->> 'ok' = 'true',
+  'staff moves a booking to another doctor and time');
+commit;
+
+select test.assert(
+  (select staff_id from public.appointments where starts_at = test.at('12:00', 4) and status = 'booked') = '00000000-0000-0000-0000-0000000000b2',
+  'reschedule to another doctor is saved');
+
+-- ---------- schedule edits (backend part 1) ----------
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+select test.assert(
+  public.set_working_hours('00000000-0000-0000-0000-0000000000b2',
+    '[{"weekday":1,"start_time":"09:00","end_time":"13:00"},{"weekday":1,"start_time":"14:00","end_time":"17:00"}]') ->> 'count' = '2',
+  'owner replaces a doctor''s weekly schedule in one step');
+select test.assert(
+  public.set_working_hours('00000000-0000-0000-0000-0000000000b2',
+    '[{"weekday":2,"start_time":"09:00","end_time":"13:00"},{"weekday":2,"start_time":"12:00","end_time":"15:00"}]') ->> 'error' = 'overlapping_shifts',
+  'overlapping shifts are refused');
+select test.assert(
+  (select count(*) from public.working_hours where staff_id = '00000000-0000-0000-0000-0000000000b2') = 2,
+  'a refused schedule change leaves the old schedule untouched (all or nothing)');
+select test.assert(
+  public.set_staff_services('00000000-0000-0000-0000-0000000000b2',
+    array['00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000c2']::uuid[]) ->> 'count' = '2',
+  'owner replaces the services a doctor offers');
+select test.assert(
+  public.set_staff_services('00000000-0000-0000-0000-0000000000b2',
+    array['00000000-0000-0000-0000-0000000000ff']::uuid[]) ->> 'error' = 'unknown_service',
+  'an unknown service is refused');
+commit;
+
+do $$
+begin
+  set local role authenticated;
+  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+  perform public.set_working_hours('00000000-0000-0000-0000-0000000000b2', '[]');
+  raise exception 'FAIL: staff changed working hours';
+exception when insufficient_privilege then
+  raise notice 'PASS: only the owner can change working hours';
+end;
+$$;
+
+-- ---------- sign-in secrets hidden (backend part 1) ----------
+update public.patients set code_hmac = 'fingerprint-for-test' where email = 'paul@example.com';
+
+do $$
+begin
+  set local role authenticated;
+  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
+  perform code_hmac from public.patients;
+  raise exception 'FAIL: patient could read the code fingerprint';
+exception when insufficient_privilege then
+  raise notice 'PASS: a patient cannot read their code fingerprint';
+end;
+$$;
+
+do $$
+begin
+  set local role authenticated;
+  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+  update public.patients set login_failed_attempts = 0;
+  raise exception 'FAIL: staff could reset lockout counters directly';
+exception when insufficient_privilege then
+  raise notice 'PASS: staff cannot touch lockout counters directly';
+end;
+$$;
+
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
+select test.assert(
+  (select full_name from public.patients) = 'Paul Patient',
+  'a patient still reads their own record (without the secret columns)');
+commit;
+
+select test.assert(
+  public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.at('16:00', 4),
+    'Web Visitor', '1993-03-03', p_email => 'web@example.com', p_source => 'website') ->> 'ok' = 'true',
+  'bookings can be marked as made on the website');
