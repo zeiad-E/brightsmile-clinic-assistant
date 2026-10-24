@@ -1,65 +1,128 @@
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { z } from 'zod';
 
-dotenv.config();
+/**
+ * App configuration, read once from environment variables and validated with zod.
+ *
+ * Why validate: a typo or a missing secret should stop the server at boot with a
+ * clear message, not surface later as a confusing error in the middle of a request.
+ *
+ * Tests load `.env.test` instead of `.env`, so a test run can never reach the live
+ * database by accident.
+ */
+const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+dotenv.config({ path: fileURLToPath(new URL(`../../${envFile}`, import.meta.url)) });
 
-const required = (key, fallback = undefined) => {
-  const val = process.env[key] ?? fallback;
-  return val;
-};
+const text = (fallback = '') => z.string().trim().default(fallback);
+const positiveInt = (fallback) => z.coerce.number().int().positive().default(fallback);
+
+const EnvSchema = z
+  .object({
+    PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    CORS_ORIGIN: text('http://localhost:3000'),
+
+    LLM_ENGINE_BASE_URL: text('http://localhost:3001/v1'),
+    LLM_ENGINE_API_KEY: text(),
+    ENGINE_ADMIN_EMAIL: text(),
+    ENGINE_ADMIN_PASSWORD: text(),
+    FREEAPI_CONFIG_JSON: text(),
+    LLM_DEFAULT_MODEL: text('auto'),
+    // Ordered chat model chain (tried in order on error/timeout); chosen by benchmark.
+    LLM_CHAT_MODELS: text('gpt-oss-120b,qwen3.8-27b,command-a-2,gemini-3.5-flash-lite,auto'),
+    LLM_CHAT_TIMEOUT_MS: positiveInt(20000),
+    LLM_EMBEDDING_MODEL: text('gemini-embedding-001'),
+    LLM_EMBEDDING_DIMENSIONS: positiveInt(768),
+    FALLBACK_PROVIDER_BASE_URL: text(),
+    FALLBACK_PROVIDER_API_KEY: text(),
+    FALLBACK_MODEL: text(),
+
+    // Secret entry key for the LLM engine dashboard proxy; empty disables the door.
+    LLM_ADMIN_DOOR_KEY: text(),
+
+    SUPABASE_URL: text(),
+    SUPABASE_SERVICE_ROLE_KEY: text(),
+    SUPABASE_ANON_KEY: text(),
+
+    N8N_BOOKING_WEBHOOK_URL: text(),
+    N8N_ESCALATION_WEBHOOK_URL: text(),
+
+    AGENT_MAX_TOOL_ITERATIONS: positiveInt(5),
+    AGENT_TURN_TIMEOUT_MS: positiveInt(30000),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return;
+    for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
+      if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'is required in production' });
+    }
+  });
 
 // When the LLM engine runs in the same container, its admin account comes from the
 // engine's own startup config (FREEAPI_CONFIG_JSON); reuse it instead of duplicating secrets.
-function engineAdminFromConfig() {
+function engineAdminFromConfig(json) {
   try {
-    return JSON.parse(process.env.FREEAPI_CONFIG_JSON || '{}').admin ?? {};
+    return JSON.parse(json || '{}').admin ?? {};
   } catch {
     return {};
   }
 }
-const engineAdmin = engineAdminFromConfig();
 
-export const config = {
-  port: Number(required('PORT', 4000)),
-  nodeEnv: required('NODE_ENV', 'development'),
-  corsOrigin: required('CORS_ORIGIN', 'http://localhost:3000'),
+/** Validates an env object and builds the config. Exported so tests can feed their own env. */
+export function loadConfig(rawEnv = process.env) {
+  // `KEY=` in a .env file means "not set", so empty strings fall back to the defaults.
+  const present = Object.fromEntries(Object.entries(rawEnv).filter(([, value]) => value !== ''));
+  const parsed = EnvSchema.safeParse(present);
+  if (!parsed.success) {
+    const problems = parsed.error.issues.map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`);
+    throw new Error(`Invalid environment configuration:\n${problems.join('\n')}`);
+  }
 
-  llm: {
-    engineBaseUrl: required('LLM_ENGINE_BASE_URL', 'http://localhost:3001/v1'),
-    engineApiKey: required('LLM_ENGINE_API_KEY', ''),
-    adminEmail: required('ENGINE_ADMIN_EMAIL', engineAdmin.email ?? ''),
-    adminPassword: required('ENGINE_ADMIN_PASSWORD', engineAdmin.password ?? ''),
-    defaultModel: required('LLM_DEFAULT_MODEL', 'auto'),
-    // Ordered chat model chain (tried in order on error/timeout); chosen by benchmark.
-    chatModels: required('LLM_CHAT_MODELS', 'gpt-oss-120b,qwen3.8-27b,command-a-2,gemini-3.5-flash-lite,auto')
-      .split(',')
-      .map((m) => m.trim())
-      .filter(Boolean),
-    chatTimeoutMs: Number(required('LLM_CHAT_TIMEOUT_MS', 20000)),
-    embeddingModel: required('LLM_EMBEDDING_MODEL', 'gemini-embedding-001'),
-    embeddingDimensions: Number(required('LLM_EMBEDDING_DIMENSIONS', 768)),
-    fallbackBaseUrl: required('FALLBACK_PROVIDER_BASE_URL', ''),
-    fallbackApiKey: required('FALLBACK_PROVIDER_API_KEY', ''),
-    fallbackModel: required('FALLBACK_MODEL', ''),
-  },
+  const env = parsed.data;
+  const engineAdmin = engineAdminFromConfig(env.FREEAPI_CONFIG_JSON);
 
-  // Secret entry key for the LLM engine dashboard proxy; empty disables the door.
-  adminDoor: {
-    key: required('LLM_ADMIN_DOOR_KEY', ''),
-  },
+  return {
+    port: env.PORT,
+    nodeEnv: env.NODE_ENV,
+    corsOrigin: env.CORS_ORIGIN,
 
-  supabase: {
-    url: required('SUPABASE_URL', ''),
-    serviceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY', ''),
-    anonKey: required('SUPABASE_ANON_KEY', ''),
-  },
+    llm: {
+      engineBaseUrl: env.LLM_ENGINE_BASE_URL,
+      engineApiKey: env.LLM_ENGINE_API_KEY,
+      adminEmail: env.ENGINE_ADMIN_EMAIL || (engineAdmin.email ?? ''),
+      adminPassword: env.ENGINE_ADMIN_PASSWORD || (engineAdmin.password ?? ''),
+      defaultModel: env.LLM_DEFAULT_MODEL,
+      chatModels: env.LLM_CHAT_MODELS.split(',')
+        .map((m) => m.trim())
+        .filter(Boolean),
+      chatTimeoutMs: env.LLM_CHAT_TIMEOUT_MS,
+      embeddingModel: env.LLM_EMBEDDING_MODEL,
+      embeddingDimensions: env.LLM_EMBEDDING_DIMENSIONS,
+      fallbackBaseUrl: env.FALLBACK_PROVIDER_BASE_URL,
+      fallbackApiKey: env.FALLBACK_PROVIDER_API_KEY,
+      fallbackModel: env.FALLBACK_MODEL,
+    },
 
-  automation: {
-    bookingWebhook: required('N8N_BOOKING_WEBHOOK_URL', ''),
-    escalationWebhook: required('N8N_ESCALATION_WEBHOOK_URL', ''),
-  },
+    adminDoor: {
+      key: env.LLM_ADMIN_DOOR_KEY,
+    },
 
-  agent: {
-    maxToolIterations: Number(required('AGENT_MAX_TOOL_ITERATIONS', 5)),
-    turnTimeoutMs: Number(required('AGENT_TURN_TIMEOUT_MS', 30000)),
-  },
-};
+    supabase: {
+      url: env.SUPABASE_URL,
+      serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+      anonKey: env.SUPABASE_ANON_KEY,
+    },
+
+    automation: {
+      bookingWebhook: env.N8N_BOOKING_WEBHOOK_URL,
+      escalationWebhook: env.N8N_ESCALATION_WEBHOOK_URL,
+    },
+
+    agent: {
+      maxToolIterations: env.AGENT_MAX_TOOL_ITERATIONS,
+      turnTimeoutMs: env.AGENT_TURN_TIMEOUT_MS,
+    },
+  };
+}
+
+export const config = loadConfig();
