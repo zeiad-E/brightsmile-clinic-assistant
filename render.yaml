@@ -30,3 +30,22 @@ services:
         sync: false
       - key: FREEAPI_DB_BACKUP_INTERVAL_MS
         sync: false
+      # Database (Supabase). The server refuses to start in production without the first four.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      # Fingerprints personal sign-in codes (min 32 chars); changing it invalidates issued codes
+      - key: PERSONAL_CODE_SECRET
+        sync: false
+      # Email: log (default) | smtp | brevo — see backend/.env.example
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
