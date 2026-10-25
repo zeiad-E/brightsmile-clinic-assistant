@@ -40,7 +40,8 @@ services:
       # Fingerprints personal sign-in codes (min 32 chars); changing it invalidates issued codes
       - key: PERSONAL_CODE_SECRET
         sync: false
-      # Email: log (default) | smtp | brevo — see backend/.env.example
+      # Email: log (default) | smtp | brevo — see backend/.env.example.
+      # Use brevo here: Render's free plan blocks outgoing SMTP ports (25/465/587) since Sept 2025.
       - key: EMAIL_PROVIDER
         sync: false
       - key: MAIL_FROM
