@@ -9,9 +9,9 @@ import { z } from 'zod';
  * clear message, not surface later as a confusing error in the middle of a request.
  *
  * Tests load `.env.test` instead of `.env`, so a test run can never reach the live
- * database by accident.
+ * database by accident. Only the opt-in live integration run sets ENV_FILE=.env.
  */
-const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+const envFile = process.env.ENV_FILE ?? (process.env.NODE_ENV === 'test' ? '.env.test' : '.env');
 dotenv.config({ path: fileURLToPath(new URL(`../../${envFile}`, import.meta.url)) });
 
 const text = (fallback = '') => z.string().trim().default(fallback);

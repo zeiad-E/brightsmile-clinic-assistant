@@ -65,6 +65,9 @@ async function ensureUser({ email, role, fullName, language = 'en' }) {
     user_metadata: { full_name: fullName, preferred_language: language },
   });
   if (error) throw error;
+  // Supabase attaches app_metadata after the insert, so the profile trigger never sees the role.
+  const { error: roleError } = await supabase.from('profiles').update({ role, full_name: fullName }).eq('id', data.user.id);
+  if (roleError) throw roleError;
   return { id: data.user.id, email, password: pwd, created: true };
 }
 

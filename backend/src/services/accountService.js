@@ -14,7 +14,13 @@ export const placeholderEmailFor = (patientId) => `patient-${patientId}@${PLACEH
 
 const NEVER = '876000h'; // ~100 years: how Supabase "bans" (disables) a login
 
-/** Creates an Auth user, or finds the existing one with that email. Returns { id, email, created }. */
+/**
+ * Creates an Auth user, or finds the existing one with that email. Returns { id, email, created }.
+ *
+ * The role is written to the profile explicitly: Supabase Auth saves the user first and
+ * attaches app_metadata a moment later, so the database trigger that creates the profile
+ * never sees the role and would leave everyone as 'patient'.
+ */
 async function createOrFindUser({ email, password, role, fullName, language }) {
   const db = requireAdmin();
   const { data, error } = await db.auth.admin.createUser({
@@ -24,7 +30,14 @@ async function createOrFindUser({ email, password, role, fullName, language }) {
     app_metadata: { role },
     user_metadata: { full_name: fullName, preferred_language: language },
   });
-  if (!error) return { id: data.user.id, email, created: true };
+  if (!error) {
+    const { error: profileError } = await db
+      .from('profiles')
+      .update({ role, full_name: fullName, preferred_language: language ?? 'en' })
+      .eq('id', data.user.id);
+    if (profileError) throw profileError;
+    return { id: data.user.id, email, created: true };
+  }
 
   if (error.code === 'email_exists' || error.code === 'user_already_exists') {
     const existing = await profileModel.findByEmail(db, email);
