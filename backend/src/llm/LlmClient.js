@@ -56,13 +56,15 @@ class LlmClient {
    * rotates keys/providers underneath each request. If the whole chain fails
    * (e.g. the engine is down), falls back to the direct provider.
    */
-  async chat({ messages, tools, model, temperature = 0.2 }) {
+  async chat({ messages, tools, model, temperature = 0.2, maxTokens }) {
     const base = {
       messages,
       temperature,
+      ...(maxTokens ? { max_tokens: maxTokens } : {}),
       ...(tools ? { tools, tool_choice: 'auto' } : {}),
     };
-    const chain = model ? [model] : config.llm.chatModels;
+    // A specific model goes first, the normal chain stays behind it as backup.
+    const chain = model ? [model, ...config.llm.chatModels.filter((m) => m !== model)] : config.llm.chatModels;
 
     let lastError;
     for (const candidate of chain) {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import chatRouter from './chat.js';
+import { chatRouter } from './chat.js';
 import { authRouter } from './auth.js';
 import { publicRouter } from './public.js';
 import { appointmentsRouter } from './appointments.js';
@@ -27,7 +27,7 @@ export function createApiRouter({ rateLimit = true } = {}) {
   router.use('/me', meRouter());
   router.use('/staff', staffRouter(limits));
   router.use('/admin', adminRouter());
-  router.use('/chat', chatRouter);
+  router.use('/chat', chatRouter(limits));
   router.use(publicRouter());
 
   return router;

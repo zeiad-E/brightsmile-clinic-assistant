@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import * as me from '../controllers/meController.js';
+import * as chat from '../controllers/chatController.js';
+import { ConversationListQuery } from '../validators/chat.js';
 import { validate } from '../middlewares/validate.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { ROLES } from '../utils/roles.js';
@@ -18,6 +20,7 @@ export function meRouter() {
   router.get('/appointments/:id', validate({ params: IdParams }), me.appointment);
   router.post('/appointments/:id/cancel', validate({ params: IdParams, body: CancelBody }), me.cancel);
   router.post('/appointments/:id/reschedule', validate({ params: IdParams, body: RescheduleBody }), me.reschedule);
+  router.get('/conversations', validate({ query: ConversationListQuery }), chat.mine);
 
   return router;
 }

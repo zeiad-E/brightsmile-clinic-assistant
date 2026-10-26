@@ -27,7 +27,7 @@ function limiter(windowMs, limit, message) {
 
 export function createRateLimits({ enabled = true } = {}) {
   const off = (_req, _res, next) => next();
-  if (!enabled) return { api: off, auth: off, code: off, booking: off };
+  if (!enabled) return { api: off, auth: off, code: off, booking: off, chat: off };
 
   return {
     // Everything under /api.
@@ -38,5 +38,7 @@ export function createRateLimits({ enabled = true } = {}) {
     code: limiter(FIFTEEN_MINUTES, 5, 'Too many code attempts. Please wait 15 minutes.'),
     // Creating bookings.
     booking: limiter(ONE_HOUR, 20, 'Too many booking attempts. Please try again later.'),
+    // Chat messages: each one costs AI calls on free tiers.
+    chat: limiter(60 * 1000, 20, 'You are sending messages too quickly. Please wait a moment.'),
   };
 }

@@ -4,6 +4,8 @@ import * as patients from '../controllers/staff/staffPatientController.js';
 import * as escalations from '../controllers/staff/escalationController.js';
 import * as timeOff from '../controllers/staff/timeOffController.js';
 import * as stats from '../controllers/staff/statsController.js';
+import * as conversations from '../controllers/staff/conversationController.js';
+import { StaffConversationQuery } from '../validators/chat.js';
 import { validate } from '../middlewares/validate.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { idempotencyKey } from '../middlewares/idempotencyKey.js';
@@ -55,6 +57,10 @@ export function staffRouter(limits) {
 
   router.get('/stats/today', read, stats.today);
   router.get('/stats/upcoming-by-doctor', read, stats.upcomingByDoctor);
+  router.get('/stats/ai-outcomes', read, stats.aiOutcomes);
+
+  router.get('/conversations', read, validate({ query: StaffConversationQuery }), conversations.list);
+  router.get('/conversations/:id', read, id, conversations.get);
 
   return router;
 }

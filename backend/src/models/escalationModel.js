@@ -4,6 +4,17 @@ import { pageRange, unwrap, unwrapPage } from './query.js';
 
 const COLUMNS = 'id, conversation_id, patient_id, reason, urgency, status, resolved_by, resolved_at, created_at, updated_at';
 
+/** Created by the assistant (or by the code when the assistant fails). */
+export function create(db, { conversationId = null, patientId = null, reason, urgency = 'normal' }) {
+  return unwrap(
+    db
+      .from('escalations')
+      .insert({ conversation_id: conversationId, patient_id: patientId, reason, urgency })
+      .select(COLUMNS)
+      .single(),
+  );
+}
+
 export function list(db, { status, limit, offset }) {
   let query = db.from('escalations').select(COLUMNS, { count: 'exact' }).order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);

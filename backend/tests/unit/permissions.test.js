@@ -42,11 +42,14 @@ vi.mock('../../src/services/escalationService.js', () => stubModule(['list', 're
 vi.mock('../../src/services/scheduleService.js', () =>
   stubModule(['listTimeOff', 'createTimeOff', 'updateTimeOff', 'removeTimeOff', 'replaceWorkingHours', 'replaceStaffServices'], LIST),
 );
-vi.mock('../../src/services/reportService.js', () => stubModule(['statsToday', 'upcomingByDoctor', 'auditLog', 'notifications'], LIST));
+vi.mock('../../src/services/reportService.js', () => stubModule(['statsToday', 'upcomingByDoctor', 'aiOutcomes', 'auditLog', 'notifications'], LIST));
 vi.mock('../../src/services/adminService.js', () =>
   stubModule(['listServices', 'createService', 'updateService', 'deactivateService', 'listDoctors', 'createDoctor', 'updateDoctor', 'deactivateDoctor', 'getSettings', 'updateSettings']),
 );
 vi.mock('../../src/services/teamService.js', () => stubModule(['list', 'create', 'setRole', 'setDisabled']));
+vi.mock('../../src/services/chatService.js', () =>
+  stubModule(['sendMessage', 'getConversation', 'listMine', 'listForStaff', 'getForStaff'], LIST),
+);
 
 const { createApp } = await import('../../src/app.js');
 const app = createApp({ rateLimit: false });
@@ -137,6 +140,14 @@ const MATRIX = [
   ['post', `/api/admin/team/${ID}/enable`, null, OWNER],
   ['get', '/api/admin/audit-log', null, ADMIN_READ],
   ['get', '/api/admin/notifications', null, ADMIN_READ],
+
+  // Chat: open to everyone; who may continue a conversation is checked inside the service.
+  ['post', '/api/chat', { message: 'Hello' }, ALL],
+  ['get', `/api/chat/${ID}`, null, ALL],
+  ['get', '/api/me/conversations', null, ['patient']],
+  ['get', '/api/staff/conversations', null, STAFF_READ],
+  ['get', `/api/staff/conversations/${ID}`, null, STAFF_READ],
+  ['get', '/api/staff/stats/ai-outcomes', null, STAFF_READ],
 ];
 
 function send(method, path, body, role, headers = {}) {

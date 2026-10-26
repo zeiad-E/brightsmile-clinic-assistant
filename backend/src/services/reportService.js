@@ -13,6 +13,11 @@ export function upcomingByDoctor({ db }) {
   return statsModel.upcomingByDoctor(db);
 }
 
+/** Last 7 days: how many assistant turns ended as answered / booked / escalated / refused / fallback. */
+export function aiOutcomes({ db }) {
+  return statsModel.aiOutcomes(db);
+}
+
 export async function auditLog({ db }, filters) {
   return listView(await auditModel.list(db, filters), filters);
 }

@@ -1,27 +1,18 @@
 import { Router } from 'express';
-import { runAgentTurn } from '../agent/loop.js';
-import { logger } from '../utils/logger.js';
-
-const router = Router();
+import * as chat from '../controllers/chatController.js';
+import { validate } from '../middlewares/validate.js';
+import { IdParams } from '../validators/common.js';
+import { ChatBody } from '../validators/chat.js';
 
 /**
- * POST /api/chat
- * body: { messages: [{role, content}], context?: { language, patientId, conversationId } }
- * Returns the agent's reply. (Streaming to be added via SSE.)
+ * /api/chat — the patient assistant. Open to visitors and signed-in patients;
+ * a conversation becomes private to a patient once they sign in or book.
  */
-router.post('/', async (req, res) => {
-  const { messages, context } = req.body ?? {};
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ error: 'messages[] is required' });
-  }
+export function chatRouter(limits) {
+  const router = Router();
 
-  try {
-    const result = await runAgentTurn({ messages, context: context ?? {} });
-    res.json(result);
-  } catch (err) {
-    logger.error(`/api/chat failed: ${err.message}`);
-    res.status(500).json({ error: 'agent_error' });
-  }
-});
+  router.post('/', limits.chat, validate({ body: ChatBody }), chat.send);
+  router.get('/:id', validate({ params: IdParams }), chat.history);
 
-export default router;
+  return router;
+}

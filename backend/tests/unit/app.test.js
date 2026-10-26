@@ -35,11 +35,13 @@ describe('app wiring', () => {
     expect(res.body.error).toBe('payload_too_large');
   });
 
-  it('keeps the existing chat validation working', async () => {
-    const res = await request(app).post('/api/chat').send({});
+  it('validates chat messages', async () => {
+    const empty = await request(app).post('/api/chat').send({});
+    const tooLong = await request(app).post('/api/chat').send({ message: 'x'.repeat(1001) });
 
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'messages[] is required' });
+    expect(empty.status).toBe(400);
+    expect(empty.body.details[0].path).toBe('message');
+    expect(tooLong.status).toBe(400);
   });
 
   it('gives every response a request id and security headers', async () => {

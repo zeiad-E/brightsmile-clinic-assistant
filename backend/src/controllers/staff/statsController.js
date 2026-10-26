@@ -10,3 +10,7 @@ export async function today(req, res) {
 export async function upcomingByDoctor(req, res) {
   res.json({ data: await reportService.upcomingByDoctor(ctxOf(req)) });
 }
+
+export async function aiOutcomes(req, res) {
+  res.json({ data: await reportService.aiOutcomes(ctxOf(req)) });
+}

@@ -45,9 +45,6 @@ const EnvSchema = z
     SUPABASE_SERVICE_ROLE_KEY: text(),
     SUPABASE_ANON_KEY: text(),
 
-    N8N_BOOKING_WEBHOOK_URL: text(),
-    N8N_ESCALATION_WEBHOOK_URL: text(),
-
     AGENT_MAX_TOOL_ITERATIONS: positiveInt(5),
     AGENT_TURN_TIMEOUT_MS: positiveInt(30000),
 
@@ -138,11 +135,6 @@ export function loadConfig(rawEnv = process.env) {
       url: env.SUPABASE_URL,
       serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
       anonKey: env.SUPABASE_ANON_KEY,
-    },
-
-    automation: {
-      bookingWebhook: env.N8N_BOOKING_WEBHOOK_URL,
-      escalationWebhook: env.N8N_ESCALATION_WEBHOOK_URL,
     },
 
     agent: {

@@ -65,6 +65,24 @@ export function formatDateTime(instant, language = 'en', timeZone = CLINIC_TIMEZ
   }).format(new Date(instant));
 }
 
+/** "10:30" for an instant, in the clinic's timezone. */
+export function timeInZone(instant, timeZone = CLINIC_TIMEZONE) {
+  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
+    new Date(instant),
+  );
+}
+
+/** "Sunday" for a 'YYYY-MM-DD' day. */
+export function weekdayName(day) {
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${day}T00:00:00Z`));
+}
+
+/** A clinic day + "HH:MM" clock time → the exact moment (ISO, UTC). */
+export function zonedDateTime(day, time, timeZone = CLINIC_TIMEZONE) {
+  const [hours, minutes] = time.split(':').map(Number);
+  return new Date(startOfDayInZone(day, timeZone).getTime() + (hours * 60 + minutes) * 60_000).toISOString();
+}
+
 /** 0 = Sunday … 6 = Saturday, the same numbering as the `working_hours.weekday` column. */
 export function weekdayOf(day) {
   return new Date(`${day}T00:00:00Z`).getUTCDay();
