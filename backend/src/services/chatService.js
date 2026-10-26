@@ -127,8 +127,10 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
   const userTurn = { role: 'user', content: maskedMessage };
 
   // Try, and on failure try once more with another model and a shorter history.
+  // Why each attempt failed is kept in agent_runs, so the owner (and we) can see it.
   let result = null;
   let retries = 0;
+  const failures = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       result = await runAgentTurn({
@@ -140,8 +142,10 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
       });
       if (result.status === 'ok' || result.status === 'ended') break;
       logger.warn(`Agent turn ended with ${result.status} (attempt ${attempt + 1})`);
+      failures.push({ name: '_attempt_failed', ok: false, reason: result.status, tools: result.toolCalls.map((t) => t.name) });
     } catch (err) {
       logger.warn(`Agent turn failed (attempt ${attempt + 1}): ${err.message}`);
+      failures.push({ name: '_attempt_failed', ok: false, reason: String(err.message).slice(0, 300) });
       result = null;
     }
     retries = attempt + 1;
@@ -174,7 +178,8 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
   }
   if (ctx.events.escalated && patch.status !== 'needs_attention') patch.status = 'handed_off';
 
-  return save({ admin, conversationId, ctx, patch, maskedMessage, reply, startedAt, outcome, run: { ...(result ?? {}), retries } });
+  const toolCalls = [...(result?.toolCalls ?? []), ...failures];
+  return save({ admin, conversationId, ctx, patch, maskedMessage, reply, startedAt, outcome, run: { ...(result ?? {}), toolCalls, retries } });
 }
 
 async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, startedAt, outcome, run }) {
