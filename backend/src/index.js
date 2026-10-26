@@ -10,6 +10,6 @@ app.listen(config.port, () => {
   logger.info(`CareDesk backend listening on http://localhost:${config.port}`);
 });
 
-// Background work (summaries, memory clean-up) runs inside the same server.
+// Background work (summaries, reminders, waitlist emails, nightly clean-up) runs inside the same server.
 registerJobHandlers();
 startJobRunner();

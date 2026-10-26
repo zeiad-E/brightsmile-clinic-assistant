@@ -5,7 +5,7 @@ import { formatDateTime } from '../../utils/clinicTime.js';
  * Every value placed into the HTML is escaped, so a patient named "<script>" stays text.
  *
  * Template names match the notifications.template column:
- * booking_confirmed · booking_cancelled · login_code · welcome
+ * booking_confirmed · booking_cancelled · login_code · welcome · appointment_reminder · waitlist_slot_open
  */
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -102,6 +102,63 @@ const TEMPLATES = {
           ];
     return {
       subject: language === 'ar' ? `مرحباً بك في ${data.clinicName}` : `Welcome to ${data.clinicName}`,
+      text: lines.join('\n').replace(/<[^>]+>/g, ''),
+      html: page(language, lines),
+    };
+  },
+
+  // data.changeUntil: the last moment it can be changed online (null once that has passed).
+  appointment_reminder: (data, language) => {
+    const { when, service, doctor } = bookingDetails(data, language);
+    const until = data.changeUntil ? formatDateTime(data.changeUntil, language, data.timeZone) : null;
+    let lines;
+    if (language === 'ar') {
+      lines = [
+        `مرحباً ${escapeHtml(data.patientName)}،`,
+        `نذكّرك بموعدك في ${escapeHtml(data.clinicName)}: ${escapeHtml(service)} مع ${escapeHtml(doctor)}، ${escapeHtml(when)}.`,
+        until
+          ? `لتغيير الموعد أو إلغائه، تحدّث مع مساعدنا على ${escapeHtml(data.appUrl)} حتى ${escapeHtml(until)}.`
+          : 'لتغيير الموعد أو إلغائه، يُرجى الاتصال بالعيادة.',
+      ];
+      if (data.clinicPhone) lines.push(`هاتف العيادة: ${escapeHtml(data.clinicPhone)}`);
+      lines.push('نراك قريباً!');
+    } else {
+      lines = [
+        `Hi ${escapeHtml(data.patientName)},`,
+        `A reminder of your appointment at ${escapeHtml(data.clinicName)}: ${escapeHtml(service)} with ${escapeHtml(doctor)}, ${escapeHtml(when)}.`,
+        until
+          ? `Need to change or cancel? Chat with our assistant at ${escapeHtml(data.appUrl)} until ${escapeHtml(until)}.`
+          : 'Need to change or cancel? Please call the clinic.',
+      ];
+      if (data.clinicPhone) lines.push(`Clinic phone: ${escapeHtml(data.clinicPhone)}`);
+      lines.push('See you soon!');
+    }
+    return {
+      subject: language === 'ar' ? `تذكير بموعدك – ${data.clinicName}` : `Appointment reminder – ${data.clinicName}`,
+      text: lines.join('\n').replace(/<[^>]+>/g, ''),
+      html: page(language, lines),
+    };
+  },
+
+  // data.waitUntil: the last day of the patient's waitlist entry ('YYYY-MM-DD').
+  waitlist_slot_open: (data, language) => {
+    const { when, service, doctor } = bookingDetails(data, language);
+    const lines =
+      language === 'ar'
+        ? [
+            `مرحباً ${escapeHtml(data.patientName)}،`,
+            `خبر سار: أصبح هناك موعد متاح لـ ${escapeHtml(service)} مع ${escapeHtml(doctor)}، ${escapeHtml(when)}.`,
+            `المواعيد لمن يحجز أولاً. احجزه الآن من خلال مساعدنا على ${escapeHtml(data.appUrl)}.`,
+            `أنت على قائمة الانتظار حتى ${escapeHtml(data.waitUntil)}.`,
+          ]
+        : [
+            `Hi ${escapeHtml(data.patientName)},`,
+            `Good news: a time opened up for ${escapeHtml(service)} with ${escapeHtml(doctor)}, ${escapeHtml(when)}.`,
+            `It goes to whoever books first. Book it now with our assistant at ${escapeHtml(data.appUrl)}.`,
+            `You are on the waitlist until ${escapeHtml(data.waitUntil)}.`,
+          ];
+    return {
+      subject: language === 'ar' ? `موعد متاح – ${data.clinicName}` : `A time opened up – ${data.clinicName}`,
       text: lines.join('\n').replace(/<[^>]+>/g, ''),
       html: page(language, lines),
     };

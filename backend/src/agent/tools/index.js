@@ -2,6 +2,7 @@ import { listDoctors, listServices, noteKnowledgeGap, searchKnowledge } from './
 import {
   checkAvailability,
   confirmPendingAction,
+  joinWaitlist,
   myAppointments,
   proposeBooking,
   proposeCancel,
@@ -27,6 +28,7 @@ export const patientTools = [
   proposeCancel,
   proposeReschedule,
   confirmPendingAction,
+  joinWaitlist,
   signInWithPhone,
   signInWithCode,
   sendEmailCode,

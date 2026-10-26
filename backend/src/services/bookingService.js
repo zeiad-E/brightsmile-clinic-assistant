@@ -11,6 +11,7 @@ import * as sessionService from './sessionService.js';
 import { nextFreeSlots } from './availabilityService.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
 import { sendEmailInBackground } from './email/emailService.js';
+import * as waitlistService from './waitlistService.js';
 
 /**
  * Creating bookings — the place where two people can click the same time at once.
@@ -51,7 +52,7 @@ export async function bookingError(code, { db, serviceId, staffId, startsAt }) {
   return new AppError(status, code, message, { alternatives });
 }
 
-/** After a successful booking: login, personal code, confirmation email. Never fails the booking. */
+/** After a successful booking: login, personal code, waitlist, confirmation email. Never fails the booking. */
 async function afterBooking({ result, appointment, sendCode }) {
   const db = requireAdmin();
   const patient = await patientModel.findById(db, result.patient_id);
@@ -64,6 +65,8 @@ async function afterBooking({ result, appointment, sendCode }) {
   } catch (err) {
     logger.warn(`Post-booking account setup failed for patient ${patient.id}: ${err.message}`);
   }
+
+  await waitlistService.closeOnBooking({ patientId: patient.id, serviceId: appointment.service_id });
 
   const brand = await clinicBranding();
   const language = patient.preferred_language;

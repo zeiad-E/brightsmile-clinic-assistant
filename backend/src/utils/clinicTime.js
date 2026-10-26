@@ -87,3 +87,10 @@ export function zonedDateTime(day, time, timeZone = CLINIC_TIMEZONE) {
 export function weekdayOf(day) {
   return new Date(`${day}T00:00:00Z`).getUTCDay();
 }
+
+/** The next moment the clinic clock shows `time` ("HH:MM"), strictly after `now`. */
+export function nextClockTime(time, now = new Date(), timeZone = CLINIC_TIMEZONE) {
+  const today = dayInZone(now, timeZone);
+  const candidate = new Date(zonedDateTime(today, time, timeZone));
+  return candidate > now ? candidate : new Date(zonedDateTime(addDays(today, 1), time, timeZone));
+}

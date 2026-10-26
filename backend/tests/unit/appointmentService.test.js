@@ -16,9 +16,11 @@ vi.mock('../../src/services/catalogService.js', () => ({
   clinicNameIn: () => 'BrightSmile',
 }));
 vi.mock('../../src/services/email/emailService.js', () => ({ sendEmailInBackground: vi.fn() }));
+vi.mock('../../src/services/waitlistService.js', () => ({ announceOpening: vi.fn(async () => {}) }));
 
 const appointmentModel = await import('../../src/models/appointmentModel.js');
 const service = await import('../../src/services/appointmentService.js');
+const waitlistService = await import('../../src/services/waitlistService.js');
 
 const ctx = { user: { id: 'u', patientId: 'p' }, db: { user: true } };
 const row = { id: 'a1', staff_id: 'doc', service_id: 'svc', starts_at: '2026-12-01T08:00:00Z', status: 'booked' };
@@ -61,6 +63,26 @@ describe('cancel / reschedule', () => {
       code: 'slot_taken',
       details: { alternatives: [{ starts_at: 'x' }] },
     });
+    expect(waitlistService.announceOpening).not.toHaveBeenCalled();
+  });
+
+  it('tells the waitlist that a cancelled time is free', async () => {
+    appointmentModel.cancel.mockResolvedValue({ ok: true });
+    appointmentModel.findForNotification.mockResolvedValueOnce({ ...row, patient: null });
+
+    await service.cancel(ctx, 'a1');
+    await vi.waitFor(() => expect(waitlistService.announceOpening).toHaveBeenCalled());
+
+    expect(waitlistService.announceOpening).toHaveBeenCalledWith({ serviceId: 'svc', staffId: 'doc', startsAt: row.starts_at });
+  });
+
+  it('tells the waitlist about the OLD time after a reschedule', async () => {
+    appointmentModel.reschedule.mockResolvedValue({ ok: true });
+    appointmentModel.findById.mockResolvedValueOnce(row).mockResolvedValueOnce({ ...row, starts_at: '2026-12-02T08:00:00Z' });
+
+    await service.reschedule(ctx, 'a1', { starts_at: '2026-12-02T08:00:00Z' });
+
+    expect(waitlistService.announceOpening).toHaveBeenCalledWith({ serviceId: 'svc', staffId: 'doc', startsAt: row.starts_at });
   });
 });
 

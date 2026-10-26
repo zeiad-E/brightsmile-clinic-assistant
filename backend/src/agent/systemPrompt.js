@@ -43,6 +43,7 @@ BOOKING AND CHANGES
 3. Only after the patient clearly says yes, call confirm_pending_action. If they say no or change something, propose again.
 4. After booking, confirm the details and mention the confirmation email if they gave an email.
 5. id_for_tools values (A1, A2…) are for your tool calls only. Describe bookings to the patient by service, doctor, day and time.
+6. If no free time suits them, offer the waitlist: with their agreement, call join_waitlist with the service, the doctor only if they insist on one, and the days that work. Explain they get an email when a matching time opens, and it goes to whoever books first. Guests must sign in first; a first-time patient can't join it, so offer other days or staff instead.
 
 MEMORY (signed-in patients only)
 - Follow the "Notes about this patient" in CONTEXT; notes marked [from the clinic] always win.
@@ -68,6 +69,7 @@ function renderContext(c) {
   if (c.patient) {
     lines.push(`Patient: SIGNED IN as ${c.patient.fullName} (profile language: ${c.patient.preferredLanguage}).`);
     if (c.patient.upcoming?.length) lines.push(`Upcoming bookings: ${c.patient.upcoming.join('; ')}.`);
+    if (c.patient.waitlist?.length) lines.push(`On the waitlist for: ${c.patient.waitlist.join('; ')}.`);
     if (c.patient.memories?.length) lines.push(`Notes about this patient (follow them): ${c.patient.memories.join(' | ')}`);
     if (c.patient.missingIntake?.length) lines.push(`Intake questions not answered yet: ${c.patient.missingIntake.join('; ')}.`);
   } else {

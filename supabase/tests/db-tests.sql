@@ -459,3 +459,80 @@ select test.assert(
   public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.at('16:00', 4),
     'Web Visitor', '1993-03-03', p_email => 'web@example.com', p_source => 'website') ->> 'ok' = 'true',
   'bookings can be marked as made on the website');
+
+-- ---------- reminders, chat retention, recurring jobs (part 2a, step 5) ----------
+insert into public.staff (id, full_name_en, full_name_ar, title) values
+  ('00000000-0000-0000-0000-0000000000b9', 'Dr. Reminder', 'د. تذكير', 'dentist');
+insert into public.patients (id, full_name, date_of_birth, email, phone) values
+  ('00000000-0000-0000-0000-0000000000e1', 'Rana Remind', '1990-01-01', 'rana@example.com', null),
+  ('00000000-0000-0000-0000-0000000000e2', 'Phone Only', '1990-01-01', 'p201000000099@patients.brightsmile.app', '+201000000099'),
+  ('00000000-0000-0000-0000-0000000000e3', 'No Email', '1990-01-01', null, '+201000000098');
+
+-- Bookings made two days ago (except one), at chosen distances from now.
+insert into public.appointments (id, patient_id, staff_id, service_id, starts_at, status, source, created_at) values
+  ('00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000c1', now() + interval '30 hours', 'booked', 'website', now() - interval '2 days'),
+  ('00000000-0000-0000-0000-00000000f002', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000c1', now() + interval '60 hours', 'booked', 'website', now() - interval '2 days'),
+  ('00000000-0000-0000-0000-00000000f003', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000c1', now() + interval '1 hour', 'booked', 'website', now() - interval '2 days'),
+  ('00000000-0000-0000-0000-00000000f004', '00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000c1', now() + interval '31 hours', 'booked', 'website', now() - interval '2 days'),
+  ('00000000-0000-0000-0000-00000000f005', '00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000c1', now() + interval '32 hours', 'booked', 'website', now() - interval '2 days'),
+  ('00000000-0000-0000-0000-00000000f006', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000c1', now() + interval '33 hours', 'booked', 'website', now()),
+  ('00000000-0000-0000-0000-00000000f007', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000c1', now() + interval '34 hours', 'cancelled', 'website', now() - interval '2 days');
+
+select test.assert(public.queue_due_reminders('patients.brightsmile.app') = 1,
+  'reminders: only an active booking 2–48 h away, booked over 12 h ago, with a real email is due');
+select test.assert(
+  (select count(*) from public.jobs where type = 'send_reminder' and payload ->> 'appointment_id' = '00000000-0000-0000-0000-00000000f001') = 1
+  and (select reminder_sent_at is not null from public.appointments where id = '00000000-0000-0000-0000-00000000f001'),
+  'reminders: the due booking is marked and gets one send_reminder job');
+select test.assert(public.queue_due_reminders('patients.brightsmile.app') = 0,
+  'reminders: a second sweep never queues the same reminder again');
+select test.assert(
+  not exists (select 1 from public.audit_log where entity_id = '00000000-0000-0000-0000-00000000f001' and action = 'appointments.update'),
+  'reminders: marking a reminder is not written to the audit log');
+
+update public.appointments set starts_at = starts_at + interval '1 hour' where id = '00000000-0000-0000-0000-00000000f001';
+select test.assert(
+  (select reminder_sent_at is null from public.appointments where id = '00000000-0000-0000-0000-00000000f001'),
+  'reminders: moving a booking clears its reminder mark');
+select test.assert(public.queue_due_reminders('patients.brightsmile.app') = 1,
+  'reminders: a moved booking gets a reminder for its new time');
+
+do $$
+begin
+  set local role authenticated;
+  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+  perform public.queue_due_reminders('x');
+  raise exception 'FAIL: a logged-in user could run the reminder sweep';
+exception when insufficient_privilege then
+  raise notice 'PASS: only the backend can run the reminder sweep';
+end;
+$$;
+
+-- Retention (default 90 days).
+insert into public.conversations (id, assistant, last_message_at) values
+  ('00000000-0000-0000-0000-00000000d001', 'patient', now() - interval '100 days'),
+  ('00000000-0000-0000-0000-00000000d002', 'patient', now() - interval '100 days'),
+  ('00000000-0000-0000-0000-00000000d003', 'patient', now() - interval '5 days');
+insert into public.escalations (conversation_id, reason) values ('00000000-0000-0000-0000-00000000d002', 'Waiting for staff');
+
+select test.assert(public.purge_expired_conversations() = 1, 'retention: one chat is past the retention period');
+select test.assert(
+  not exists (select 1 from public.conversations where id = '00000000-0000-0000-0000-00000000d001')
+  and exists (select 1 from public.conversations where id = '00000000-0000-0000-0000-00000000d002')
+  and exists (select 1 from public.conversations where id = '00000000-0000-0000-0000-00000000d003'),
+  'retention: old chats are deleted, but not recent ones or ones with an open escalation');
+
+-- Recurring jobs: one waiting copy per type.
+insert into public.jobs (type, payload) values ('nightly_cleanup', '{"recurring": true}');
+do $$
+begin
+  insert into public.jobs (type, payload) values ('nightly_cleanup', '{"recurring": true}');
+  raise exception 'FAIL: a second waiting copy of a recurring job was accepted';
+exception when unique_violation then
+  raise notice 'PASS: a recurring job has at most one waiting copy';
+end;
+$$;
+update public.jobs set status = 'done' where type = 'nightly_cleanup';
+insert into public.jobs (type, payload) values ('nightly_cleanup', '{"recurring": true}');
+select test.assert((select count(*) from public.jobs where type = 'nightly_cleanup') = 2,
+  'recurring jobs: the next run can be queued once the previous one finished');

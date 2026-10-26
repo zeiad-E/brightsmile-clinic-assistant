@@ -3,6 +3,7 @@ import * as memoryModel from '../models/memoryModel.js';
 import * as appointmentService from '../services/appointmentService.js';
 import * as catalogService from '../services/catalogService.js';
 import * as intakeService from '../services/intakeService.js';
+import * as waitlistService from '../services/waitlistService.js';
 import { dayInZone, timeInZone, weekdayName } from '../utils/clinicTime.js';
 import { logger } from '../utils/logger.js';
 
@@ -37,13 +38,14 @@ export async function buildContext({ conversation, state, user, db, settings, la
 
   let patient = null;
   if (user?.role === 'patient' && user.patientId) {
-    const [memories, upcoming, missingIntake] = await Promise.all([
+    const [memories, upcoming, missingIntake, waitlist] = await Promise.all([
       memoryModel.listForPatient(requireAdmin(), user.patientId).catch((err) => {
         logger.warn(`Memories not loaded: ${err.message}`);
         return [];
       }),
       appointmentService.listMine({ user, db }, { scope: 'upcoming', limit: 3, offset: 0 }).catch(() => ({ data: [] })),
       intakeService.missingFor(user.patientId).catch(() => []),
+      waitlistService.listForPatient(user.patientId).catch(() => []),
     ]);
     patient = {
       fullName: user.fullName,
@@ -53,6 +55,7 @@ export async function buildContext({ conversation, state, user, db, settings, la
       missingIntake: missingIntake.map((f) =>
         f.kind === 'choice' ? `${f.key} ("${f.label_en}"; options: ${f.options.map((o) => o.label_en).join(' / ')})` : `${f.key} ("${f.label_en}")`,
       ),
+      waitlist: waitlist.map(waitlistService.describeWish),
       upcoming: upcoming.data.map((a) => {
         const day = dayInZone(new Date(a.starts_at), timeZone);
         return `${a.service.name_en} with ${a.doctor.full_name_en} on ${weekdayName(day)} ${day} ${timeInZone(a.starts_at, timeZone)}`;

@@ -35,8 +35,8 @@ export async function getDoctor(db, id) {
   return doctorView(doctor);
 }
 
-// Clinic name + timezone are needed by every email; cache them briefly instead of
-// reading the settings row for each one.
+// Clinic name, timezone, phone and change window are needed by every email; cache them
+// briefly instead of reading the settings row for each one.
 let branding = null;
 let brandingAt = 0;
 const BRANDING_TTL_MS = 5 * 60 * 1000;
@@ -44,7 +44,13 @@ const BRANDING_TTL_MS = 5 * 60 * 1000;
 export async function clinicBranding() {
   if (!branding || Date.now() - brandingAt > BRANDING_TTL_MS) {
     const settings = await clinicModel.getSettings(requireAdmin());
-    branding = { nameEn: settings.name_en, nameAr: settings.name_ar, timeZone: settings.timezone };
+    branding = {
+      nameEn: settings.name_en,
+      nameAr: settings.name_ar,
+      timeZone: settings.timezone,
+      phone: settings.phone,
+      cancellationWindowHours: settings.cancellation_window_hours,
+    };
     brandingAt = Date.now();
   }
   return branding;

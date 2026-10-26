@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const saved = { intake: {} };
-const jobs = { queue: [], done: [], failed: [] };
+const jobs = { queue: [], done: [], failed: [], scheduled: [], released: 0 };
 
 vi.mock('../../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), supabaseAdmin: {} }));
 vi.mock('../../../src/models/intakeModel.js', () => ({
@@ -28,16 +28,22 @@ vi.mock('../../../src/models/jobModel.js', () => ({
   claim: vi.fn(async () => jobs.queue.splice(0)),
   complete: vi.fn(async (_db, id) => jobs.done.push(id)),
   fail: vi.fn(async (_db, job, error) => jobs.failed.push({ id: job.id, error })),
+  ensureRecurring: vi.fn(async (_db, job) => jobs.scheduled.push(job)),
+  releaseStale: vi.fn(async () => {
+    jobs.released += 1;
+  }),
 }));
 
 const intake = await import('../../../src/services/intakeService.js');
-const { registerJob, processDueJobs } = await import('../../../src/services/jobs/jobRunner.js');
+const { registerJob, registerRecurringJob, processDueJobs, maintainJobs } = await import('../../../src/services/jobs/jobRunner.js');
 
 beforeEach(() => {
   saved.intake = {};
   jobs.queue.length = 0;
   jobs.done.length = 0;
   jobs.failed.length = 0;
+  jobs.scheduled.length = 0;
+  jobs.released = 0;
 });
 
 describe('intake answers', () => {
@@ -75,5 +81,28 @@ describe('background job runner', () => {
     expect(jobs.done).toEqual([1]);
     expect(jobs.failed.map((f) => f.id)).toEqual([2, 3]);
     expect(jobs.failed[0].error).toBe('LLM down');
+  });
+
+  it('queues the next run of a recurring job after each run, even a failed one', async () => {
+    const next = new Date('2026-11-10T01:00:00Z');
+    registerRecurringJob('sweep_ok', async () => {}, () => next);
+    registerRecurringJob('sweep_bad', async () => {
+      throw new Error('DB hiccup');
+    }, async () => next);
+    jobs.queue.push({ id: 4, type: 'sweep_ok', payload: { recurring: true } }, { id: 5, type: 'sweep_bad', payload: { recurring: true } }, { id: 6, type: 'ok_job', payload: {} });
+
+    await processDueJobs({});
+
+    expect(jobs.scheduled).toEqual([
+      { type: 'sweep_ok', runAt: next },
+      { type: 'sweep_bad', runAt: next },
+    ]);
+  });
+
+  it('hourly upkeep frees stuck jobs and makes sure every recurring job is scheduled', async () => {
+    await maintainJobs({});
+
+    expect(jobs.released).toBe(1);
+    expect(jobs.scheduled.map((j) => j.type)).toEqual(expect.arrayContaining(['sweep_ok', 'sweep_bad']));
   });
 });

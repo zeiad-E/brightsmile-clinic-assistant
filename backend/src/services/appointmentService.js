@@ -6,6 +6,7 @@ import { listView } from '../views/listView.js';
 import { bookingError } from './bookingService.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
 import { sendEmailInBackground } from './email/emailService.js';
+import * as waitlistService from './waitlistService.js';
 
 /**
  * Viewing, cancelling, moving and closing bookings.
@@ -29,9 +30,16 @@ function changeError(result) {
   return new AppError(status, result.error, message, details);
 }
 
-async function emailCancellation(appointmentId) {
+/** After a cancellation: tell the waitlist the time is free, and email the patient. */
+async function afterCancel(appointmentId) {
   const appointment = await appointmentModel.findForNotification(requireAdmin(), appointmentId);
-  if (!appointment?.patient?.email) return;
+  if (!appointment) return;
+  await waitlistService.announceOpening({
+    serviceId: appointment.service_id,
+    staffId: appointment.staff_id,
+    startsAt: appointment.starts_at,
+  });
+  if (!appointment.patient?.email) return;
   const brand = await clinicBranding();
   const language = appointment.patient.preferred_language;
   sendEmailInBackground({
@@ -70,13 +78,19 @@ export async function getMine({ db }, id) {
 export async function cancel({ db }, id, reason) {
   const result = await appointmentModel.cancel(db, { id, reason });
   if (!result.ok) throw changeError(result);
-  emailCancellation(id).catch(() => {});
+  afterCancel(id).catch(() => {});
   return appointmentView(await appointmentModel.findById(db, id));
 }
 
 export async function reschedule({ db }, id, { starts_at: startsAt, staff_id: staffId }) {
+  const before = await appointmentModel.findById(db, id); // the old time opens up for the waitlist
   const result = await appointmentModel.reschedule(db, { id, startsAt, staffId: staffId ?? null });
-  if (result.ok) return appointmentView(await appointmentModel.findById(db, id));
+  if (result.ok) {
+    if (before) {
+      waitlistService.announceOpening({ serviceId: before.service_id, staffId: before.staff_id, startsAt: before.starts_at });
+    }
+    return appointmentView(await appointmentModel.findById(db, id));
+  }
 
   if (['slot_taken', 'slot_unavailable', 'patient_has_overlap'].includes(result.error)) {
     const current = await appointmentModel.findById(db, id);

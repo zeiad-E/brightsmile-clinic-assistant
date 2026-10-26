@@ -9,6 +9,7 @@ import * as availabilityService from '../../services/availabilityService.js';
 import * as bookingService from '../../services/bookingService.js';
 import * as appointmentService from '../../services/appointmentService.js';
 import * as memoryService from '../../services/memoryService.js';
+import * as waitlistService from '../../services/waitlistService.js';
 import { AppError } from '../../utils/AppError.js';
 import { addDays, dayInZone, isValidDay, timeInZone, weekdayName, zonedDateTime } from '../../utils/clinicTime.js';
 import { bestMatch } from '../../utils/text.js';
@@ -16,7 +17,7 @@ import { DateOfBirth, Email, Phone } from '../../validators/common.js';
 import { defineTool, toolError } from './define.js';
 
 /**
- * Free times, booking, cancelling, rescheduling.
+ * Free times, booking, cancelling, rescheduling, the waitlist.
  *
  * Every change is two steps — the confirmation gate:
  *   1. propose_* checks everything and stores the action as "pending" (nothing changes yet);
@@ -337,5 +338,52 @@ export const confirmPendingAction = defineTool({
       const alternatives = err.details?.alternatives?.map((s) => ({ date: dayInZone(new Date(s.starts_at), ctx.timeZone), time: timeInZone(s.starts_at) }));
       return toolError(err.code, err.message, alternatives ? { alternatives } : {});
     }
+  },
+});
+
+/**
+ * No free time suits the patient: they wait for a cancellation. Not a booking and nothing is
+ * held — the email goes out when a time opens and whoever books first gets it.
+ */
+export const joinWaitlist = defineTool({
+  name: 'join_waitlist',
+  description:
+    'Put the signed-in patient on the waitlist when none of the free times suit them and they agree. If a matching time opens (someone cancels), they get an email; it is not a booking and goes to whoever books first. Give the service, a doctor only if they want that doctor, and the days that work for them.',
+  schema: z.object({
+    service: z.string().min(2).max(80),
+    doctor: z.string().max(80).optional().describe('Only if the patient wants this doctor; leave out for any doctor.'),
+    from: Day.describe('First day that works for them (YYYY-MM-DD).'),
+    to: Day.describe(`Last day that works for them (YYYY-MM-DD), at most ${waitlistService.WAITLIST_LIMITS.maxRangeDays} days after the first.`),
+  }),
+  signedIn: true,
+  run: async ({ service, doctor, from, to }, ctx) => {
+    if (!isValidDay(from) || !isValidDay(to)) return toolError('invalid_dates', 'Use dates as YYYY-MM-DD.');
+    const today = dayInZone(new Date(), ctx.timeZone);
+    const start = from < today ? today : from;
+    if (to < start) return toolError('invalid_dates', 'The last day must be today or later, and not before the first day.');
+    const { maxRangeDays } = waitlistService.WAITLIST_LIMITS;
+    if (to > addDays(start, maxRangeDays)) return toolError('range_too_long', `Ask the patient for a range of at most ${maxRangeDays} days.`);
+
+    const { match: svc } = await resolveService(ctx, service);
+    if (!svc) return toolError('service_not_found', `No service matches "${service}".`);
+    let staffId = null;
+    if (doctor) {
+      const { match: doc } = await resolveDoctor(ctx, doctor, svc.id);
+      if (!doc) return toolError('doctor_not_found', `No doctor offering ${svc.name_en} matches "${doctor}".`);
+      staffId = doc.id;
+    }
+
+    const patient = await patientModel.findById(requireAdmin(), ctx.user.patientId);
+    const result = await waitlistService.join({ patient, serviceId: svc.id, staffId, dateFrom: start, dateTo: to, conversationId: ctx.conversation.id });
+    if (result.error) {
+      const next = result.error === 'no_email' ? 'Explain the waitlist works by email; offer to check other days or to hand over to staff.' : undefined;
+      return toolError(result.error, result.message, { ...(result.entry && { waiting: waitlistService.describeWish(result.entry) }), ...(next && { next }) });
+    }
+    ctx.events.changed = true;
+    return {
+      added: true,
+      waiting: waitlistService.describeWish(result.entry),
+      next: 'Tell the patient they will get an email if a matching time opens. It goes to whoever books first, so they should book soon after the email.',
+    };
   },
 });

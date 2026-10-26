@@ -23,6 +23,7 @@ vi.mock('../../src/services/catalogService.js', () => ({
   clinicNameIn: (brand, lang) => (lang === 'ar' ? brand.nameAr : brand.nameEn),
 }));
 vi.mock('../../src/services/email/emailService.js', () => ({ sendEmailInBackground: vi.fn() }));
+vi.mock('../../src/services/waitlistService.js', () => ({ closeOnBooking: vi.fn(async () => {}) }));
 
 const appointmentModel = await import('../../src/models/appointmentModel.js');
 const patientModel = await import('../../src/models/patientModel.js');
@@ -30,6 +31,7 @@ const accountService = await import('../../src/services/accountService.js');
 const personalCodeService = await import('../../src/services/personalCodeService.js');
 const sessionService = await import('../../src/services/sessionService.js');
 const emailService = await import('../../src/services/email/emailService.js');
+const waitlistService = await import('../../src/services/waitlistService.js');
 const { bookAsVisitor, bookAsStaff } = await import('../../src/services/bookingService.js');
 
 const KEY = '11111111-2222-4333-8444-555555555555';
@@ -186,5 +188,14 @@ describe('bookAsStaff', () => {
       { actorId: 'staff-1', via: 'dashboard' },
       expect.objectContaining({ source: 'dashboard', createdBy: 'staff-1' }),
     );
+  });
+
+  it('takes the patient off the waitlist for the service they just booked', async () => {
+    appointmentModel.book.mockResolvedValue(ok());
+    appointmentModel.findById.mockResolvedValue({ ...appointmentRow, service_id: 'svc' });
+
+    await bookAsStaff({ user: { id: 'staff-1', role: 'staff' } }, guestInput, KEY);
+
+    expect(waitlistService.closeOnBooking).toHaveBeenCalledWith({ patientId: 'pat-1', serviceId: 'svc' });
   });
 });

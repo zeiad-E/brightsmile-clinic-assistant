@@ -56,3 +56,23 @@ export function releaseStale(db, olderThanMinutes = 10) {
   const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
   return unwrap(db.from('jobs').update({ status: 'queued', locked_at: null }).eq('status', 'running').lt('locked_at', cutoff));
 }
+
+/**
+ * Makes sure one copy of a recurring job (reminder sweep, nightly clean-up) is waiting.
+ * A unique index allows only one queued/running copy per type, so "already there" is the
+ * normal answer and not an error.
+ */
+export async function ensureRecurring(db, { type, runAt }) {
+  const { error } = await db.from('jobs').insert({ type, payload: { recurring: true }, run_at: runAt.toISOString() });
+  if (error && error.code !== '23505') throw error;
+}
+
+/** Old finished jobs are only clutter: done after a week, failed after a month. */
+export async function deleteFinished(db, { now = new Date() } = {}) {
+  const days = (n) => new Date(now.getTime() - n * 86_400_000).toISOString();
+  const [done, failed] = await Promise.all([
+    unwrap(db.from('jobs').delete().eq('status', 'done').lt('updated_at', days(7)).select('id')),
+    unwrap(db.from('jobs').delete().eq('status', 'failed').lt('updated_at', days(30)).select('id')),
+  ]);
+  return done.length + failed.length;
+}
