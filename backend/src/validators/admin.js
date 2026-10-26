@@ -106,6 +106,42 @@ export const IntakeFieldPatch = notEmpty(z.object(IntakeFields).partial()).refin
   path: ['options'],
 });
 
+// ----- knowledge base (owner) -----
+const Category = z.enum(['services', 'pricing', 'hours', 'insurance', 'policies', 'prep', 'location', 'faq', 'other']);
+const KnowledgeFields = {
+  group_key: Slug.max(60),
+  language: Language,
+  category: Category,
+  title: Text(160),
+  // (Longer documents: upload them as a file. This keeps typed text within the 100 KB JSON limit, even in Arabic.)
+  content: z.string().trim().min(20, 'Write at least a sentence or two.').max(40_000),
+  is_published: z.boolean().optional(),
+};
+
+export const KnowledgeQuery = Pagination.extend({
+  language: Language.optional(),
+  category: Category.optional(),
+  status: z.enum(['pending', 'processing', 'ready', 'failed']).optional(),
+  q: z.string().trim().max(100).optional(),
+});
+export const KnowledgeBody = z.object(KnowledgeFields);
+export const KnowledgePatch = notEmpty(z.object(KnowledgeFields).partial());
+
+// Multipart form fields arrive as text, so "true"/"false" are converted here.
+export const KnowledgeUploadFields = z.object({
+  group_key: Slug.max(60),
+  language: Language,
+  category: Category,
+  title: z.string().trim().max(160).optional(),
+  is_published: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+});
+
+export const GapQuery = Pagination.extend({
+  status: z.enum(['open', 'resolved', 'ignored']).default('open'),
+  language: Language.optional(),
+});
+export const GapPatch = z.object({ status: z.enum(['open', 'resolved', 'ignored']) });
+
 export const NotificationQuery = Pagination.extend({
   status: z.enum(['queued', 'sent', 'failed']).optional(),
   template: z.enum(['booking_confirmed', 'login_code', 'booking_cancelled', 'welcome']).optional(),

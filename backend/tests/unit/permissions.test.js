@@ -50,6 +50,9 @@ vi.mock('../../src/services/teamService.js', () => stubModule(['list', 'create',
 vi.mock('../../src/services/memoryService.js', () =>
   stubModule(['listForOwner', 'createByOwner', 'updateByOwner', 'removeByOwner', 'forgetPatient', 'scheduleSummaries'], LIST),
 );
+vi.mock('../../src/services/knowledge/knowledgeService.js', () =>
+  stubModule(['list', 'get', 'create', 'update', 'remove', 'reingest', 'upload', 'listGaps', 'setGapStatus', 'ingestJob'], LIST),
+);
 vi.mock('../../src/services/intakeService.js', () => stubModule(['listFields', 'createField', 'updateField', 'removeField', 'missingFor', 'saveAnswers'], LIST));
 vi.mock('../../src/services/chatService.js', () =>
   stubModule(['sendMessage', 'getConversation', 'listMine', 'listForStaff', 'getForStaff'], LIST),
@@ -164,11 +167,29 @@ const MATRIX = [
   ['delete', `/api/admin/intake-fields/${ID}`, null, OWNER],
   ['delete', '/api/me/memory', null, ['patient']],
   ['get', '/api/admin/agent/status', null, ADMIN_READ],
+
+  // Knowledge base and unanswered questions.
+  ['get', '/api/admin/knowledge', null, ADMIN_READ],
+  ['post', '/api/admin/knowledge', { group_key: 'parking', language: 'en', category: 'location', title: 'Parking', content: 'Free parking behind the clinic.' }, OWNER],
+  ['post', '/api/admin/knowledge/upload', { multipart: true }, OWNER],
+  ['get', `/api/admin/knowledge/${ID}`, null, ADMIN_READ],
+  ['patch', `/api/admin/knowledge/${ID}`, { is_published: false }, OWNER],
+  ['delete', `/api/admin/knowledge/${ID}`, null, OWNER],
+  ['post', `/api/admin/knowledge/${ID}/reingest`, null, OWNER],
+  ['get', '/api/admin/knowledge-gaps', null, ADMIN_READ],
+  ['patch', `/api/admin/knowledge-gaps/${ID}`, { status: 'resolved' }, OWNER],
 ];
 
 function send(method, path, body, role, headers = {}) {
   let req = request(app)[method](path).set(headers);
   if (role !== 'anon') req = req.set('authorization', `Bearer ${tokenFor(role)}`);
+  if (body?.multipart) {
+    return req
+      .field('group_key', 'parking')
+      .field('language', 'en')
+      .field('category', 'location')
+      .attach('file', Buffer.from('Free parking behind the clinic.'), 'parking.txt');
+  }
   return body ? req.send(body) : req;
 }
 

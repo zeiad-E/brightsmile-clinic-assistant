@@ -8,6 +8,8 @@ import * as notifications from '../controllers/admin/notificationController.js';
 import * as memories from '../controllers/admin/agentMemoryController.js';
 import * as intake from '../controllers/admin/intakeController.js';
 import * as agentStatus from '../controllers/admin/agentStatusController.js';
+import * as knowledge from '../controllers/admin/knowledgeController.js';
+import { fileUpload } from '../middlewares/fileUpload.js';
 import { validate } from '../middlewares/validate.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { ROLES } from '../utils/roles.js';
@@ -16,8 +18,14 @@ import {
   AuditQuery,
   DoctorBody,
   DoctorPatch,
+  GapPatch,
+  GapQuery,
   IntakeFieldBody,
   IntakeFieldPatch,
+  KnowledgeBody,
+  KnowledgePatch,
+  KnowledgeQuery,
+  KnowledgeUploadFields,
   MemoryBody,
   MemoryPatch,
   MemoryQuery,
@@ -66,6 +74,18 @@ export function adminRouter() {
   router.get('/notifications', read, validate({ query: NotificationQuery }), notifications.list);
 
   router.get('/agent/status', read, agentStatus.status);
+
+  // Knowledge base: the upload route is declared before '/:id' so "upload" isn't read as an id.
+  router.get('/knowledge', read, validate({ query: KnowledgeQuery }), knowledge.list);
+  router.post('/knowledge', write, validate({ body: KnowledgeBody }), knowledge.create);
+  router.post('/knowledge/upload', write, fileUpload(), validate({ body: KnowledgeUploadFields }), knowledge.upload);
+  router.get('/knowledge/:id', read, id, knowledge.get);
+  router.patch('/knowledge/:id', write, validate({ params: IdParams, body: KnowledgePatch }), knowledge.update);
+  router.delete('/knowledge/:id', write, id, knowledge.remove);
+  router.post('/knowledge/:id/reingest', write, id, knowledge.reingest);
+
+  router.get('/knowledge-gaps', read, validate({ query: GapQuery }), knowledge.gaps);
+  router.patch('/knowledge-gaps/:id', write, validate({ params: IdParams, body: GapPatch }), knowledge.setGapStatus);
 
   // The agent's memory notes: owner only (not even the viewer).
   router.get('/agent/memories', write, validate({ query: MemoryQuery }), memories.list);

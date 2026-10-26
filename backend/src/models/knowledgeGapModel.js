@@ -1,5 +1,21 @@
 import { normalizeText } from '../utils/text.js';
-import { unwrap } from './query.js';
+import { pageRange, unwrap, unwrapPage } from './query.js';
+
+/** Owner/viewer report: most-asked unanswered questions first. */
+export function list(db, { status, language, limit, offset }) {
+  let query = db
+    .from('knowledge_gaps')
+    .select('id, question, language, count, status, first_seen_at, last_seen_at, last_conversation_id', { count: 'exact' })
+    .order('count', { ascending: false })
+    .order('last_seen_at', { ascending: false });
+  if (status) query = query.eq('status', status);
+  if (language) query = query.eq('language', language);
+  return unwrapPage(query.range(...pageRange({ limit, offset })));
+}
+
+export function setStatus(db, id, status) {
+  return unwrap(db.from('knowledge_gaps').update({ status }).eq('id', id).select('id, question, status').maybeSingle());
+}
 
 /**
  * Questions the assistant couldn't answer from the knowledge base. The same question asked

@@ -41,6 +41,12 @@ function toResponse(err) {
     return { status: 413, body: { error: 'payload_too_large', message: 'The request body is too large.' } };
   }
 
+  // File uploads (multer).
+  if (err?.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') return { status: 413, body: { error: 'file_too_large', message: 'Files can be up to 10 MB.' } };
+    return { status: 400, body: { error: 'invalid_upload', message: 'Send one file in the "file" field.' } };
+  }
+
   const known = DB_ERRORS[err?.code];
   if (known) {
     const [status, code, message] = known;
