@@ -19,8 +19,9 @@ import { errorHandler } from './middlewares/errorHandler.js';
 export function createApp({ rateLimit = true } = {}) {
   const app = express();
   app.disable('x-powered-by');
-  // Render puts one proxy in front of us; trust it so `req.ip` is the real client IP.
-  app.set('trust proxy', 1);
+  // Requests reach us through Cloudflare and Render's load balancer. Trusting exactly those hops
+  // makes `req.ip` the visitor's real address (counted from the right, so it can't be faked).
+  app.set('trust proxy', config.trustProxyHops);
 
   // Must run before body parsing: it proxies raw requests to the LLM engine dashboard.
   // It also runs before helmet, so helmet's strict headers don't break that dashboard.

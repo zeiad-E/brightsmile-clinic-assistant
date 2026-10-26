@@ -22,6 +22,9 @@ const EnvSchema = z
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     CORS_ORIGIN: text('http://localhost:3000'),
+    // Proxies between the visitor and us. On Render: Cloudflare → Render load balancer → app = 3.
+    // Getting this right is what makes per-visitor rate limits and cooldowns work.
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(3),
 
     LLM_ENGINE_BASE_URL: text('http://localhost:3001/v1'),
     LLM_ENGINE_API_KEY: text(),
@@ -118,6 +121,7 @@ export function loadConfig(rawEnv = process.env) {
     port: env.PORT,
     nodeEnv: env.NODE_ENV,
     corsOrigin: env.CORS_ORIGIN,
+    trustProxyHops: env.TRUST_PROXY_HOPS,
 
     llm: {
       engineBaseUrl: env.LLM_ENGINE_BASE_URL,

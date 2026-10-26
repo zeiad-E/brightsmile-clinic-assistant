@@ -52,6 +52,23 @@ describe('app wiring', () => {
     expect(res.headers['x-powered-by']).toBeUndefined();
   });
 
+  it('sees the real visitor address behind Cloudflare and Render, and it cannot be faked', async () => {
+    // Same proxy setting as the app, on a tiny app with a route that echoes req.ip.
+    const express = (await import('express')).default;
+    const { config } = await import('../../src/config/index.js');
+    const echo = express();
+    echo.set('trust proxy', config.trustProxyHops);
+    echo.get('/ip', (req, res) => res.json({ ip: req.ip }));
+
+    // What Render delivers: visitor, Cloudflare, Render load balancer (+ the socket itself).
+    const real = await request(echo).get('/ip').set('x-forwarded-for', '41.43.1.2, 172.70.3.4, 10.25.5.6');
+    // A visitor who adds a fake address in front gets nowhere: counting starts from the right.
+    const spoofed = await request(echo).get('/ip').set('x-forwarded-for', '6.6.6.6, 41.43.1.2, 172.70.3.4, 10.25.5.6');
+
+    expect(real.body.ip).toBe('41.43.1.2');
+    expect(spoofed.body.ip).toBe('41.43.1.2');
+  });
+
   it('reuses a sane incoming request id but not a malicious one', async () => {
     const ok = await request(app).get('/health').set('x-request-id', 'trace-12345678');
     const bad = await request(app).get('/health').set('x-request-id', '<script>alert(1)</script>');
