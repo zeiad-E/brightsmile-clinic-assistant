@@ -28,6 +28,21 @@ export const searchKnowledge = defineTool({
   },
 });
 
+/**
+ * The assistant notes a clinic question it couldn't answer from its sources. The owner sees
+ * these (most asked first) and adds the missing information to the knowledge base.
+ */
+export const noteKnowledgeGap = defineTool({
+  name: 'note_knowledge_gap',
+  description:
+    'Call when the patient asked a CLINIC question (services, prices, policies, facilities…) that your tools could not answer. Records it for the clinic owner to add to the knowledge base. Not for off-topic or medical questions.',
+  schema: z.object({ question: z.string().min(5).max(300).describe('The question, in the patient’s words (no personal details).') }),
+  run: async ({ question }, ctx) => {
+    await knowledgeGapModel.record(requireAdmin(), { question, language: ctx.language, conversationId: ctx.conversation.id });
+    return { noted: true, next: 'Tell the patient you do not have that information yet and offer to connect them with staff.' };
+  },
+});
+
 export const listServices = defineTool({
   name: 'list_services',
   description: 'List the treatments the clinic offers with their duration and price in EGP. Prices must come from here.',

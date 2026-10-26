@@ -106,7 +106,7 @@ describe('capacity guards in a chat turn', () => {
     await chatService.sendMessage(visitor, { message: 'Can I book?' });
 
     const names = [...runAgentTurn.mock.calls[0][0].tools.keys()];
-    expect(names).toEqual(['search_knowledge', 'list_services', 'list_doctors', 'escalate_to_human', 'decline_request']);
+    expect(names).toEqual(['search_knowledge', 'note_knowledge_gap', 'list_services', 'list_doctors', 'escalate_to_human', 'decline_request']);
   });
 
   it('answers 503 "busy" when the waiting line is full', async () => {

@@ -1,4 +1,4 @@
-import { listDoctors, listServices, searchKnowledge } from './catalogTools.js';
+import { listDoctors, listServices, noteKnowledgeGap, searchKnowledge } from './catalogTools.js';
 import {
   checkAvailability,
   confirmPendingAction,
@@ -18,6 +18,7 @@ import { toOpenAiDefinition } from './define.js';
  */
 export const patientTools = [
   searchKnowledge,
+  noteKnowledgeGap,
   listServices,
   listDoctors,
   checkAvailability,
@@ -45,6 +46,6 @@ export const toolDefinitions = patientTools.map(toOpenAiDefinition);
  * Safe mode (the clinic is close to its daily AI budget): answer from the knowledge base and
  * catalog, hand over to staff, decline off-topic — but no booking, sign-in or memory work.
  */
-const safeModeTools = [searchKnowledge, listServices, listDoctors, escalateToHuman, declineRequest];
+const safeModeTools = [searchKnowledge, noteKnowledgeGap, listServices, listDoctors, escalateToHuman, declineRequest];
 export const safeModeToolsByName = new Map(safeModeTools.map((tool) => [tool.name, tool]));
 export const safeModeDefinitions = safeModeTools.map(toOpenAiDefinition);
