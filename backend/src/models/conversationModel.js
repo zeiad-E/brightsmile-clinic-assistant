@@ -35,6 +35,36 @@ export function listMine(db, { limit, offset }) {
   );
 }
 
+/** Past conversations most similar to a question (one patient only; vector search on summaries). */
+export async function matchSummaries(db, { patientId, embedding, limit = 2 }) {
+  return (
+    (await unwrap(
+      db.rpc('match_conversation_summaries', {
+        p_patient_id: patientId,
+        query_embedding: JSON.stringify(embedding),
+        match_count: limit + 1,
+      }),
+    )) ?? []
+  );
+}
+
+/** For "forget me": the patient's conversations that may be deleted (none with an open escalation). */
+export async function deletableForPatient(db, patientId) {
+  const [conversations, escalations] = await Promise.all([
+    unwrap(db.from('conversations').select('id').eq('patient_id', patientId)),
+    unwrap(db.from('escalations').select('conversation_id').eq('patient_id', patientId).eq('status', 'open')),
+  ]);
+  const keep = new Set(escalations.map((e) => e.conversation_id));
+  return conversations.map((c) => c.id).filter((id) => !keep.has(id));
+}
+
+export async function removeMany(db, ids) {
+  if (!ids.length) return 0;
+  // Messages go with their conversation; agent_runs stay (no personal data) for the owner's stats.
+  const rows = await unwrap(db.from('conversations').delete().in('id', ids).select('id'));
+  return rows.length;
+}
+
 /** Staff/owner list, newest activity first, optionally by status. */
 export function listForStaff(db, { status, patientId, limit, offset }) {
   let query = db

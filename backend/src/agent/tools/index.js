@@ -9,6 +9,7 @@ import {
 } from './bookingTools.js';
 import { sendEmailCode, signInWithCode, signInWithPhone, verifyEmailCode } from './accountTools.js';
 import { declineRequest, escalateToHuman } from './supportTools.js';
+import { proposeForgetMe, recallPastConversations, remember, updateIntake } from './memoryTools.js';
 import { toOpenAiDefinition } from './define.js';
 
 /**
@@ -29,6 +30,10 @@ export const patientTools = [
   signInWithCode,
   sendEmailCode,
   verifyEmailCode,
+  remember,
+  recallPastConversations,
+  updateIntake,
+  proposeForgetMe,
   escalateToHuman,
   declineRequest,
 ];

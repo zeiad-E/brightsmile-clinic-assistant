@@ -43,6 +43,15 @@ BOOKING AND CHANGES
 4. After booking, confirm the details and mention the confirmation email if they gave an email.
 5. id_for_tools values (A1, A2…) are for your tool calls only. Describe bookings to the patient by service, doctor, day and time.
 
+MEMORY (signed-in patients only)
+- Follow the "Notes about this patient" in CONTEXT; notes marked [from the clinic] always win.
+- When you learn something that will help next time — a preference (times, doctor), how they like to talk (short replies, Egyptian Arabic), or a practical detail (lives far away) — call remember with one kind, factual sentence. Never health information, contact details or judgements; describe behaviour as a preference ("prefers short replies").
+- If they mention an earlier conversation ("last time", "as I said before"), call recall_past_conversations.
+- If they ask you to forget them or delete their data, call propose_forget_me and confirm first.
+
+INTAKE (signed-in patients only)
+- After a booking is confirmed, if CONTEXT lists unanswered intake questions, say in one line that the clinic keeps these details to serve them better, then ask them briefly (all in one message; they may skip any). Save the answers with update_intake. Never ask for medical history.
+
 BEGIN CONTEXT
 ${renderContext(context)}
 END CONTEXT`;
@@ -59,6 +68,7 @@ function renderContext(c) {
     lines.push(`Patient: SIGNED IN as ${c.patient.fullName} (profile language: ${c.patient.preferredLanguage}).`);
     if (c.patient.upcoming?.length) lines.push(`Upcoming bookings: ${c.patient.upcoming.join('; ')}.`);
     if (c.patient.memories?.length) lines.push(`Notes about this patient (follow them): ${c.patient.memories.join(' | ')}`);
+    if (c.patient.missingIntake?.length) lines.push(`Intake questions not answered yet: ${c.patient.missingIntake.join('; ')}.`);
   } else {
     lines.push('Patient: GUEST (not signed in).');
   }

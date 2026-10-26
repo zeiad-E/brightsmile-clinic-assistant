@@ -21,6 +21,7 @@ export function meRouter() {
   router.post('/appointments/:id/cancel', validate({ params: IdParams, body: CancelBody }), me.cancel);
   router.post('/appointments/:id/reschedule', validate({ params: IdParams, body: RescheduleBody }), me.reschedule);
   router.get('/conversations', validate({ query: ConversationListQuery }), chat.mine);
+  router.delete('/memory', me.forgetMe);
 
   return router;
 }

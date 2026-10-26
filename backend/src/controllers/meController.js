@@ -1,5 +1,6 @@
 import * as appointmentService from '../services/appointmentService.js';
 import * as patientService from '../services/patientService.js';
+import * as memoryService from '../services/memoryService.js';
 import { ctxOf } from './context.js';
 
 /** The signed-in patient's own profile and bookings (/api/me). */
@@ -22,6 +23,11 @@ export async function appointment(req, res) {
 
 export async function cancel(req, res) {
   res.json(await appointmentService.cancel(ctxOf(req), req.valid.params.id, req.valid.body.reason));
+}
+
+/** "Forget me": deletes the assistant's notes and the patient's past conversations. */
+export async function forgetMe(req, res) {
+  res.json(await memoryService.forgetPatient({ patientId: req.user.patientId }));
 }
 
 export async function reschedule(req, res) {

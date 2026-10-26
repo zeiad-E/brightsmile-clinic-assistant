@@ -63,6 +63,16 @@ export function linkProfile(db, patientId, profileId) {
   );
 }
 
+/** Answers to the owner's intake questions (merged into what is already saved). */
+export async function getIntake(db, id) {
+  const row = await unwrap(db.from('patients').select('intake').eq('id', id).maybeSingle());
+  return row?.intake ?? {};
+}
+
+export function setIntake(db, id, intake) {
+  return unwrap(db.from('patients').update({ intake }).eq('id', id).select('id, intake').maybeSingle());
+}
+
 // ----- sign-in secrets: service role only -----
 
 export function setCodeHmac(db, id, codeHmac) {

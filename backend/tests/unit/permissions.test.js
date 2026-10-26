@@ -47,6 +47,10 @@ vi.mock('../../src/services/adminService.js', () =>
   stubModule(['listServices', 'createService', 'updateService', 'deactivateService', 'listDoctors', 'createDoctor', 'updateDoctor', 'deactivateDoctor', 'getSettings', 'updateSettings']),
 );
 vi.mock('../../src/services/teamService.js', () => stubModule(['list', 'create', 'setRole', 'setDisabled']));
+vi.mock('../../src/services/memoryService.js', () =>
+  stubModule(['listForOwner', 'createByOwner', 'updateByOwner', 'removeByOwner', 'forgetPatient', 'scheduleSummaries'], LIST),
+);
+vi.mock('../../src/services/intakeService.js', () => stubModule(['listFields', 'createField', 'updateField', 'removeField', 'missingFor', 'saveAnswers'], LIST));
 vi.mock('../../src/services/chatService.js', () =>
   stubModule(['sendMessage', 'getConversation', 'listMine', 'listForStaff', 'getForStaff'], LIST),
 );
@@ -148,6 +152,17 @@ const MATRIX = [
   ['get', '/api/staff/conversations', null, STAFF_READ],
   ['get', `/api/staff/conversations/${ID}`, null, STAFF_READ],
   ['get', '/api/staff/stats/ai-outcomes', null, STAFF_READ],
+
+  // Memory: the agent's notes are owner-only (not even the viewer); "forget me" is the patient's.
+  ['get', '/api/admin/agent/memories', null, OWNER],
+  ['post', '/api/admin/agent/memories', { patient_id: ID, kind: 'preference', content: 'Prefers mornings' }, OWNER],
+  ['patch', `/api/admin/agent/memories/${ID}`, { content: 'Prefers evenings' }, OWNER],
+  ['delete', `/api/admin/agent/memories/${ID}`, null, OWNER],
+  ['get', '/api/admin/intake-fields', null, ADMIN_READ],
+  ['post', '/api/admin/intake-fields', { key: 'job', label_en: 'Job', label_ar: 'الوظيفة', kind: 'text' }, OWNER],
+  ['patch', `/api/admin/intake-fields/${ID}`, { required: true }, OWNER],
+  ['delete', `/api/admin/intake-fields/${ID}`, null, OWNER],
+  ['delete', '/api/me/memory', null, ['patient']],
 ];
 
 function send(method, path, body, role, headers = {}) {

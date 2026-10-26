@@ -16,6 +16,7 @@ import { AppError } from '../utils/AppError.js';
 import { createKeyedLock } from '../utils/keyedLock.js';
 import { logger } from '../utils/logger.js';
 import { listView } from '../views/listView.js';
+import { scheduleSummaries } from './memoryService.js';
 
 /**
  * One chat turn, start to finish:
@@ -203,6 +204,9 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
       retries: run.retries,
     })
     .catch((err) => logger.warn(`agent_runs not saved: ${err.message}`));
+
+  // Memory upkeep runs in the background (never delays the reply).
+  scheduleSummaries(ctx.conversation, ctx.turnNumber).catch((err) => logger.warn(`Summaries not scheduled: ${err.message}`));
 
   return {
     conversation_id: conversationId,

@@ -5,6 +5,8 @@ import * as settings from '../controllers/admin/clinicSettingsController.js';
 import * as team from '../controllers/admin/teamController.js';
 import * as audit from '../controllers/admin/auditController.js';
 import * as notifications from '../controllers/admin/notificationController.js';
+import * as memories from '../controllers/admin/agentMemoryController.js';
+import * as intake from '../controllers/admin/intakeController.js';
 import { validate } from '../middlewares/validate.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { ROLES } from '../utils/roles.js';
@@ -13,6 +15,11 @@ import {
   AuditQuery,
   DoctorBody,
   DoctorPatch,
+  IntakeFieldBody,
+  IntakeFieldPatch,
+  MemoryBody,
+  MemoryPatch,
+  MemoryQuery,
   NotificationQuery,
   RoleBody,
   ServiceBody,
@@ -56,6 +63,17 @@ export function adminRouter() {
 
   router.get('/audit-log', read, validate({ query: AuditQuery }), audit.list);
   router.get('/notifications', read, validate({ query: NotificationQuery }), notifications.list);
+
+  // The agent's memory notes: owner only (not even the viewer).
+  router.get('/agent/memories', write, validate({ query: MemoryQuery }), memories.list);
+  router.post('/agent/memories', write, validate({ body: MemoryBody }), memories.create);
+  router.patch('/agent/memories/:id', write, validate({ params: IdParams, body: MemoryPatch }), memories.update);
+  router.delete('/agent/memories/:id', write, id, memories.remove);
+
+  router.get('/intake-fields', read, intake.list);
+  router.post('/intake-fields', write, validate({ body: IntakeFieldBody }), intake.create);
+  router.patch('/intake-fields/:id', write, validate({ params: IdParams, body: IntakeFieldPatch }), intake.update);
+  router.delete('/intake-fields/:id', write, id, intake.remove);
 
   return router;
 }

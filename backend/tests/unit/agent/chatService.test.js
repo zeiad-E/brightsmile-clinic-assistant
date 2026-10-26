@@ -33,6 +33,7 @@ vi.mock('../../../src/agent/context.js', () => ({
   buildContext: vi.fn(async () => ({ clinicName: 'BrightSmile', today: { date: '2026-10-26', weekday: 'Monday', time: '10:00' }, openingHours: 'x', patient: null })),
 }));
 vi.mock('../../../src/agent/loop.js', () => ({ runAgentTurn: vi.fn() }));
+vi.mock('../../../src/services/memoryService.js', () => ({ scheduleSummaries: vi.fn(async () => {}) }));
 
 const { runAgentTurn } = await import('../../../src/agent/loop.js');
 const chatService = await import('../../../src/services/chatService.js');

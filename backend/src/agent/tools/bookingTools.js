@@ -8,6 +8,7 @@ import * as catalogService from '../../services/catalogService.js';
 import * as availabilityService from '../../services/availabilityService.js';
 import * as bookingService from '../../services/bookingService.js';
 import * as appointmentService from '../../services/appointmentService.js';
+import * as memoryService from '../../services/memoryService.js';
 import { AppError } from '../../utils/AppError.js';
 import { addDays, dayInZone, isValidDay, timeInZone, weekdayName, zonedDateTime } from '../../utils/clinicTime.js';
 import { bestMatch } from '../../utils/text.js';
@@ -269,7 +270,7 @@ const idempotencyKeyFor = (conversationId, input) => {
 
 export const confirmPendingAction = defineTool({
   name: 'confirm_pending_action',
-  description: 'Carry out the pending booking / cancellation / reschedule. Call ONLY after the patient clearly agreed (e.g. "yes", "confirm", "تمام", "أيوه") to the summary you read back.',
+  description: 'Carry out the pending booking / cancellation / reschedule / forget-me. Call ONLY after the patient clearly agreed (e.g. "yes", "confirm", "تمام", "أيوه") to the summary you read back.',
   run: async (_args, ctx) => {
     const pending = ctx.state.pending;
     if (!pending) return toolError('nothing_pending', 'There is nothing to confirm. Propose the action first.');
@@ -302,6 +303,12 @@ export const confirmPendingAction = defineTool({
         delete ctx.state.pending;
         ctx.events.changed = true;
         return { rescheduled: true, ...pending.summary };
+      }
+      if (pending.type === 'forget') {
+        const result = await memoryService.forgetPatient({ patientId: ctx.user.patientId, keepConversationId: ctx.conversation.id });
+        delete ctx.state.pending;
+        ctx.events.changed = true;
+        return { forgotten: true, ...result };
       }
       return toolError('nothing_pending', 'Unknown pending action.');
     } catch (err) {
