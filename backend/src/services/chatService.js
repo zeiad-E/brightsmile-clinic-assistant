@@ -17,6 +17,9 @@ import { createKeyedLock } from '../utils/keyedLock.js';
 import { logger } from '../utils/logger.js';
 import { listView } from '../views/listView.js';
 import { scheduleSummaries } from './memoryService.js';
+import { abuse, breaker, budget, limiter, personKeys } from './capacity/index.js';
+import { BusyError } from './capacity/limiter.js';
+import { safeModeDefinitions, safeModeToolsByName } from '../agent/tools/index.js';
 
 /**
  * One chat turn, start to finish:
@@ -41,7 +44,7 @@ async function loadOwned(admin, id, user) {
 
 const isPatient = (user) => user?.role === 'patient' && Boolean(user.patientId);
 
-export async function sendMessage({ user, db }, { conversationId, message, language }) {
+export async function sendMessage({ user, db, ip }, { conversationId, message, language }) {
   const admin = requireAdmin();
   const settings = await clinicModel.getSettings(admin);
   const lang = language ?? detectLanguage(message, user?.preferredLanguage ?? 'en');
@@ -58,10 +61,11 @@ export async function sendMessage({ user, db }, { conversationId, message, langu
         language: lang,
       });
 
-  return withConversationLock(conversation.id, () => runTurn({ admin, settings, user, db, lang, conversationId: conversation.id, message }));
+  const keys = personKeys({ userId: user?.id, ip });
+  return withConversationLock(conversation.id, () => runTurn({ admin, settings, user, db, lang, conversationId: conversation.id, message, keys }));
 }
 
-async function runTurn({ admin, settings, user, db, lang, conversationId, message }) {
+async function runTurn({ admin, settings, user, db, lang, conversationId, message, keys }) {
   const startedAt = Date.now();
   const conversation = await conversationModel.findById(admin, conversationId); // fresh, inside the lock
   const patch = { last_message_at: new Date().toISOString(), language: lang };
@@ -72,6 +76,10 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
   }
   if (conversation.turn_count >= LIMITS.maxTurnsPerConversation) {
     return { conversation_id: conversationId, reply: fixedReply('turn_limit', lang), status: 'turn_limit' };
+  }
+  // A cooldown follows the person (user or IP), so a page refresh doesn't escape it.
+  if (abuse.blockedUntil(keys)) {
+    return { conversation_id: conversationId, reply: fixedReply('cooldown', lang), status: 'cooldown' };
   }
 
   const state = structuredClone(conversation.state ?? {});
@@ -121,38 +129,67 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     return save({ admin, conversationId, ctx, patch: { ...patch, status: 'handed_off' }, maskedMessage, reply, startedAt, outcome: 'escalated', run: {} });
   }
 
+  // Budgets and AI health: decide whether (and how) to use the AI at all this turn.
+  const allowance = await budget.check(keys);
+  if (!allowance.allowed) {
+    return { conversation_id: conversationId, reply: fixedReply('daily_limit', lang, { clinicPhone: settings.phone }), status: 'daily_limit' };
+  }
+  if (allowance.mode === 'off' || !breaker.allows()) {
+    return { conversation_id: conversationId, reply: fixedReply('unavailable', lang, { clinicPhone: settings.phone }), status: 'unavailable' };
+  }
+  ctx.safeMode = allowance.mode === 'safe'; // near the daily limit: knowledge answers + handover only
+  await budget.recordMessage(keys);
+
   const context = await buildContext({ conversation, state, user: ctx.user, db: ctx.db, settings, language: lang });
+  context.safeMode = ctx.safeMode;
   const system = { role: 'system', content: buildSystemPrompt(context) };
   const history = (await messageModel.recentDialogue(admin, conversationId, LIMITS.historyMessages)).map((m) => ({ role: m.role, content: m.content }));
   const userTurn = { role: 'user', content: maskedMessage };
+  const toolset = ctx.safeMode ? { tools: safeModeToolsByName, definitions: safeModeDefinitions } : {};
 
-  // Try, and on failure try once more with another model and a shorter history.
-  // Why each attempt failed is kept in agent_runs, so the owner (and we) can see it.
-  let result = null;
-  let retries = 0;
-  const failures = [];
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      result = await runAgentTurn({
-        messages: attempt === 0 ? [system, ...history, userTurn] : [system, ...history.slice(-4), userTurn],
-        ctx,
-        model: attempt === 0 ? undefined : config.llm.chatModels[1],
-        timeoutMs: config.agent.turnTimeoutMs,
-        maxIterations: config.agent.maxToolIterations,
-      });
-      if (result.status === 'ok' || result.status === 'ended') break;
-      logger.warn(`Agent turn ended with ${result.status} (attempt ${attempt + 1})`);
-      failures.push({ name: '_attempt_failed', ok: false, reason: result.status, tools: result.toolCalls.map((t) => t.name) });
-    } catch (err) {
-      logger.warn(`Agent turn failed (attempt ${attempt + 1}): ${err.message}`);
-      failures.push({ name: '_attempt_failed', ok: false, reason: String(err.message).slice(0, 300) });
-      result = null;
+  // Wait for a free slot at the AI (bounded line), then try — and on failure try once more
+  // with another model and a shorter history. Why an attempt failed is kept in agent_runs.
+  let attempts;
+  try {
+    attempts = await limiter.run(async () => {
+      let result = null;
+      let retries = 0;
+      const failures = [];
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          result = await runAgentTurn({
+            messages: attempt === 0 ? [system, ...history, userTurn] : [system, ...history.slice(-4), userTurn],
+            ctx,
+            model: attempt === 0 ? undefined : config.llm.chatModels[1],
+            timeoutMs: config.agent.turnTimeoutMs,
+            maxIterations: config.agent.maxToolIterations,
+            ...toolset,
+          });
+          if (result.status === 'ok' || result.status === 'ended') break;
+          logger.warn(`Agent turn ended with ${result.status} (attempt ${attempt + 1})`);
+          failures.push({ name: '_attempt_failed', ok: false, reason: result.status, tools: result.toolCalls.map((t) => t.name) });
+        } catch (err) {
+          logger.warn(`Agent turn failed (attempt ${attempt + 1}): ${err.message}`);
+          failures.push({ name: '_attempt_failed', ok: false, reason: String(err.message).slice(0, 300) });
+          result = null;
+        }
+        retries = attempt + 1;
+        if (ctx.endTurn) break;
+      }
+      return { result, retries, failures };
+    });
+  } catch (err) {
+    if (err instanceof BusyError) {
+      throw new AppError(503, 'assistant_busy', 'The assistant is very busy right now. Please try again in a moment.', { retry_after_seconds: 15 });
     }
-    retries = attempt + 1;
-    if (ctx.endTurn) break;
+    throw err;
   }
+  const { result, retries, failures } = attempts;
 
   const succeeded = result && (result.status === 'ok' || result.status === 'ended');
+  if (succeeded) breaker.success();
+  else breaker.failure();
+  budget.recordTokens(keys, (result?.usage?.in ?? 0) + (result?.usage?.out ?? 0)).catch(() => {});
   let reply;
   let outcome;
 
@@ -168,9 +205,24 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     reply = fixedReply('failure', lang);
     outcome = 'fallback';
   } else if (ctx.endTurn) {
+    // Declined (off-topic or manipulation): count it for the conversation AND the person.
+    const kind = ctx.endTurn.kind === 'injection' ? 'injection' : 'off_topic';
     const offTopic = conversation.off_topic_count + 1;
     patch.off_topic_count = offTopic;
-    reply = fixedReply(ctx.endTurn.kind === 'injection' ? 'injection' : offTopic >= 3 ? 'off_topic_reminder' : 'off_topic', lang);
+    if (kind === 'injection') state.injectionCount = (state.injectionCount ?? 0) + 1;
+
+    const personBlock = abuse.record(keys, kind);
+    const conversationBlock =
+      offTopic >= 5 || (state.injectionCount ?? 0) >= 2
+        ? new Date(Date.now() + ((state.injectionCount ?? 0) >= 2 ? 60 : 10) * 60_000)
+        : null;
+    const blockUntil = [personBlock, conversationBlock].filter(Boolean).sort((a, b) => b - a)[0];
+    if (blockUntil) {
+      patch.blocked_until = blockUntil.toISOString();
+      reply = fixedReply('cooldown_start', lang);
+    } else {
+      reply = fixedReply(kind === 'injection' ? 'injection' : offTopic >= 3 ? 'off_topic_reminder' : 'off_topic', lang);
+    }
     outcome = 'refused';
   } else {
     reply = checkReply(result.reply, lang);

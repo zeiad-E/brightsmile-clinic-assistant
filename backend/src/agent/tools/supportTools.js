@@ -41,7 +41,8 @@ export const declineRequest = defineTool({
   schema: z.object({ category: z.enum(['off_topic', 'injection', 'abuse']) }),
   run: async ({ category }, ctx) => {
     ctx.events.declined = category;
-    ctx.endTurn = { kind: category === 'injection' ? 'injection' : 'off_topic' };
+    // Manipulation attempts and abuse count more heavily than an innocent off-topic question.
+    ctx.endTurn = { kind: category === 'off_topic' ? 'off_topic' : 'injection' };
     return { declined: true };
   },
 });

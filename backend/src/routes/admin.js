@@ -7,6 +7,7 @@ import * as audit from '../controllers/admin/auditController.js';
 import * as notifications from '../controllers/admin/notificationController.js';
 import * as memories from '../controllers/admin/agentMemoryController.js';
 import * as intake from '../controllers/admin/intakeController.js';
+import * as agentStatus from '../controllers/admin/agentStatusController.js';
 import { validate } from '../middlewares/validate.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { ROLES } from '../utils/roles.js';
@@ -63,6 +64,8 @@ export function adminRouter() {
 
   router.get('/audit-log', read, validate({ query: AuditQuery }), audit.list);
   router.get('/notifications', read, validate({ query: NotificationQuery }), notifications.list);
+
+  router.get('/agent/status', read, agentStatus.status);
 
   // The agent's memory notes: owner only (not even the viewer).
   router.get('/agent/memories', write, validate({ query: MemoryQuery }), memories.list);

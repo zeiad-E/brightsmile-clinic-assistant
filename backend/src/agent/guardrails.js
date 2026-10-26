@@ -83,6 +83,18 @@ export function fixedReply(kind, language, extra = {}) {
       return ar
         ? `المساعد غير متاح حاليًا. يرجى الاتصال بالعيادة${phone ? ` على ${phone}` : ''}.`
         : `The assistant is unavailable right now. Please call the clinic${phone ? ` on ${phone}` : ''}.`;
+    case 'cooldown_start':
+      return ar
+        ? 'يبدو أن الطلبات خارج نطاق العيادة. سأوقف المحادثة مؤقتًا الآن؛ يمكنك العودة لاحقًا لأي شيء يخص مواعيدك أو خدماتنا.'
+        : "It looks like these requests aren't about the clinic, so I'll pause this chat for a little while. Come back any time for anything about your appointments or our services.";
+    case 'daily_limit':
+      return ar
+        ? `وصلت للحد اليومي للمحادثة. يمكنك المتابعة غدًا، أو الاتصال بالعيادة${phone ? ` على ${phone}` : ''}.`
+        : `You've reached today's chat limit. You can continue tomorrow, or call the clinic${phone ? ` on ${phone}` : ''}.`;
+    case 'unavailable':
+      return ar
+        ? `المساعد غير متاح مؤقتًا. للحجز يمكنك استخدام الموقع أو الاتصال بالعيادة${phone ? ` على ${phone}` : ''}.`
+        : `The assistant is temporarily unavailable. You can book on our website or call the clinic${phone ? ` on ${phone}` : ''}.`;
     case 'failure':
       return ar
         ? 'عذرًا، واجهت مشكلة في إكمال طلبك. أبلغت فريق العيادة وسيتواصلون معك قريبًا.'

@@ -49,6 +49,14 @@ const EnvSchema = z
     // A whole assistant turn (all AI calls + tools). Real multi-step turns take 10–30 s on free models.
     AGENT_TURN_TIMEOUT_MS: positiveInt(45000),
 
+    // Chat capacity: turns at the AI at once, the waiting line, and daily budgets.
+    CHAT_MAX_CONCURRENT: positiveInt(8),
+    CHAT_QUEUE_MAX: positiveInt(50),
+    CHAT_QUEUE_WAIT_MS: positiveInt(30000),
+    CHAT_DAILY_MESSAGES_PER_PERSON: positiveInt(150),
+    CHAT_DAILY_TOKENS_PER_PERSON: positiveInt(150000),
+    CHAT_DAILY_TOKENS_CLINIC: positiveInt(3000000),
+
     // Fingerprints personal sign-in codes (HMAC). Changing it invalidates every issued code.
     PERSONAL_CODE_SECRET: text(),
     // Where the frontend lives; used for links in emails.
@@ -141,6 +149,15 @@ export function loadConfig(rawEnv = process.env) {
     agent: {
       maxToolIterations: env.AGENT_MAX_TOOL_ITERATIONS,
       turnTimeoutMs: env.AGENT_TURN_TIMEOUT_MS,
+    },
+
+    chat: {
+      maxConcurrent: env.CHAT_MAX_CONCURRENT,
+      queueMax: env.CHAT_QUEUE_MAX,
+      queueWaitMs: env.CHAT_QUEUE_WAIT_MS,
+      dailyMessagesPerPerson: env.CHAT_DAILY_MESSAGES_PER_PERSON,
+      dailyTokensPerPerson: env.CHAT_DAILY_TOKENS_PER_PERSON,
+      dailyTokensClinic: env.CHAT_DAILY_TOKENS_CLINIC,
     },
 
     appUrl: env.APP_URL,

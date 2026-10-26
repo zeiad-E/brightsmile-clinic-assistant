@@ -5,7 +5,7 @@ import { ctxOf } from './context.js';
 
 export async function send(req, res) {
   const { conversation_id: conversationId, message, language } = req.valid.body;
-  res.json(await chatService.sendMessage({ user: req.user, db: req.db }, { conversationId, message, language }));
+  res.json(await chatService.sendMessage({ user: req.user, db: req.db, ip: req.ip }, { conversationId, message, language }));
 }
 
 export async function history(req, res) {

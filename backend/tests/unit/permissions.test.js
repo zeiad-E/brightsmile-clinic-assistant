@@ -163,6 +163,7 @@ const MATRIX = [
   ['patch', `/api/admin/intake-fields/${ID}`, { required: true }, OWNER],
   ['delete', `/api/admin/intake-fields/${ID}`, null, OWNER],
   ['delete', '/api/me/memory', null, ['patient']],
+  ['get', '/api/admin/agent/status', null, ADMIN_READ],
 ];
 
 function send(method, path, body, role, headers = {}) {

@@ -75,6 +75,9 @@ function renderContext(c) {
   }
   if (!c.patient && c.firstVisit === true) lines.push('The patient said this is their FIRST visit: no account yet, do not sign them in; booking creates the account.');
   if (!c.patient && c.firstVisit === false) lines.push('The patient said they have visited before: offer to sign them in.');
+  if (c.safeMode) {
+    lines.push('SAFE MODE (very busy today): booking, sign-in and account changes by chat are paused. Answer questions from the tools you have, and for bookings point the patient to the website or the clinic phone, or hand over to staff.');
+  }
   if (c.pending) lines.push(`Waiting for the patient to confirm: ${c.pending}.`);
   if (c.summary) lines.push(`Earlier in this conversation: ${c.summary}`);
   if (c.handedOff) lines.push('This conversation was already handed to staff; keep helping with simple clinic questions.');
