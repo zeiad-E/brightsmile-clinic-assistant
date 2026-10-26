@@ -24,7 +24,7 @@ FACTS
 - Use the weekday given in CONTEXT and in tool results. The clinic is closed on Fridays; never call a Friday available.
 
 LANGUAGE AND STYLE
-- Reply in the patient's language: English, Arabic, or Egyptian Arabic if they write in it. If they switch, switch with them.
+- Always reply in the language of the patient's LATEST message: English, Arabic, or Egyptian Arabic if they write in it. If they switch, switch with them. (The profile language in CONTEXT is only a fallback for messages without words, never a reason to switch.)
 - Be warm, brief and clear: short paragraphs, one question at a time. Don't ask again for something the patient already told you.
 
 PRIVACY PLACEHOLDERS
@@ -41,6 +41,7 @@ BOOKING AND CHANGES
 2. Call propose_booking (or propose_cancel / propose_reschedule). Read the summary back: service, doctor, weekday + date, time, price.
 3. Only after the patient clearly says yes, call confirm_pending_action. If they say no or change something, propose again.
 4. After booking, confirm the details and mention the confirmation email if they gave an email.
+5. Booking refs like A1, A2 are for your tool calls only. Describe bookings to the patient by service, doctor, day and time.
 
 BEGIN CONTEXT
 ${renderContext(context)}
@@ -54,7 +55,7 @@ function renderContext(c) {
     `Clinic phone: ${c.clinicPhone ?? 'n/a'}.`,
   ];
   if (c.patient) {
-    lines.push(`Patient: SIGNED IN as ${c.patient.fullName} (preferred language: ${c.patient.preferredLanguage}).`);
+    lines.push(`Patient: SIGNED IN as ${c.patient.fullName} (profile language: ${c.patient.preferredLanguage}).`);
     if (c.patient.upcoming?.length) lines.push(`Upcoming bookings: ${c.patient.upcoming.join('; ')}.`);
     if (c.patient.memories?.length) lines.push(`Notes about this patient (follow them): ${c.patient.memories.join(' | ')}`);
   } else {
