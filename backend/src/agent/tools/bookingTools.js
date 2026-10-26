@@ -185,7 +185,7 @@ function normalizeDob(value) {
 
 export const myAppointments = defineTool({
   name: 'my_appointments',
-  description: 'List the signed-in patient’s bookings. Each has a short ref (A1, A2…) to use with propose_cancel / propose_reschedule.',
+  description: 'List the signed-in patient’s bookings. Each has an id_for_tools (A1, A2…) to pass to propose_cancel / propose_reschedule — never show it to the patient.',
   schema: z.object({ scope: z.enum(['upcoming', 'past']).optional().describe('Default upcoming.') }),
   signedIn: true,
   run: async ({ scope = 'upcoming' }, ctx) => {
@@ -195,16 +195,16 @@ export const myAppointments = defineTool({
       const ref = `A${i + 1}`;
       ctx.state.refs[ref] = a.id;
       const day = dayInZone(new Date(a.starts_at), ctx.timeZone);
-      return { ref, date: day, weekday: weekdayName(day), time: timeInZone(a.starts_at), service: a.service.name_en, doctor: a.doctor.full_name_en, status: a.status };
+      return { id_for_tools: ref, date: day, weekday: weekdayName(day), time: timeInZone(a.starts_at), service: a.service.name_en, doctor: a.doctor.full_name_en, status: a.status };
     });
-    ctx.emit({ type: 'appointments', appointments });
-    return { scope, appointments };
+    ctx.emit({ type: 'appointments', appointments: appointments.map(({ id_for_tools: _ref, ...rest }) => rest) });
+    return { scope, appointments, note: 'Describe bookings by service, doctor, day and time. id_for_tools is internal: never mention it.' };
   },
 });
 
 async function loadOwnAppointment(ctx, ref) {
   const id = ctx.state.refs?.[ref] ?? (/^[0-9a-f-]{36}$/i.test(ref) ? ref : null);
-  if (!id) return { error: toolError('unknown_appointment', 'Call my_appointments first and use one of its refs (A1, A2…).') };
+  if (!id) return { error: toolError('unknown_appointment', 'Call my_appointments first and use one of its id_for_tools values (A1, A2…).') };
   const appointment = await appointmentModel.findById(ctx.db, id); // Row Level Security: only the patient's own
   if (!appointment) return { error: toolError('unknown_appointment', 'That booking was not found.') };
   if (appointment.status !== 'booked') return { error: toolError('not_active', 'That booking is no longer active.') };
@@ -214,7 +214,7 @@ async function loadOwnAppointment(ctx, ref) {
 export const proposeCancel = defineTool({
   name: 'propose_cancel',
   description: 'Prepare cancelling one of the patient’s bookings (does NOT cancel yet). Ask the patient to confirm, then call confirm_pending_action.',
-  schema: z.object({ appointment: z.string().min(2).max(40).describe('Ref from my_appointments, e.g. A1.'), reason: z.string().max(200).optional() }),
+  schema: z.object({ appointment: z.string().min(2).max(40).describe('id_for_tools from my_appointments, e.g. A1.'), reason: z.string().max(200).optional() }),
   signedIn: true,
   run: async ({ appointment: ref, reason }, ctx) => {
     const { appointment, error } = await loadOwnAppointment(ctx, ref);
@@ -230,7 +230,7 @@ export const proposeReschedule = defineTool({
   name: 'propose_reschedule',
   description: 'Prepare moving one of the patient’s bookings to a new free time (does NOT move it yet). Check availability first, then ask the patient to confirm and call confirm_pending_action.',
   schema: z.object({
-    appointment: z.string().min(2).max(40).describe('Ref from my_appointments, e.g. A1.'),
+    appointment: z.string().min(2).max(40).describe('id_for_tools from my_appointments, e.g. A1.'),
     date: Day,
     time: Time,
     doctor: z.string().max(80).optional().describe('Only if changing doctor.'),

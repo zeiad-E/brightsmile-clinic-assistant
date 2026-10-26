@@ -28,7 +28,7 @@ function describePending(pending) {
   return pending.type;
 }
 
-export async function buildContext({ conversation, state, user, db, settings }) {
+export async function buildContext({ conversation, state, user, db, settings, language = 'en' }) {
   const timeZone = settings.timezone;
   const now = new Date();
   const today = dayInZone(now, timeZone);
@@ -55,6 +55,7 @@ export async function buildContext({ conversation, state, user, db, settings }) 
   }
 
   return {
+    replyLanguage: language,
     clinicName: settings.name_en,
     clinicPhone: settings.phone,
     timeZone,

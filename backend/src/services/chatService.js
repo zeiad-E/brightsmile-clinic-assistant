@@ -118,7 +118,7 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     return save({ admin, conversationId, ctx, patch: { ...patch, status: 'handed_off' }, maskedMessage, reply, startedAt, outcome: 'escalated', run: {} });
   }
 
-  const context = await buildContext({ conversation, state, user: ctx.user, db: ctx.db, settings });
+  const context = await buildContext({ conversation, state, user: ctx.user, db: ctx.db, settings, language: lang });
   const system = { role: 'system', content: buildSystemPrompt(context) };
   const history = (await messageModel.recentDialogue(admin, conversationId, LIMITS.historyMessages)).map((m) => ({ role: m.role, content: m.content }));
   const userTurn = { role: 'user', content: maskedMessage };

@@ -32,8 +32,14 @@ export function createApp({ rateLimit = true } = {}) {
   app.use(express.json({ limit: '100kb' }));
 
   // Health check (also used by the keep-warm cron to avoid free-tier cold starts)
+  // `version` = the deployed git commit (Render sets RENDER_GIT_COMMIT), to confirm a deploy is live.
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'caredesk-backend', time: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      service: 'caredesk-backend',
+      version: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? 'local',
+      time: new Date().toISOString(),
+    });
   });
 
   // Routes (tests can switch rate limiting off to send many requests quickly)
