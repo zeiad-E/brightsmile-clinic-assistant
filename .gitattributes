@@ -1,3 +1,6 @@
 # Shell scripts run inside Linux containers: always LF.
 *.sh text eol=lf
 Dockerfile text eol=lf
+
+# Test fixtures are exact bytes (PDF byte offsets, zip files): never convert line endings.
+backend/tests/fixtures/** binary
