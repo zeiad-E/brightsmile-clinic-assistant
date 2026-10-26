@@ -46,7 +46,8 @@ const EnvSchema = z
     SUPABASE_ANON_KEY: text(),
 
     AGENT_MAX_TOOL_ITERATIONS: positiveInt(5),
-    AGENT_TURN_TIMEOUT_MS: positiveInt(30000),
+    // A whole assistant turn (all AI calls + tools). Real multi-step turns take 10–30 s on free models.
+    AGENT_TURN_TIMEOUT_MS: positiveInt(45000),
 
     // Fingerprints personal sign-in codes (HMAC). Changing it invalidates every issued code.
     PERSONAL_CODE_SECRET: text(),

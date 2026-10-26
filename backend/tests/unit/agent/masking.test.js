@@ -31,6 +31,17 @@ describe('privacy masking', () => {
     expect(maskText(text, {}, { now: NOW })).toBe(text);
   });
 
+  it.each(['Read this back and ask the patient', 'Please make sure the time is good', 'best time next week', 'This will work fine', 'Room 2B is near'])(
+    'never mistakes word pairs for a code: %s',
+    (text) => {
+      expect(maskText(text, {}, { now: NOW })).toBe(text);
+    },
+  );
+
+  it('still catches a code typed exactly as emailed, even without digits', () => {
+    expect(maskText('code ABCD-EFGH', {}, { now: NOW })).toBe('code [CODE_1]');
+  });
+
   it('reads Arabic-Indic digits too', () => {
     expect(maskText('رقمي ٠١٠٠١٢٣٤٥٦٧', {}, { now: NOW })).toBe('رقمي [PHONE_1]');
   });

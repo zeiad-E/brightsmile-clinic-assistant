@@ -38,7 +38,16 @@ async function resolveDoctor(ctx, text, serviceId) {
   return { match: text ? bestMatch(doctors, text, ['full_name_en', 'full_name_ar']) : null, doctors };
 }
 
-const describeSlots = (slots, max = 10) => slots.slice(0, max).map((s) => timeInZone(s.starts_at));
+/**
+ * Up to `max` times spread across the whole day (not just the first ones), so morning AND
+ * afternoon options are always visible to the assistant.
+ */
+export function describeSlots(slots, max = 10) {
+  const times = slots.map((s) => timeInZone(s.starts_at));
+  if (times.length <= max) return times;
+  const step = (times.length - 1) / (max - 1);
+  return [...new Set(Array.from({ length: max }, (_, i) => times[Math.round(i * step)]))];
+}
 
 /** Free start times as HH:MM for the AI (it books with date + time, never with raw ISO). */
 export const checkAvailability = defineTool({
@@ -70,7 +79,14 @@ export const checkAvailability = defineTool({
       doctor_ar: doctorNames.get(d.staff_id)?.full_name_ar ?? d.full_name_ar,
       days: d.days
         .filter((day) => day.slots.length)
-        .map((day) => ({ date: day.date, weekday: weekdayName(day.date), times: describeSlots(day.slots), more: Math.max(0, day.slots.length - 10) })),
+        .map((day) => ({
+          date: day.date,
+          weekday: weekdayName(day.date),
+          first: timeInZone(day.slots[0].starts_at),
+          last: timeInZone(day.slots.at(-1).starts_at),
+          free_count: day.slots.length,
+          sample_times: describeSlots(day.slots), // spread over the day; any free start between first and last can be proposed
+        })),
     }));
 
     ctx.emit({ type: 'slots', service: match.name_en, doctors: doctorsOut });
@@ -220,6 +236,10 @@ export const proposeCancel = defineTool({
   run: async ({ appointment: ref, reason }, ctx) => {
     const { appointment, error } = await loadOwnAppointment(ctx, ref);
     if (error) return error;
+    const earlier = ctx.state.pending;
+    if (earlier?.type === 'cancel' && earlier.input.id === appointment.id && earlier.proposedAtTurn < ctx.turnNumber) {
+      return toolError('already_proposed', 'This cancellation was already proposed. If the patient agreed, call confirm_pending_action now.');
+    }
     const day = dayInZone(new Date(appointment.starts_at), ctx.timeZone);
     const summary = { service: appointment.service.name_en, doctor: appointment.doctor.full_name_en, date: day, weekday: weekdayName(day), time: timeInZone(appointment.starts_at) };
     ctx.state.pending = { type: 'cancel', proposedAtTurn: ctx.turnNumber, input: { id: appointment.id, reason }, summary };

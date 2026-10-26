@@ -56,7 +56,13 @@ class LlmClient {
    * rotates keys/providers underneath each request. If the whole chain fails
    * (e.g. the engine is down), falls back to the direct provider.
    */
-  async chat({ messages, tools, model, temperature = 0.2, maxTokens }) {
+  /**
+   * `deadline` (ms timestamp): no model gets more time than what's left, and once it passes the
+   * chain stops — so one slow turn can't drag on for minutes.
+   * `skipAuto`: leave out the engine's "auto" router, which can pick random preview models
+   * (used for the patient assistant, where reliability matters most).
+   */
+  async chat({ messages, tools, model, temperature = 0.2, maxTokens, deadline, skipAuto = false }) {
     const base = {
       messages,
       temperature,
@@ -64,15 +70,18 @@ class LlmClient {
       ...(tools ? { tools, tool_choice: 'auto' } : {}),
     };
     // A specific model goes first, the normal chain stays behind it as backup.
-    const chain = model ? [model, ...config.llm.chatModels.filter((m) => m !== model)] : config.llm.chatModels;
+    let chain = model ? [model, ...config.llm.chatModels.filter((m) => m !== model)] : config.llm.chatModels;
+    if (skipAuto) chain = chain.filter((m) => m !== 'auto');
 
     let lastError;
     for (const candidate of chain) {
+      const remaining = deadline ? deadline - Date.now() : config.llm.chatTimeoutMs;
+      if (remaining < 2000) throw lastError ?? new Error('Turn deadline reached'); // no time left, not even for the backup
       try {
         return await this.withEngine((engine) =>
           engine.chat.completions.create(
             { ...base, model: candidate },
-            { timeout: config.llm.chatTimeoutMs, maxRetries: 0 },
+            { timeout: Math.min(config.llm.chatTimeoutMs, remaining), maxRetries: 0 },
           ),
         );
       } catch (err) {

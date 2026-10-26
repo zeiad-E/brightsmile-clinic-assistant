@@ -39,7 +39,7 @@ export async function runAgentTurn({
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
     if (Date.now() > deadline) return { status: 'timeout', iterations: iteration, toolCalls, usage, model: usedModel };
 
-    const res = await llmClient.chat({ messages: convo, tools: definitions, model, maxTokens: LIMITS.maxTokens });
+    const res = await llmClient.chat({ messages: convo, tools: definitions, model, maxTokens: LIMITS.maxTokens, deadline, skipAuto: true });
     usedModel = res.model ?? usedModel;
     usage.in += res.usage?.prompt_tokens ?? 0;
     usage.out += res.usage?.completion_tokens ?? 0;

@@ -24,9 +24,12 @@ const PATTERNS = [
   { kind: 'DOB', regex: /\b(?:0?[1-9]|[12]\d|3[01])[-/.](?:0?[1-9]|1[0-2])[-/.](?:19|20)\d{2}\b/g, dob: true },
   { kind: 'DOB', regex: new RegExp(`\\b(?:0?[1-9]|[12]\\d|3[01])\\s+(?:${MONTHS})\\.?,?\\s+(?:19|20)\\d{2}\\b`, 'gi'), dob: true },
   { kind: 'DOB', regex: new RegExp(`\\b(?:${MONTHS})\\.?\\s+(?:0?[1-9]|[12]\\d|3[01]),?\\s+(?:19|20)\\d{2}\\b`, 'gi'), dob: true },
-  // Personal codes: K7Q4-9M2X / k7q4 9m2x, or 8 characters with at least one digit.
-  { kind: 'CODE', regex: /\b[A-Za-z2-9]{4}[-\s][A-Za-z2-9]{4}\b/g, code: true },
-  { kind: 'CODE', regex: /\b(?=[A-Za-z]*[2-9])[A-Za-z2-9]{8}\b/g, code: true },
+  // Personal codes (K7Q4-9M2X, K7Q49M2X, k7q4 9m2x): checked by isPersonalCode, so ordinary
+  // word pairs like "Read this" or "make sure" are never mistaken for a code. The lookbehind/
+  // lookahead let "code K7Q4 9M2X" be checked at every word start, not just the first match.
+  { kind: 'CODE', regex: /(?<![A-Za-z0-9])[A-Za-z0-9]{4}-[A-Za-z0-9]{4}(?![A-Za-z0-9])/g, personalCode: true },
+  { kind: 'CODE', regex: /(?<![A-Za-z0-9])[A-Za-z0-9]{8}(?![A-Za-z0-9])/g, personalCode: true },
+  // (codes typed with a space, "k7q4 9m2x", are found by maskSpacedCodes below)
   // Email sign-in codes: 6–10 digits on their own.
   { kind: 'CODE', regex: /\b\d{6,10}\b/g },
 ];
@@ -38,6 +41,18 @@ const isPastBirthYear = (text, now) => {
 };
 
 const PLACEHOLDER = /\[(EMAIL|PHONE|DOB|CODE)_(\d+)\]/g;
+
+/**
+ * Codes use 31 symbols (no 0/O, 1/I/L). A real code has a digit and a letter — or is typed
+ * exactly like a code ("ABCD-EFGH"). Normal words always contain a vowel like I/O or no digit.
+ */
+const CODE_SYMBOLS = /^[A-HJKMNP-Z2-9]{8}$/;
+function isPersonalCode(match) {
+  const compact = match.replace(/[-\s]/g, '').toUpperCase();
+  if (!CODE_SYMBOLS.test(compact)) return false;
+  if (/[2-9]/.test(compact) && /[A-Z]/.test(compact)) return true;
+  return /^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(match); // all capitals with a dash, exactly as emailed
+}
 
 /**
  * Replaces sensitive values in `text`. `map` (placeholder → value) is updated in place
@@ -52,20 +67,41 @@ export function maskText(text, map = {}, { now = new Date() } = {}) {
     if (kind) counters[kind] = Math.max(counters[kind] ?? 0, Number(n));
   }
 
+  const assign = (kind, value) => {
+    if (reverse.has(value)) return reverse.get(value);
+    counters[kind] = (counters[kind] ?? 0) + 1;
+    const key = `[${kind}_${counters[kind]}]`;
+    map[key] = value;
+    reverse.set(value, key);
+    return key;
+  };
+
   for (const pattern of PATTERNS) {
     masked = masked.replace(pattern.regex, (match) => {
       if (/^\[(EMAIL|PHONE|DOB|CODE)_\d+\]$/.test(match)) return match;
       if (pattern.dob && !isPastBirthYear(match, now)) return match;
-      const value = pattern.kind === 'PHONE' ? match.replace(/[\s-]/g, '') : match.trim();
-      if (reverse.has(value)) return reverse.get(value);
-      counters[pattern.kind] = (counters[pattern.kind] ?? 0) + 1;
-      const key = `[${pattern.kind}_${counters[pattern.kind]}]`;
-      map[key] = value;
-      reverse.set(value, key);
-      return key;
+      if (pattern.personalCode && !isPersonalCode(match)) return match;
+      return assign(pattern.kind, pattern.kind === 'PHONE' ? match.replace(/[\s-]/g, '') : match.trim());
     });
   }
-  return masked;
+  return maskSpacedCodes(masked, (value) => assign('CODE', value));
+}
+
+/** "my code k7q4 9m2x": checks every pair of neighbouring 4-character words. */
+function maskSpacedCodes(text, assign) {
+  const words = [...text.matchAll(/[A-Za-z0-9]+/g)];
+  let out = '';
+  let last = 0;
+  for (let i = 0; i < words.length - 1; i += 1) {
+    const [a, b] = [words[i], words[i + 1]];
+    const pair = `${a[0]} ${b[0]}`;
+    if (a[0].length === 4 && b[0].length === 4 && text.slice(a.index + 4, b.index) === ' ' && isPersonalCode(pair)) {
+      out += text.slice(last, a.index) + assign(pair);
+      last = b.index + 4;
+      i += 1;
+    }
+  }
+  return out + text.slice(last);
 }
 
 /** Swaps placeholders in tool arguments (any depth) back to the real values. */

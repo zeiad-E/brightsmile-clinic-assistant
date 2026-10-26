@@ -16,6 +16,7 @@ describe('loadConfig', () => {
 
     expect(config.port).toBe(4000);
     expect(config.agent.maxToolIterations).toBe(5);
+    expect(config.agent.turnTimeoutMs).toBe(45000);
   });
 
   it('turns numeric strings into numbers', () => {

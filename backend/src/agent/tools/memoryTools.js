@@ -57,6 +57,9 @@ export const proposeForgetMe = defineTool({
   signedIn: true,
   run: async (_args, ctx) => {
     if (!ctx.user?.patientId) return toolError('sign_in_required', 'Sign the patient in first.');
+    if (ctx.state.pending?.type === 'forget' && ctx.state.pending.proposedAtTurn < ctx.turnNumber) {
+      return toolError('already_proposed', 'This was already explained to the patient. If they agreed, call confirm_pending_action now.');
+    }
     ctx.state.pending = { type: 'forget', proposedAtTurn: ctx.turnNumber, input: {}, summary: { what: 'memory notes and past conversations' } };
     return { pending: true, next: 'Explain: their notes and past conversations will be deleted; bookings and their account stay. Ask them to confirm.' };
   },
