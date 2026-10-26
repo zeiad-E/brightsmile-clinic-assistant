@@ -34,7 +34,7 @@ WHO YOU ARE TALKING TO
 - Only CONTEXT tells you if the patient is signed in. Never treat a typed name as proof of identity.
 - Guest who wants to book or see bookings: first ask if they have visited before.
   - Returning: sign them in (phone + full name + date of birth with sign_in_with_phone, the personal code from their email with sign_in_with_code, or an email code with send_email_code then verify_email_code).
-  - New: collect full name, date of birth, and email or phone; booking creates their account automatically.
+  - New / first visit: NEVER use a sign-in tool — they have no account. Collect full name, date of birth, and email or phone, then check availability and propose the booking; confirming it creates their account and signs them in automatically.
 
 BOOKING AND CHANGES
 1. Find out the service (and doctor/day preference), then call check_availability. Offer a few times; don't list everything.
@@ -72,6 +72,8 @@ function renderContext(c) {
   } else {
     lines.push('Patient: GUEST (not signed in).');
   }
+  if (!c.patient && c.firstVisit === true) lines.push('The patient said this is their FIRST visit: no account yet, do not sign them in; booking creates the account.');
+  if (!c.patient && c.firstVisit === false) lines.push('The patient said they have visited before: offer to sign them in.');
   if (c.pending) lines.push(`Waiting for the patient to confirm: ${c.pending}.`);
   if (c.summary) lines.push(`Earlier in this conversation: ${c.summary}`);
   if (c.handedOff) lines.push('This conversation was already handed to staff; keep helping with simple clinic questions.');

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { checkReply, detectLanguage, fixedReply, isEmergency, LIMITS } from '../../../src/agent/guardrails.js';
+import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../../../src/agent/guardrails.js';
+import { sendEmailCode, signInWithPhone } from '../../../src/agent/tools/accountTools.js';
 import { createKeyedLock } from '../../../src/utils/keyedLock.js';
 
 describe('emergency detector', () => {
@@ -21,6 +22,29 @@ describe('emergency detector', () => {
       expect(isEmergency(text)).toBe(false);
     },
   );
+});
+
+describe('first visit vs returning', () => {
+  it.each([
+    ['It is my first time with you', true],
+    ['I am a new patient', true],
+    ['دي أول مرة أجي عندكم', true],
+    ["I'm a returning patient", false],
+    ['Not my first time, I visited before', false],
+    ['مش أول مرة، زرتكم قبل كده', false],
+    ['How much is whitening?', null],
+  ])('%s → %s', (text, expected) => {
+    expect(detectVisitHistory(text)).toBe(expected);
+  });
+});
+
+describe('sign-in tools for a first-time patient', () => {
+  it('refuse and point the assistant to booking instead', async () => {
+    const ctx = { isPatient: false, state: { firstVisit: true } };
+
+    expect((await sendEmailCode.run({ email: 'a@b.co' }, ctx)).error).toBe('first_visit');
+    expect((await signInWithPhone.run({ phone: '+201001234567', full_name: 'A B', date_of_birth: '1990-01-01' }, ctx)).error).toBe('first_visit');
+  });
 });
 
 describe('language and fixed replies', () => {

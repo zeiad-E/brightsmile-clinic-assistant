@@ -33,6 +33,20 @@ export function isEmergency(text) {
   return EMERGENCY_PATTERNS.some((pattern) => pattern.test(text));
 }
 
+/**
+ * "It's my first visit" vs "I've been here before". The code remembers which one the patient
+ * said, so the assistant can't wrongly try to sign a brand-new patient in.
+ * Returns true (first visit), false (returning), or null (didn't say).
+ */
+const RETURNING = /(not\s+(my\s+)?first|been\s+(here|there)\s+before|visited\s+(you\s+|before)|returning\s+patient|have\s+an\s+account|already\s+(a\s+)?patient|مش\s*أول\s*مرة|مش\s*اول\s*مرة|زرتكم\s*قبل|جيت\s*قبل\s*كده|عندي\s*حساب)/i;
+const FIRST_VISIT = /(first\s+(time|visit)|new\s+patient|never\s+been|haven'?t\s+been|أول\s*مرة|اول\s*مرة|أول\s*زيارة|اول\s*زيارة|مريض\s*جديد|عمري\s*ما\s*جيت)/i;
+
+export function detectVisitHistory(text) {
+  if (RETURNING.test(text)) return false;
+  if (FIRST_VISIT.test(text)) return true;
+  return null;
+}
+
 const ARABIC = /[؀-ۿ]/;
 export const detectLanguage = (text, fallback = 'en') => (ARABIC.test(text) ? 'ar' : text.trim() ? 'en' : fallback);
 

@@ -69,6 +69,7 @@ export async function buildContext({ conversation, state, user, db, settings, la
     openingHours: describeHours(clinic.opening_hours),
     patient,
     pending: describePending(state.pending),
+    firstVisit: state.firstVisit ?? null,
     summary: conversation.summary ?? null,
     handedOff: conversation.status === 'handed_off',
   };

@@ -10,7 +10,7 @@ import { findIdentity } from '../models/profileModel.js';
 import { buildContext } from '../agent/context.js';
 import { buildSystemPrompt } from '../agent/systemPrompt.js';
 import { runAgentTurn } from '../agent/loop.js';
-import { checkReply, detectLanguage, fixedReply, isEmergency, LIMITS } from '../agent/guardrails.js';
+import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../agent/guardrails.js';
 import { maskText, restoreForPatient, withoutCodes } from '../agent/masking.js';
 import { AppError } from '../utils/AppError.js';
 import { createKeyedLock } from '../utils/keyedLock.js';
@@ -75,6 +75,8 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
   }
 
   const state = structuredClone(conversation.state ?? {});
+  const visit = detectVisitHistory(message);
+  if (visit !== null) state.firstVisit = visit;
   const map = { ...(state.placeholders ?? {}) };
   const turnNumber = conversation.turn_count + 1;
   const maskedMessage = maskText(message, map);

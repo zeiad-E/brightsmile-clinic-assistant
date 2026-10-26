@@ -18,6 +18,12 @@ function attemptsLeft(ctx) {
 
 function guard(ctx) {
   if (ctx.isPatient) return { already_signed_in: true };
+  if (ctx.state.firstVisit) {
+    return toolError(
+      'first_visit',
+      'This patient said it is their first visit, so they have no account to sign in to. Collect full name, date of birth and email or phone, then use check_availability and propose_booking — booking creates their account.',
+    );
+  }
   if ((ctx.state.signInAttempts ?? 0) >= LIMITS.maxSignInAttempts) {
     return toolError('too_many_attempts', 'Too many sign-in attempts in this chat. Offer to connect them with staff, or to try again later.');
   }
@@ -38,7 +44,7 @@ function signInFailure(ctx, err) {
 
 export const signInWithPhone = defineTool({
   name: 'sign_in_with_phone',
-  description: 'Sign in a returning patient with phone number + full name + date of birth (pass the placeholders exactly as written).',
+  description: 'RETURNING patients only (they said they visited before). Sign in with phone number + full name + date of birth (pass the placeholders exactly as written).',
   schema: z.object({ phone: z.string().max(40), full_name: z.string().min(2).max(120), date_of_birth: z.string().max(40) }),
   run: async ({ phone, full_name: fullName, date_of_birth: dob }, ctx) => {
     const blocked = guard(ctx);
@@ -57,7 +63,7 @@ export const signInWithPhone = defineTool({
 
 export const signInWithCode = defineTool({
   name: 'sign_in_with_code',
-  description: 'Sign in with the personal code from the patient’s confirmation email (pass the placeholder exactly as written).',
+  description: 'RETURNING patients only. Sign in with the personal code from their confirmation email (pass the placeholder exactly as written).',
   schema: z.object({ code: z.string().min(4).max(30) }),
   run: async ({ code }, ctx) => {
     const blocked = guard(ctx);
@@ -72,7 +78,7 @@ export const signInWithCode = defineTool({
 
 export const sendEmailCode = defineTool({
   name: 'send_email_code',
-  description: 'Email a one-time sign-in code to a returning patient. Then ask them to type the code here.',
+  description: 'RETURNING patients only (never for a first visit). Email a one-time sign-in code. Then ask them to type the code here.',
   schema: z.object({ email: z.string().max(254) }),
   run: async ({ email }, ctx) => {
     const blocked = guard(ctx);
