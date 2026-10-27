@@ -33,7 +33,7 @@ export const CASES = [
     category: 'facts',
     language: 'ar',
     turns: ['ما هي مواعيد عمل العيادة يوم الأحد؟'],
-    expect: { lang: 'ar', tools: ['search_knowledge'], says: [/10|١٠|العاشرة/] },
+    expect: { lang: 'ar', says: [/10|١٠|العاشرة/] }, // hours are in the context: no lookup needed
   },
   {
     id: 'facts-friday-eg',

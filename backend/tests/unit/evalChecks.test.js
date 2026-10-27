@@ -25,6 +25,7 @@ describe('eval checks', () => {
     expect(one(ev({ replies: ['Hello!', 'مرحباً بك'] }), { lang: 'en' }).pass).toBe(false);
     expect(one(ev({ replies: ['Hello!', 'مرحباً بك'] }), { lang: { last: 'ar' } }).pass).toBe(true);
     expect(one(ev({ replies: ['Dr. Sarah مع موعدك يوم الأحد الساعة 10'] }), { lang: 'ar' }).pass).toBe(true);
+    expect(one(ev({ replies: ["The children's check-up (كشف للأطفال) costs 500 EGP and takes about 30 minutes."] }), { lang: 'en' }).pass).toBe(true);
   });
 
   it('accepts only real prices, in either language and digit style', () => {

@@ -34,7 +34,8 @@ export const CHECKS = {
     const lastOnly = typeof expected === 'object';
     const want = lastOnly ? expected.last : expected;
     const replies = lastOnly ? ev.replies.slice(-1) : ev.replies;
-    const wrong = replies.filter((r) => (want === 'ar' ? arabicShare(r) < 0.5 : arabicShare(r) > 0.05));
+    // An English reply may quote an Arabic name, e.g. "children's check-up (كشف للأطفال)".
+    const wrong = replies.filter((r) => (want === 'ar' ? arabicShare(r) < 0.5 : arabicShare(r) > 0.2));
     return result(!wrong.length, wrong.length ? `reply not in ${want}: "${wrong[0].slice(0, 80)}…"` : `all in ${want}`);
   },
 
