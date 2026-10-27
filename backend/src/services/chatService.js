@@ -12,6 +12,7 @@ import { buildSystemPrompt } from '../agent/systemPrompt.js';
 import { runAgentTurn } from '../agent/loop.js';
 import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../agent/guardrails.js';
 import { maskText, restoreForPatient, withoutCodes } from '../agent/masking.js';
+import { progressEvent } from '../agent/progress.js';
 import { AppError } from '../utils/AppError.js';
 import { createKeyedLock } from '../utils/keyedLock.js';
 import { logger } from '../utils/logger.js';
@@ -44,7 +45,12 @@ async function loadOwned(admin, id, user) {
 
 const isPatient = (user) => user?.role === 'patient' && Boolean(user.patientId);
 
-export async function sendMessage({ user, db, ip }, { conversationId, message, language }) {
+/**
+ * `onEvent(type, data)` (optional, used by the streaming endpoint) hears progress while the
+ * turn runs: 'status' (place in line, what the assistant is doing) and 'card' (free times,
+ * booking summary…). The JSON endpoint leaves it out and just waits for the result.
+ */
+export async function sendMessage({ user, db, ip, onEvent }, { conversationId, message, language }) {
   const admin = requireAdmin();
   const settings = await clinicModel.getSettings(admin);
   const lang = language ?? detectLanguage(message, user?.preferredLanguage ?? 'en');
@@ -62,10 +68,14 @@ export async function sendMessage({ user, db, ip }, { conversationId, message, l
       });
 
   const keys = personKeys({ userId: user?.id, ip });
-  return withConversationLock(conversation.id, () => runTurn({ admin, settings, user, db, lang, conversationId: conversation.id, message, keys }));
+  const notify = onEvent ?? (() => {});
+  notify('conversation', { conversation_id: conversation.id });
+  return withConversationLock(conversation.id, () =>
+    runTurn({ admin, settings, user, db, lang, conversationId: conversation.id, message, keys, notify }),
+  );
 }
 
-async function runTurn({ admin, settings, user, db, lang, conversationId, message, keys }) {
+async function runTurn({ admin, settings, user, db, lang, conversationId, message, keys, notify = () => {} }) {
   const startedAt = Date.now();
   const conversation = await conversationModel.findById(admin, conversationId); // fresh, inside the lock
   const patch = { last_message_at: new Date().toISOString(), language: lang };
@@ -104,7 +114,11 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     toolLog: [],
     session: null,
     endTurn: null,
-    emit: (card) => ctx.cards.push(card),
+    emit: (card) => {
+      ctx.cards.push(card);
+      notify('card', card);
+    },
+    onProgress: (progress) => notify('status', progressEvent(progress, lang)),
     // Called by sign-in and booking tools: the conversation now belongs to this patient.
     signedIn: async (session) => {
       const userDb = createUserClient(session.access_token);
@@ -152,6 +166,7 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
   let attempts;
   try {
     attempts = await limiter.run(async () => {
+      ctx.onProgress({ stage: 'thinking' });
       let result = null;
       let retries = 0;
       const failures = [];
@@ -177,7 +192,7 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
         if (ctx.endTurn) break;
       }
       return { result, retries, failures };
-    });
+    }, { onQueued: (position) => ctx.onProgress({ stage: 'queued', position }) });
   } catch (err) {
     if (err instanceof BusyError) {
       throw new AppError(503, 'assistant_busy', 'The assistant is very busy right now. Please try again in a moment.', { retry_after_seconds: 15 });

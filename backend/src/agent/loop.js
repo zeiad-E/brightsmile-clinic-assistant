@@ -53,6 +53,7 @@ export async function runAgentTurn({
     convo.push({ role: 'assistant', content: message.content ?? '', tool_calls: message.tool_calls });
 
     for (const call of message.tool_calls) {
+      ctx.onProgress?.({ stage: 'tool', tool: call.function?.name });
       const result = await runTool(call, { ctx, tools, seen });
       toolCalls.push({ name: call.function?.name, ok: !result?.error });
       const forAi = maskDeep(result, ctx.map);

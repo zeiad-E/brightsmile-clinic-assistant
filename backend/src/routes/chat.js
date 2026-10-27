@@ -12,6 +12,7 @@ export function chatRouter(limits) {
   const router = Router();
 
   router.post('/', limits.chat, validate({ body: ChatBody }), chat.send);
+  router.post('/stream', limits.chat, validate({ body: ChatBody }), chat.stream); // same turn, live progress (SSE)
   router.get('/:id', validate({ params: IdParams }), chat.history);
 
   return router;

@@ -24,26 +24,36 @@ export function createLimiter({ max, queueMax, maxWaitMs }) {
   let active = 0;
   const waiting = [];
 
+  // Everyone still waiting hears their new place in line (shown to patients while streaming).
+  function announcePositions() {
+    waiting.forEach((item, index) => item.onQueued?.(index + 1));
+  }
+
   function startNext() {
+    let moved = false;
     while (active < max && waiting.length) {
       const item = waiting.shift();
       clearTimeout(item.timer);
       active += 1;
       item.start();
+      moved = true;
     }
+    if (moved) announcePositions();
   }
 
+  /** `onQueued(position)` is called when the task joins the line and each time it moves up. */
   async function run(task, { onQueued } = {}) {
     if (active < max && waiting.length === 0) {
       active += 1;
     } else {
       if (waiting.length >= queueMax) throw new BusyError('queue_full');
       await new Promise((resolve, reject) => {
-        const item = { start: resolve, timer: null };
+        const item = { start: resolve, timer: null, onQueued };
         item.timer = setTimeout(() => {
           const index = waiting.indexOf(item);
           if (index !== -1) waiting.splice(index, 1);
           reject(new BusyError('waited_too_long'));
+          announcePositions();
         }, maxWaitMs);
         waiting.push(item);
         onQueued?.(waiting.length);

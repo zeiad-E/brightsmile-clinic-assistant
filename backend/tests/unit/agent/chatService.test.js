@@ -61,6 +61,25 @@ describe('chatService.sendMessage', () => {
     expect(conversations.get(res.conversation_id)).toMatchObject({ turn_count: 1, state: { placeholders: { '[EMAIL_1]': 'mona@example.com' } } });
   });
 
+  it('reports progress and cards to a streaming caller while the turn runs', async () => {
+    runAgentTurn.mockImplementation(async ({ ctx }) => {
+      ctx.onProgress({ stage: 'tool', tool: 'check_availability' });
+      ctx.emit({ type: 'slots', doctors: [] });
+      return ok('Sunday at 10:00 is free.');
+    });
+    const events = [];
+
+    const res = await chatService.sendMessage({ ...guest, onEvent: (type, data) => events.push([type, data]) }, { message: 'Free on Sunday?' });
+
+    expect(events).toEqual([
+      ['conversation', { conversation_id: res.conversation_id }],
+      ['status', { stage: 'thinking', text: 'Thinking…' }],
+      ['status', { stage: 'tool', text: 'Checking free times…' }],
+      ['card', { type: 'slots', doctors: [] }],
+    ]);
+    expect(res.cards).toEqual([{ type: 'slots', doctors: [] }]);
+  });
+
   it('never stores one-time codes, even in the conversation state', async () => {
     runAgentTurn.mockResolvedValue(ok('Checking…'));
     const res = await chatService.sendMessage(guest, { message: 'my code is K7Q4-9M2X' });

@@ -23,7 +23,8 @@ const DB_ERRORS = {
   PGRST116: [404, 'not_found', 'Not found.'], // `.single()` matched no row
 };
 
-function toResponse(err) {
+/** Known errors → { status, body }; null for anything unexpected. Also used by the chat stream. */
+export function toResponse(err) {
   if (err instanceof AppError) {
     return { status: err.status, body: { error: err.code, message: err.message, details: err.details } };
   }
