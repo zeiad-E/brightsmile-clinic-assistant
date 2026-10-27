@@ -10,3 +10,4 @@ infra/llm-engine/freellmapi.config.json
 .git
 docs
 frontend
+frontend-drafts
