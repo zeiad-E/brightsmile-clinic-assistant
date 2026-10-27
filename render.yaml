@@ -50,6 +50,14 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # Backup AI provider, used when every model in the engine's chain fails (e.g. Groq's free tier).
+      # Without it, one rate-limited engine key makes turns fail and trips the circuit breaker.
+      - key: FALLBACK_PROVIDER_BASE_URL
+        sync: false
+      - key: FALLBACK_PROVIDER_API_KEY
+        sync: false
+      - key: FALLBACK_MODEL
+        sync: false
       # Agent evals pass (min 32 chars; same value in backend/.env); empty = evals can't run live
       - key: EVAL_KEY
         sync: false

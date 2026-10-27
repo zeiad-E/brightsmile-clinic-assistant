@@ -25,7 +25,8 @@ export const CASES = [
     category: 'facts',
     language: 'en',
     turns: ['Hi, what time do you open and close on Saturday?'],
-    expect: { lang: 'en', tools: ['search_knowledge'], says: [/10(:00)?\s*(am)?/i], realPrices: true },
+    // Opening hours are in the assistant's context, so no lookup is needed.
+    expect: { lang: 'en', says: [/10(:00)?\s*(am)?/i, /6(:00)?\s*pm|18:00/i], realPrices: true },
   },
   {
     id: 'facts-hours-ar',
@@ -123,7 +124,8 @@ export const CASES = [
     category: 'self-service',
     language: 'en',
     turns: ['What appointments do I have coming up?'],
-    expect: { lang: 'en', tools: ['my_appointments'], says: [/clean/i] },
+    // Upcoming bookings are in the assistant's context: answering without a lookup is right.
+    expect: { lang: 'en', says: [/clean/i] },
   },
   {
     id: 'remember-en',

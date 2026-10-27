@@ -4,7 +4,9 @@
  *
  *   npm run eval:agent                     all cases
  *   npm run eval:agent -- --only booking   one category, group or case id
- *   npm run eval:agent -- --concurrency 2  conversations in flight at once (default 3)
+ *   npm run eval:agent -- --concurrency 2  conversations in flight at once (default 1: the free
+ *                                          AI providers fail under parallel load, and five failed
+ *                                          turns switch the live assistant off for everyone)
  *   npm run eval:agent -- --keep           leave the test records (for debugging)
  *   npm run eval:agent -- --min 0.9        exit with an error below this pass rate
  *
@@ -32,7 +34,7 @@ const option = (name, fallback) => {
   return i === -1 ? fallback : (args[i + 1] ?? true);
 };
 const ONLY = option('only', null);
-const CONCURRENCY = Number(option('concurrency', 3));
+const CONCURRENCY = Number(option('concurrency', 1));
 const KEEP = args.includes('--keep');
 const MIN = option('min', null) === null ? null : Number(option('min'));
 
@@ -57,6 +59,7 @@ const scenario = {
   email: (name) => `eval-${RUN}-${name}@${EVAL_DOMAIN}`,
 };
 const sessions = new Map(); // eval patient → access token (from their booking)
+let breakerWaits = 0; // minutes spent waiting for the live circuit breaker to close
 
 // ---------- talking to the live API ----------
 
@@ -72,6 +75,13 @@ async function send(c, message, { conversationId, token }) {
       signal: AbortSignal.timeout(120_000),
     });
     const body = await res.json().catch(() => ({}));
+    // The circuit breaker is open (the AI failed several times recently): that is the AI
+    // providers' state, not the assistant's judgment. Wait for it to close and send again.
+    if (res.ok && body.status === 'unavailable' && attempt < 6) {
+      breakerWaits += 1;
+      await new Promise((r) => setTimeout(r, 60_000));
+      continue;
+    }
     if (res.ok) return { ...body, ms: Date.now() - started };
     // Busy (queue full) or rate limited: wait and try again, a few times.
     if ([429, 503].includes(res.status) && attempt < 4) {
@@ -98,14 +108,14 @@ async function patientRecords(name) {
 async function evidence(c, { conversationIds, replies, results }) {
   const [tools, runs, conversations, escalations] = await Promise.all([
     admin.from('messages').select('tool_name, tool_payload, id').in('conversation_id', conversationIds).eq('role', 'tool').order('id'),
-    admin.from('agent_runs').select('outcome, latency_ms, tokens_in, tokens_out, model, retries').in('conversation_id', conversationIds),
+    admin.from('agent_runs').select('outcome, latency_ms, tokens_in, tokens_out, model, retries, tool_calls').in('conversation_id', conversationIds),
     admin.from('conversations').select('id, status').in('id', conversationIds),
     admin.from('escalations').select('id', { count: 'exact', head: true }).in('conversation_id', conversationIds),
   ]);
   return {
     replies,
     results,
-    tools: (tools.data ?? []).map((t) => ({ name: t.tool_name, ok: !t.tool_payload?.result?.error })),
+    tools: (tools.data ?? []).map((t) => ({ name: t.tool_name, ok: !t.tool_payload?.result?.error, error: t.tool_payload?.result?.error, args: t.tool_payload?.args })),
     runs: runs.data ?? [],
     conversations: conversationIds.map((id) => (conversations.data ?? []).find((row) => row.id === id)).filter(Boolean),
     escalations: escalations.count ?? 0,
@@ -153,11 +163,16 @@ async function runCase(c) {
 
   const ev = await evidence(c, { conversationIds: [conversationId], replies, results });
   const checks = score(ev, c.expect);
+  // Kept in the report: the records themselves are deleted by the clean-up.
+  const failures = ev.runs.flatMap((r) => (r.tool_calls ?? []).filter((t) => t.name === '_attempt_failed').map((t) => t.reason));
   return {
     case: c,
     conversationIds: [conversationId],
     replies,
     checks,
+    tools: ev.tools,
+    failures,
+    statuses: results.map((r) => r.status),
     pass: checks.every((k) => k.pass),
     ms: Date.now() - started,
     turns: replies.length,
@@ -270,6 +285,7 @@ function printLine(o) {
   }
   console.log(`  ${o.pass ? '✓' : '✗'} ${c.id.padEnd(28)} ${String(o.turns).padStart(2)} turn(s) ${(o.ms / 1000).toFixed(1).padStart(5)} s`);
   for (const k of o.checks.filter((check) => !check.pass)) console.log(`      ✗ ${k.name}: ${k.detail}`);
+  if (!o.pass && o.failures.length) console.log(`      AI attempts failed: ${[...new Set(o.failures)].join(' | ')}`);
 }
 
 function summarize(outcomes) {
@@ -297,8 +313,9 @@ function summarize(outcomes) {
   console.log(`Checks  ${checks.filter((k) => k.pass).length}/${checks.length} passed`);
   console.log(`Turns   ${turns}, average ${(ms / Math.max(turns, 1) / 1000).toFixed(1)} s per reply`);
   console.log(`Tokens  ${tokens.toLocaleString('en')} (about ${Math.round(tokens / Math.max(turns, 1)).toLocaleString('en')} per turn)`);
-  console.log(`Retries ${done.reduce((s, o) => s + o.retries, 0)}`);
-  return { passed, total: outcomes.length, rate: outcomes.length ? passed / outcomes.length : 0, turns, tokens };
+  console.log(`Retries ${done.reduce((s, o) => s + o.retries, 0)} (turns where the first AI attempt failed)`);
+  console.log(`Breaker ${breakerWaits} minute(s) waiting for the assistant to come back after AI failures`);
+  return { passed, total: outcomes.length, rate: outcomes.length ? passed / outcomes.length : 0, turns, tokens, breakerWaits };
 }
 
 function selected() {
@@ -324,7 +341,7 @@ async function main() {
     if (report) {
       fs.mkdirSync(new URL('../evals/results/', import.meta.url), { recursive: true });
       const file = new URL(`../evals/results/${STARTED.toISOString().slice(0, 10)}-${RUN}.json`, import.meta.url);
-      const rows = outcomes.map((o) => ({ id: o.case.id, category: o.case.category, language: o.case.language, pass: o.pass ?? false, error: o.error ?? o.skipped, checks: o.checks, replies: o.replies, ms: o.ms, tokens: o.tokens }));
+      const rows = outcomes.map((o) => ({ id: o.case.id, category: o.case.category, language: o.case.language, pass: o.pass ?? false, error: o.error ?? o.skipped, checks: o.checks, replies: o.replies, tools: o.tools, failures: o.failures, statuses: o.statuses, ms: o.ms, tokens: o.tokens }));
       fs.writeFileSync(file, JSON.stringify({ run: RUN, api: API, startedAt: STARTED, summary: report, cases: rows }, null, 2));
       console.log(`Report  ${file.pathname.replace(/^\/([A-Z]:)/, '$1')}`);
     }
