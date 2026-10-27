@@ -50,7 +50,7 @@ const isPatient = (user) => user?.role === 'patient' && Boolean(user.patientId);
  * turn runs: 'status' (place in line, what the assistant is doing) and 'card' (free times,
  * booking summary…). The JSON endpoint leaves it out and just waits for the result.
  */
-export async function sendMessage({ user, db, ip, onEvent }, { conversationId, message, language }) {
+export async function sendMessage({ user, db, ip, evalCase, onEvent }, { conversationId, message, language }) {
   const admin = requireAdmin();
   const settings = await clinicModel.getSettings(admin);
   const lang = language ?? detectLanguage(message, user?.preferredLanguage ?? 'en');
@@ -67,7 +67,7 @@ export async function sendMessage({ user, db, ip, onEvent }, { conversationId, m
         language: lang,
       });
 
-  const keys = personKeys({ userId: user?.id, ip });
+  const keys = personKeys({ userId: user?.id, ip, evalCase });
   const notify = onEvent ?? (() => {});
   notify('conversation', { conversation_id: conversation.id });
   return withConversationLock(conversation.id, () =>

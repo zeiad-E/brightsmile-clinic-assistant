@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:int": "vitest run --config vitest.integration.config.js",
-    "test:int:live": "vitest run --config vitest.integration.config.js --mode live"
+    "test:int:live": "vitest run --config vitest.integration.config.js --mode live",
+    "eval:agent": "node scripts/eval-agent.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "~2.118.0",

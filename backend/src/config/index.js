@@ -60,6 +60,9 @@ const EnvSchema = z
     CHAT_DAILY_TOKENS_PER_PERSON: positiveInt(150000),
     CHAT_DAILY_TOKENS_CLINIC: positiveInt(3000000),
 
+    // The agent evals' pass (see middlewares/evalPass.js); empty disables it.
+    EVAL_KEY: text(),
+
     // Fingerprints personal sign-in codes (HMAC). Changing it invalidates every issued code.
     PERSONAL_CODE_SECRET: text(),
     // Where the frontend lives; used for links in emails.
@@ -83,6 +86,9 @@ const EnvSchema = z
 
     if (env.EMAIL_PROVIDER === 'smtp') requireKeys(['SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'], 'when EMAIL_PROVIDER=smtp');
     if (env.EMAIL_PROVIDER === 'brevo') requireKeys(['BREVO_API_KEY', 'MAIL_FROM'], 'when EMAIL_PROVIDER=brevo');
+    if (env.EVAL_KEY && env.EVAL_KEY.length < 32) {
+      ctx.addIssue({ code: 'custom', path: ['EVAL_KEY'], message: 'must be at least 32 characters' });
+    }
 
     if (env.NODE_ENV !== 'production') return;
     requireKeys(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY', 'PERSONAL_CODE_SECRET'], 'in production');
@@ -165,6 +171,7 @@ export function loadConfig(rawEnv = process.env) {
     },
 
     appUrl: env.APP_URL,
+    evalKey: env.EVAL_KEY,
 
     auth: {
       personalCodeSecret: env.PERSONAL_CODE_SECRET || DEV_PERSONAL_CODE_SECRET,

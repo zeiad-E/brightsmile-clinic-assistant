@@ -21,6 +21,7 @@ function limiter(windowMs, limit, message) {
     limit,
     standardHeaders: 'draft-8', // tells the client how many tries are left
     legacyHeaders: false,
+    skip: (req) => Boolean(req.evalCase), // the agent evals (see middlewares/evalPass.js)
     handler: (_req, _res, next) => next(new AppError(429, 'rate_limited', message)),
   });
 }

@@ -9,7 +9,7 @@ import { ctxOf } from './context.js';
 
 export async function send(req, res) {
   const { conversation_id: conversationId, message, language } = req.valid.body;
-  res.json(await chatService.sendMessage({ user: req.user, db: req.db, ip: req.ip }, { conversationId, message, language }));
+  res.json(await chatService.sendMessage({ user: req.user, db: req.db, ip: req.ip, evalCase: req.evalCase }, { conversationId, message, language }));
 }
 
 /**
@@ -23,7 +23,7 @@ export async function stream(req, res) {
   const events = openEventStream(req, res);
   try {
     const result = await chatService.sendMessage(
-      { user: req.user, db: req.db, ip: req.ip, onEvent: events.send },
+      { user: req.user, db: req.db, ip: req.ip, evalCase: req.evalCase, onEvent: events.send },
       { conversationId, message, language },
     );
     const chunks = replyChunks(result.reply);

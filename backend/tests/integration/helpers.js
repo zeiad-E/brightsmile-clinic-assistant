@@ -105,7 +105,7 @@ export async function freeSlots({ serviceId, staffId, minHoursAhead = 30, count 
 }
 
 /** Records created outside the API (or that cleanup can't find by marker). */
-export const tracked = { timeOff: [], escalations: [], staff: [], services: [] };
+export const tracked = { timeOff: [], escalations: [], staff: [], services: [], conversations: [] };
 export let originalSettings = null;
 export const rememberSettings = (settings) => {
   originalSettings = settings;
@@ -124,6 +124,21 @@ export async function cleanup() {
   const { data: patients } = await admin.from('patients').select('id, profile_id').or(filters.join(','));
   const patientIds = (patients ?? []).map((p) => p.id);
   const patientLogins = (patients ?? []).map((p) => p.profile_id).filter(Boolean);
+
+  // Chats (chat tests): their runs, escalations and queued memory jobs; messages go with them.
+  const conversationIds = new Set(tracked.conversations);
+  if (patientIds.length) {
+    const { data: chats } = await admin.from('conversations').select('id').in('patient_id', patientIds);
+    for (const chat of chats ?? []) conversationIds.add(chat.id);
+  }
+  if (conversationIds.size) {
+    const ids = [...conversationIds];
+    await admin.from('agent_runs').delete().in('conversation_id', ids);
+    await admin.from('escalations').delete().in('conversation_id', ids);
+    await admin.from('jobs').delete().eq('status', 'queued').in('payload->>conversationId', ids);
+    await admin.from('conversations').delete().in('id', ids);
+    report.conversations = ids.length;
+  }
 
   if (patientIds.length) {
     const { data: appts } = await admin.from('appointments').select('id').in('patient_id', patientIds);

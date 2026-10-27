@@ -50,3 +50,6 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # Agent evals pass (min 32 chars; same value in backend/.env); empty = evals can't run live
+      - key: EVAL_KEY
+        sync: false

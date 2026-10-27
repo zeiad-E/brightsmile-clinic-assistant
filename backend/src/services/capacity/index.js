@@ -39,7 +39,11 @@ export const budget = createBudget({
 
 export const breaker = createCircuitBreaker();
 
-/** Who a limit applies to: the signed-in user and/or the visitor's IP address. */
-export const personKeys = ({ userId, ip }) => [userId ? `user:${userId}` : null, ip ? `ip:${ip}` : null].filter(Boolean);
+/**
+ * Who a limit applies to: the signed-in user and/or the visitor's IP address.
+ * An eval conversation counts as its own person (see middlewares/evalPass.js).
+ */
+export const personKeys = ({ userId, ip, evalCase }) =>
+  evalCase ? [`eval:${evalCase}`] : [userId ? `user:${userId}` : null, ip ? `ip:${ip}` : null].filter(Boolean);
 
 export const capacityStatus = () => ({ queue: limiter.stats(), ai: breaker.stats(), budget: budget.stats() });

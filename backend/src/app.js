@@ -5,6 +5,7 @@ import { config } from './config/index.js';
 import { createApiRouter } from './routes/index.js';
 import { llmAdminDoor } from './middlewares/llmAdminDoor.js';
 import { requestContext } from './middlewares/requestContext.js';
+import { evalPass } from './middlewares/evalPass.js';
 import { notFound } from './middlewares/notFound.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
@@ -28,6 +29,7 @@ export function createApp({ rateLimit = true } = {}) {
   app.use(llmAdminDoor());
 
   app.use(requestContext());
+  app.use(evalPass());
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigin }));
   app.use(express.json({ limit: '100kb' }));
