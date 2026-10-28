@@ -33,7 +33,7 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
 
   return (
     <>
-      <nav aria-label={labels.nav} className="ms-auto hidden items-center gap-6 text-sm md:flex">
+      <nav aria-label={labels.nav} data-on-dark className="ms-auto hidden items-center gap-[22px] text-sm md:flex">
         {links.map((link) => (
           <Link
             key={link.href}
@@ -47,9 +47,9 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
       </nav>
 
       <div className="ms-auto flex items-center gap-3 md:ms-0">
-        <LanguageSwitch locale={locale} label={labels.switchLanguage} ariaLabel={labels.switchLanguageLabel} className="hidden sm:inline-flex" />
-        <AccountLink locale={locale} labels={labels} className="hidden text-sm font-semibold text-ink-2 hover:text-ink sm:inline" />
-        <Link href={bookHref} className={buttonClasses({ variant: 'dark', size: 'sm' })}>
+        <LanguageSwitch locale={locale} label={labels.switchLanguage} ariaLabel={labels.switchLanguageLabel} className="hidden sm:inline-flex" onDark />
+        <AccountLink locale={locale} labels={labels} className="hidden text-sm font-semibold text-ink-2 hover:text-ink sm:inline" onDark />
+        <Link href={bookHref} data-book className={buttonClasses({ variant: 'dark', size: 'sm' })}>
           {labels.book}
         </Link>
         <button
@@ -93,13 +93,13 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
 }
 
 /** "Sign in" for visitors; "My account" for patients; "Dashboard" for the clinic team. */
-function AccountLink({ locale, labels, className }) {
+function AccountLink({ locale, labels, className, onDark }) {
   const { status, user } = useSession();
 
   if (status === 'signed-in') {
     const isPatient = user.role === 'patient';
     return (
-      <Link href={localePath(locale, isPatient ? '/account' : '/dashboard')} className={className}>
+      <Link href={localePath(locale, isPatient ? '/account' : '/dashboard')} data-on-dark={onDark || undefined} className={className}>
         {isPatient ? labels.myAccount : labels.dashboard}
       </Link>
     );
@@ -107,6 +107,7 @@ function AccountLink({ locale, labels, className }) {
   return (
     <Link
       href={localePath(locale, '/login')}
+      data-on-dark={onDark || undefined}
       className={`${className} transition-opacity ${status === 'loading' ? 'opacity-0' : 'opacity-100'}`}
     >
       {labels.signIn}

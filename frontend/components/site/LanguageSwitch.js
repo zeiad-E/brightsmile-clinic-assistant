@@ -9,7 +9,7 @@ import { LOCALE_COOKIE, otherLocale } from '@/i18n/config';
  * /en/services ⇄ /ar/services. It also saves the choice in a cookie, so the proxy remembers it
  * the next time the visitor opens the site.
  */
-export default function LanguageSwitch({ locale, label, ariaLabel, className = '' }) {
+export default function LanguageSwitch({ locale, label, ariaLabel, className = '', onDark = false }) {
   const pathname = usePathname();
   const target = otherLocale(locale);
   const href = pathname.replace(/^\/(en|ar)(?=\/|$)/, `/${target}`);
@@ -23,6 +23,7 @@ export default function LanguageSwitch({ locale, label, ariaLabel, className = '
       href={href}
       onClick={remember}
       hrefLang={target}
+      data-on-dark={onDark || undefined}
       lang={target}
       aria-label={ariaLabel}
       className={`items-center rounded-full border border-line px-3 py-1.5 text-sm font-semibold text-ink-2 transition-colors hover:border-mint hover:text-ink ${className}`}

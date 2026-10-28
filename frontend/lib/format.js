@@ -49,3 +49,39 @@ export function summarizeOpeningHours(openingHours, locale) {
     return `${range} · ${formatClock(hours.opens, locale)} – ${formatClock(hours.closes, locale)}`;
   });
 }
+
+const CLINIC_TZ = 'Africa/Cairo';
+
+/** 4500 → "4,500 EGP" (English) or "٤٬٥٠٠ جنيه" (Arabic). */
+export function formatPrice(amount, locale) {
+  if (locale === 'ar') return `${new Intl.NumberFormat('ar-EG').format(amount)} جنيه`;
+  return `${amount.toLocaleString('en-US')} EGP`;
+}
+
+/** Short form used where space is tight: "Dr. Sarah Mansour" → "Dr. Sarah", "Nadia Fawzy" → "Nadia". */
+export function shortName(fullName) {
+  const words = fullName.split(' ');
+  return /^(Dr\.|د\.)$/.test(words[0]) ? words.slice(0, 2).join(' ') : words[0];
+}
+
+/**
+ * An appointment start time, in the clinic's time zone, three ways:
+ *   short:   "Thu 4:30 PM"         (hero chip)
+ *   long:    "Thursday · 4:30 PM"  (booking card)
+ *   dayWord: "today" / "tomorrow" / "Thursday" (for "The next free slot is …")
+ */
+export function describeSlot(startsAt, locale, words) {
+  const date = new Date(startsAt);
+  const fmt = (options) => new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-US', { timeZone: CLINIC_TZ, ...options }).format(date);
+  const time = fmt({ hour: 'numeric', minute: '2-digit', hour12: true });
+  const weekday = fmt({ weekday: 'long' });
+
+  const dayKey = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: CLINIC_TZ }).format(d); // YYYY-MM-DD in Cairo
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 86_400_000);
+  let dayWord = locale === 'ar' ? `يوم ${weekday}` : weekday;
+  if (dayKey(date) === dayKey(today)) dayWord = words.today;
+  else if (dayKey(date) === dayKey(tomorrow)) dayWord = words.tomorrow;
+
+  return { short: `${fmt({ weekday: 'short' })} ${time}`, long: `${weekday} · ${time}`, dayWord };
+}

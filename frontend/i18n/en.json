@@ -25,12 +25,192 @@
     "switchLanguageLabel": "اقرأ هذه الصفحة بالعربية"
   },
   "home": {
-    "eyebrow": "Dental clinic · Heliopolis, Cairo",
+    "eyebrow": "Dental clinic",
     "titleA": "Your smile,",
-    "titleB": "our priority.",
+    "phrases": [
+      "our priority.",
+      "in good hands.",
+      "booked fast.",
+      "bright again."
+    ],
     "lead": "Gentle dentistry with clear prices, and an assistant that answers your questions and books your visit at any hour.",
     "book": "Book an appointment",
-    "ask": "Ask a question"
+    "ask": "Ask a question",
+    "nextFree": "Next free:",
+    "scroll": "Scroll",
+    "story": [
+      {
+        "b": "01 · Ask",
+        "h": "Questions answered at 3 a.m.",
+        "p": "Prices, insurance, hours, what to do before a visit. The assistant answers from the clinic's own information."
+      },
+      {
+        "b": "02 · Pick",
+        "h": "Real free slots, not a phone queue.",
+        "p": "Choose Dr. Sarah or Dr. Karim and a time that is actually open. No double-booking."
+      },
+      {
+        "b": "03 · Remember",
+        "h": "A reminder the day before.",
+        "p": "Fewer no-shows. If you can't come, your slot goes to the next patient on the waitlist."
+      },
+      {
+        "b": "04 · Smile",
+        "h": "Walk in. Walk out brighter.",
+        "p": "Everything was ready before you arrived."
+      }
+    ],
+    "portal": {
+      "small": "Welcome to BrightSmile",
+      "title": "Come in. Dr. Sarah will see you now.",
+      "chips": [
+        "No waiting room",
+        "Same-week slots",
+        "Calm, gentle visits"
+      ],
+      "stepInside": "Step inside",
+      "brand": "BrightSmile"
+    },
+    "services": {
+      "eyebrow": "Services & prices",
+      "titleA": "Eight treatments.",
+      "titleB": "Prices up front.",
+      "min": "min"
+    },
+    "xray": {
+      "eyebrow": "Check-ups",
+      "title": "See what we see.",
+      "text": "Move the lens across the teeth. A check-up finds the small things before they become big ones.",
+      "lens": "X-ray",
+      "smileTitle": "Looks healthy, right?",
+      "rayTitle": "What Dr. Sarah sees",
+      "cavity": "early cavity",
+      "filling": "old filling",
+      "root": "treated root"
+    },
+    "journey": {
+      "eyebrow": "How it works",
+      "title": "Your visit, start to finish.",
+      "text": "From a late-night question to your six-month check-up, nothing falls through the cracks.",
+      "stops": [
+        [
+          "11:42 PM: a question",
+          "The assistant answers instantly"
+        ],
+        [
+          "Booked in 30 seconds",
+          "Thursday 4:30 PM · Dr. Sarah"
+        ],
+        [
+          "Reminder, the day before",
+          "One tap to confirm"
+        ],
+        [
+          "The visit",
+          "No waiting, no paperwork"
+        ],
+        [
+          "Six months later",
+          "A friendly check-up nudge"
+        ]
+      ]
+    },
+    "assistant": {
+      "eyebrow": "The assistant",
+      "titleA": "Ask anything.",
+      "titleB": "Book in seconds.",
+      "ticks": [
+        "Answers from the clinic's own prices, hours and policies, and shows where each answer came from.",
+        "Sees the real calendar, so it never double-books.",
+        "Sends a reminder the day before, in Arabic or English."
+      ],
+      "name": "BrightSmile assistant",
+      "status": "online · replies instantly",
+      "input": "Ask a question or book an appointment…",
+      "script": [
+        {
+          "me": "How much is teeth whitening?"
+        },
+        {
+          "bot": "Teeth whitening is 4,500 EGP: one 60-minute session at the clinic with Dr. Sarah Mansour. Want me to find you a time?",
+          "src": "Source: Services & prices"
+        },
+        {
+          "me": "Yes, Thursday afternoon please"
+        },
+        {
+          "bot": "Here's what's free on Thursday afternoon:",
+          "slots": [
+            "2:00 PM",
+            "4:30 PM",
+            "5:15 PM"
+          ],
+          "pick": 1
+        },
+        {
+          "me": "4:30 PM"
+        },
+        {
+          "bot": "Booked ✓ Teeth whitening · Thu 4:30 PM · Dr. Sarah. I'll remind you the day before.",
+          "confirm": true
+        }
+      ]
+    },
+    "stack": {
+      "eyebrow": "Under the hood",
+      "title": "Follow one question through the system.",
+      "layers": [
+        {
+          "b": "Website & chat",
+          "text": "Where the patient types."
+        },
+        {
+          "b": "AI agent",
+          "text": "Understands the question and decides what to do."
+        },
+        {
+          "b": "Clinic knowledge",
+          "text": "The clinic's own documents, so answers are never made up."
+        },
+        {
+          "b": "Bookings database",
+          "text": "The real calendar, reminders and waitlist."
+        }
+      ],
+      "hint": "Scroll to send a question",
+      "say": [
+        "Patient asks: “Is Thursday free?”",
+        "The agent understands: a Thursday slot",
+        "Checks clinic knowledge: whitening is 60 min",
+        "Finds 4:30 PM free in the calendar",
+        "The agent writes the answer",
+        "Answer on screen, slot held · 1.2 s"
+      ],
+      "tags": [
+        "04 · Bookings",
+        "03 · Knowledge",
+        "02 · AI agent",
+        "01 · Website & chat"
+      ],
+      "uiAsk": "Is Thursday free?",
+      "uiAnswer": "Yes, 4:30 PM with Dr. Sarah ✓",
+      "uiBook": "Book"
+    },
+    "bookSlot": {
+      "eyebrow": "Book a visit",
+      "title": "The next free slot is {day}.",
+      "text": "Pick it here, or ask the assistant for another time.",
+      "small": "Next free slot",
+      "with": "{service} with {doctor}",
+      "reminder": "Reminder included",
+      "cta": "Book this slot",
+      "today": "today",
+      "tomorrow": "tomorrow",
+      "fallbackTitle": "Book your visit in seconds.",
+      "fallbackCard": "Find a time",
+      "fallbackText": "The assistant checks the real calendar and books you in.",
+      "fallbackCta": "Ask the assistant"
+    }
   },
   "footer": {
     "tagline": "Gentle dentistry, clear prices, answers at any hour.",

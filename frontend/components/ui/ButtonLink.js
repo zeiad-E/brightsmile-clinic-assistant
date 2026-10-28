@@ -11,13 +11,13 @@ export const buttonVariants = {
 };
 
 export const buttonSizes = {
-  sm: 'px-4 py-2.5 text-sm',
-  lg: 'px-7 py-4 text-base',
+  sm: 'px-4 py-[9px] text-sm',
+  lg: 'px-7 py-[17px] text-base',
 };
 
 export function buttonClasses({ variant = 'dark', size = 'sm', className = '' } = {}) {
   return [
-    'inline-flex items-center justify-center gap-2 rounded-full font-semibold no-underline',
+    'inline-flex items-center justify-center gap-2 rounded-full font-[650] leading-[normal] no-underline',
     'transition-[transform,box-shadow] duration-300 ease-out-soft hover:-translate-y-0.5',
     buttonVariants[variant],
     buttonSizes[size],

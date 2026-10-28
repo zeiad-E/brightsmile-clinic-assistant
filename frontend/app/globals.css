@@ -117,6 +117,27 @@
   }
 }
 
+/*
+ * The header over dark sections of the home page (HomeEffects sets data-tone="dark"), as in trial 003.
+ * Written outside any @layer on purpose: plain CSS beats Tailwind's utility layer, so these colours win.
+ */
+[data-site-header] {
+  transition: background-color 0.4s, color 0.4s, border-color 0.4s;
+}
+[data-site-header][data-tone="dark"] {
+  background: rgb(11 37 69 / 0.94);
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.08);
+}
+[data-site-header][data-tone="dark"] [data-on-dark],
+[data-site-header][data-tone="dark"] nav[data-on-dark] a {
+  color: rgb(255 255 255 / 0.75);
+  border-color: rgb(255 255 255 / 0.2);
+}
+[data-site-header][data-tone="dark"] [data-book] {
+  background: var(--color-mint);
+}
+
 /* Visitors who turned animations off in their phone/computer settings get a calm, still page. */
 @media (prefers-reduced-motion: reduce) {
   *,

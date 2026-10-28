@@ -22,9 +22,10 @@ export default async function Header() {
   return (
     // No backdrop-blur here: a blurred parent becomes the frame for `position: fixed` children, which
     // squeezed the mobile menu into the 64px header (and trial 003 found blur makes the 3D hero stutter).
-    <header className="sticky top-0 z-50 h-16 border-b border-line/80 bg-page/95">
+    // data-site-header: the home page sets data-tone="dark" on it over dark sections (see globals.css).
+    <header data-site-header className="sticky top-0 z-50 h-16 border-b border-line/80 bg-page/95">
       <div className="wrap flex h-full items-center gap-7">
-        <Link href={localePath(locale)} className="flex items-center gap-2 text-lg font-bold tracking-tight">
+        <Link href={localePath(locale)} className="flex items-center gap-2 text-lg font-[750] tracking-[-0.02em]">
           <Logo />
           {dict.brand}
         </Link>
