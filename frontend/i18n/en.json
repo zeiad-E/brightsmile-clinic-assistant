@@ -231,5 +231,24 @@
     "placeholder": "Ask a question or book an appointment…",
     "send": "Send",
     "you": "You"
+  },
+  "servicesPage": {
+    "title": "Services & prices",
+    "eyebrow": "Services & prices",
+    "headline": "Clear prices.",
+    "headlineAccent": "No surprises.",
+    "lead": "Every treatment, how long it takes, who does it and what it costs, before you book.",
+    "filterLabel": "Who would you like to see?",
+    "all": "Everyone",
+    "min": "min",
+    "with": "With",
+    "book": "Book",
+    "ask": "Ask about it",
+    "count": "{n} treatments",
+    "empty": "Our service list is taking a moment to load. Please refresh, or ask the assistant.",
+    "ctaTitle": "Not sure what you need?",
+    "ctaText": "Describe how your tooth feels and the assistant will suggest the right visit and find you a time.",
+    "ctaButton": "Ask the assistant",
+    "askPrompt": "Tell me about {service}"
   }
 }
