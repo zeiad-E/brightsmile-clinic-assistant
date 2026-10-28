@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { streamChat } from '../lib/api.js';
+import { streamChat } from '@/lib/api/chat';
 
 /**
  * Minimal streaming chat widget: live status ("Checking free times…"), the reply typing out,

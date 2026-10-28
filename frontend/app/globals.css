@@ -1,26 +1,130 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * BrightSmile design tokens — copied from trial 003 (frontend-drafts/trials/003-home-journey).
+ * Every token here becomes Tailwind classes automatically: --color-mint → bg-mint, text-mint,
+ * border-mint… Change a value once and the whole site follows.
+ */
+@theme {
+  --color-ink: #0b2545;        /* main text, dark buttons */
+  --color-ink-2: #4a5d78;      /* secondary text */
+  --color-ink-3: #8696ac;      /* hints, captions */
+  --color-page: #f6fafb;       /* page background */
+  --color-surface: #ffffff;    /* cards */
+  --color-line: #e1ebee;       /* borders */
+  --color-mint: #14b8a6;       /* brand accent, main buttons */
+  --color-mint-deep: #0f766e;  /* accent text on light backgrounds (readable) */
+  --color-mint-light: #5eead4; /* accent text on dark backgrounds */
+  --color-mint-soft: #e6faf7;  /* soft accent surfaces */
+  --color-night: #0b2545;      /* dark sections, footer */
+  --color-night-2: #12345f;
+  --color-deep: #0a1220;
+  --color-sun: #fbbf24;        /* stars, small highlights */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --shadow-soft: 0 1px 2px rgb(11 37 69 / 0.04), 0 12px 32px rgb(11 37 69 / 0.08);
+  --shadow-mint: 0 10px 30px rgb(20 184 166 / 0.35);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --tracking-display: -0.045em; /* big headlines */
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-fade-up: fade-up 0.9s var(--ease-out-soft) both;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-menu-in: fade-up 0.3s var(--ease-out-soft) both;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Fonts come from next/font (see app/[lang]/layout.js), which sets these variables on <html>.
+   "inline" tells Tailwind to use the variable itself instead of copying its value. */
+@theme inline {
+  --font-sans: var(--font-geist), var(--font-plex-arabic), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), var(--font-plex-arabic), ui-monospace, monospace;
+}
+
+@layer base {
+  /* Arabic letters join together: squeezing them with negative letter-spacing breaks the joins. */
+  :lang(ar) {
+    --tracking-display: 0;
+    --tracking-tight: 0;
+    --tracking-tighter: 0;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-mint);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+}
+
+@layer components {
+  /* The page width used by every section. */
+  .wrap {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 24px;
+  }
+
+  /* Small mono label above headlines ("DENTAL CLINIC · HELIOPOLIS"). */
+  .eyebrow {
+    font: 600 12px var(--font-mono);
+    color: var(--color-mint-deep);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  :lang(ar) .eyebrow {
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  /* Hidden until a keyboard user presses Tab: lets them jump straight past the header. */
+  .skip-link {
+    position: fixed;
+    inset-inline-start: 16px;
+    top: -60px;
+    z-index: 100;
+    padding: 10px 16px;
+    border-radius: 99px;
+    background: var(--color-ink);
+    color: #fff;
+    font-weight: 600;
+    transition: top 0.2s;
+  }
+  .skip-link:focus {
+    top: 12px;
+  }
+
+  /* Arrows point the reading direction: → in English, ← in Arabic. */
+  [dir="rtl"] .flip-rtl {
+    display: inline-block;
+    transform: scaleX(-1);
+  }
+
+  .fade-up {
+    animation: var(--animate-fade-up);
+  }
+}
+
+/* Visitors who turned animations off in their phone/computer settings get a calm, still page. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,15 +1,55 @@
 {
+  "meta": {
+    "title": "BrightSmile Dental Clinic",
+    "short": "BrightSmile",
+    "description": "Gentle dentistry in Heliopolis, Cairo, with clear prices and an assistant that answers questions and books visits at any hour."
+  },
+  "brand": "BrightSmile",
   "clinicName": "BrightSmile Dental Clinic",
-  "tagline": "Your smile, our priority. Ask us anything or book an appointment — anytime.",
+  "common": {
+    "skipToContent": "Skip to content"
+  },
+  "nav": {
+    "label": "Main",
+    "home": "Home",
+    "services": "Services",
+    "about": "About",
+    "assistant": "Assistant",
+    "book": "Book now",
+    "signIn": "Sign in",
+    "myAccount": "My account",
+    "dashboard": "Dashboard",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "switchLanguage": "العربية",
+    "switchLanguageLabel": "اقرأ هذه الصفحة بالعربية"
+  },
+  "home": {
+    "eyebrow": "Dental clinic · Heliopolis, Cairo",
+    "titleA": "Your smile,",
+    "titleB": "our priority.",
+    "lead": "Gentle dentistry with clear prices, and an assistant that answers your questions and books your visit at any hour.",
+    "book": "Book an appointment",
+    "ask": "Ask a question"
+  },
+  "footer": {
+    "tagline": "Gentle dentistry, clear prices, answers at any hour.",
+    "hoursTitle": "Opening hours",
+    "hoursFallback": "Sat–Thu · 10 AM – 6 PM",
+    "visitTitle": "Visit us",
+    "linksTitle": "Explore",
+    "privacy": "Privacy",
+    "rights": "All rights reserved."
+  },
+  "notFound": {
+    "title": "This page took a day off.",
+    "text": "We couldn't find the page you're looking for. It may have moved, or the link may be wrong.",
+    "home": "Back to home",
+    "assistant": "Ask the assistant"
+  },
   "chat": {
     "placeholder": "Ask a question or book an appointment…",
     "send": "Send",
     "you": "You"
-  },
-  "nav": {
-    "services": "Services",
-    "hours": "Hours",
-    "location": "Location",
-    "book": "Book now"
   }
 }
