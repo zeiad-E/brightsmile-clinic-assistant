@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BrightSmile Effects Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Geist:wght@400..800&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="effects-21-30.css">
+</head>
+<body>
+  <!-- Trial 001: the 15 strongest effects from the study, each running live, dressed as BrightSmile. -->
+
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand"><span data-icon="toothSolid"></span>BrightSmile <small>effects lab</small></div>
+      <nav class="chips" id="chips" aria-label="Jump to effect"></nav>
+      <button class="toggle" id="smoothToggle" aria-pressed="true"><i></i>Smooth scroll</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="intro">
+      <div class="eyebrow">Trial 001 · from the 14-video study</div>
+      <h1>30 effects, live, in BrightSmile's clothes.</h1>
+      <p>Each row is one effect: its name and how it works on the left, the real thing running on the right. Scroll, hover, click — every demo reacts. Effects 21–30 are the heavier ones: real shaders, physics and scroll cinema. The <b>Smooth scroll</b> switch in the header is a bonus 31st: flip it to feel the difference.</p>
+      <p class="notice" id="motionNotice" hidden>Your system asks for reduced motion. The effects still run here so you can judge them; the real site would swap them for simple fades.</p>
+    </section>
+
+    <!-- 1 -->
+    <section class="fx" id="fx-1">
+      <div class="fx-info">
+        <div class="num">01 · Loading</div>
+        <h2>Boot loader</h2>
+        <p>A terminal types the clinic's start-up checks while a counter runs to 100, then the logo appears.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Typing with timers, an eased 0→100 counter, CSS fade and scale for the reveal.</dd>
+          <dt>Clinic site use</dt><dd>First-visit splash that hides image loading. Keep it under 2 seconds.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage dark boot" id="boot">
+        <div class="boot-term">
+          <div class="boot-lines"></div>
+          <div class="boot-count"><span>0</span><small>%</small></div>
+          <div class="boot-bar"><i></i></div>
+        </div>
+        <div class="boot-reveal"><span data-icon="toothGlow"></span><strong>BrightSmile</strong><span>Dental clinic</span></div>
+        <button class="replay">↻ Replay</button>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="fx" id="fx-2">
+      <div class="fx-info">
+        <div class="num">02 · Typography</div>
+        <h2>Giant name hero</h2>
+        <p>The clinic's name fills the whole width, runs off the edges, and rises out of a hidden slot.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Font size tied to the box width (container units). Each line hides its overflow while the text slides up.</dd>
+          <dt>Clinic site use</dt><dd>Hero headline, or the giant name in the footer.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage giant" id="giant">
+        <div class="giant-line"><span>Bright</span></div>
+        <div class="giant-line"><span>Smile</span></div>
+        <p class="giant-sub">Dental clinic · open Sat–Thu</p>
+        <button class="replay">↻ Replay</button>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="fx" id="fx-3">
+      <div class="fx-info">
+        <div class="num">03 · Typography</div>
+        <h2>Letter-by-letter reveal</h2>
+        <p>Each letter rises out of an invisible slot, one after another, as the line comes into view.</p>
+        <dl>
+          <dt>How it's built</dt><dd>The text is split into one &lt;span&gt; per letter, each with a slightly later start.</dd>
+          <dt>Clinic site use</dt><dd>Section titles as you scroll to them.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage letters" id="letters">
+        <h3 data-split>Your smile, <span class="mint">our priority.</span></h3>
+        <p>Ask us anything or book an appointment — anytime.</p>
+        <button class="replay">↻ Replay</button>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="fx tall" id="fx-4">
+      <div class="fx-info">
+        <div class="num">04 · Scroll-driven · the study's #1</div>
+        <h2>Image-sequence scroll scrub</h2>
+        <p>Scroll, and a tooth assembles from shards and turns bright white. It's a video you drive: scroll back and it rewinds.</p>
+        <dl>
+          <dt>How it's built</dt><dd>120 still frames drawn onto a canvas; how far you've scrolled picks the frame. Here the frames are generated in your browser. On the real site they'd be AI-video frames saved as WebP.</dd>
+          <dt>Clinic site use</dt><dd>The hero. Top of the attention-vs-effort chart.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span> code, <span class="effort med">Medium</span> assets</dd>
+        </dl>
+        <div class="hint">↓ keep scrolling</div>
+      </div>
+      <div class="stage dark seq" id="seq">
+        <canvas></canvas>
+        <div class="hud"><span class="seq-frame">frame 001 / 120</span><span class="seq-load">generating frames…</span></div>
+        <div class="seq-caption">Scroll to rebuild the smile</div>
+        <div class="hud-bar"><i></i></div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="fx tall" id="fx-5">
+      <div class="fx-info">
+        <div class="num">05 · Scroll-driven</div>
+        <h2>Pinned storytelling</h2>
+        <p>The panel stays put while the story moves forward one beat at a time as you scroll.</p>
+        <dl>
+          <dt>How it's built</dt><dd>A very tall section with a sticky panel inside. Scroll progress (0→1) decides which beat shows.</dd>
+          <dt>Clinic site use</dt><dd>"How booking works": ask, pick a time, get reminded, smile.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+        <div class="hint">↓ keep scrolling</div>
+      </div>
+      <div class="stage story" id="story">
+        <div class="rail"><i></i></div>
+        <div class="story-art"><div class="story-orb">
+          <span data-icon="chat" data-beat="0"></span><span data-icon="calendar" data-beat="1"></span>
+          <span data-icon="bell" data-beat="2"></span><span data-icon="smile" data-beat="3"></span>
+        </div></div>
+        <div class="story-text">
+          <div class="beat"><b>01 — Ask</b><h4>Questions answered at 3 a.m.</h4><p>Prices, insurance, hours, what to do before a visit. The assistant answers from the clinic's own information.</p></div>
+          <div class="beat"><b>02 — Pick</b><h4>Real free slots, not a phone queue.</h4><p>Choose Dr. Sarah or Dr. Karim and a time that is actually open. No double-booking.</p></div>
+          <div class="beat"><b>03 — Remember</b><h4>A reminder the day before.</h4><p>Fewer no-shows. If you can't make it, the slot goes to the next patient on the waitlist.</p></div>
+          <div class="beat"><b>04 — Smile</b><h4>Walk in. Walk out brighter.</h4><p>Everything was ready before you arrived.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="fx tall" id="fx-6">
+      <div class="fx-info">
+        <div class="num">06 · Scroll-driven</div>
+        <h2>Horizontal scroll section</h2>
+        <p>You scroll down; the services slide sideways.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Sticky panel. Sideways shift = scroll progress × (row width − panel width).</dd>
+          <dt>Clinic site use</dt><dd>Services &amp; prices, using the clinic's 8 real services.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+        <div class="hint">↓ keep scrolling</div>
+      </div>
+      <div class="stage hscroll" id="hscroll">
+        <div class="hscroll-track" id="hscrollTrack"></div>
+        <div class="hud-bar"><i></i></div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="fx" id="fx-7">
+      <div class="fx-info">
+        <div class="num">07 · 3D &amp; canvas · signature candidate</div>
+        <h2>Particle morph</h2>
+        <p>Over a thousand dots flow between a tooth, a chat bubble, a calendar and a sparkle. Move your mouse through them.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Each shape is drawn off-screen and its pixels become target points; every dot eases toward its target. Canvas 2D here; Three.js could handle ten times more dots.</dd>
+          <dt>Clinic site use</dt><dd>The one "wow" moment, e.g. a "What we do" section.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+      </div>
+      <div class="stage dark particles" id="particles">
+        <canvas></canvas>
+        <div class="shape-label">Healthy teeth</div>
+        <div class="shape-chips"></div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="fx" id="fx-8">
+      <div class="fx-info">
+        <div class="num">08 · Fake 3D · signature candidate</div>
+        <h2>Depth-layer parallax (2.5D)</h2>
+        <p>Flat layers move at different speeds as you move your mouse, so the scene feels 3D. This is the Lando Norris trick.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Six stacked layers, each shifted by mouse position × its depth, plus a slight tilt of the whole scene.</dd>
+          <dt>Clinic site use</dt><dd>A friendlier hero alternative, or the kids' dentistry page.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span> as layers, <span class="effort med">Medium</span> with a depth-map photo</dd>
+        </dl>
+        <div class="hint">↗ move your mouse over it</div>
+      </div>
+      <div class="stage depth" id="depth">
+        <div class="tag">move your mouse</div>
+        <div class="depth-scene">
+          <div class="layer" data-depth="0.15">
+            <div class="blob" style="left:8%;top:10%;width:40%;height:50%;background:#a7f3e4"></div>
+            <div class="blob" style="right:6%;top:30%;width:36%;height:46%;background:#bfe3ff"></div>
+          </div>
+          <div class="layer" data-depth="0.35">
+            <div class="bubble" style="left:18%;top:22%;width:46px;height:46px"></div>
+            <div class="bubble" style="right:22%;top:16%;width:30px;height:30px"></div>
+            <div class="bubble" style="right:30%;bottom:26%;width:22px;height:22px"></div>
+          </div>
+          <div class="layer" data-depth="0.6"><span class="floss" data-icon="floss"></span></div>
+          <div class="layer" data-depth="0.8"><span class="mascot" data-icon="mascot"></span></div>
+          <div class="layer" data-depth="1.15"><span class="brush" data-icon="brush"></span></div>
+          <div class="layer" data-depth="1.6" style="filter:blur(3px)">
+            <div class="bubble" style="left:6%;bottom:8%;width:70px;height:70px"></div>
+            <div class="bubble" style="right:4%;top:8%;width:54px;height:54px"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="fx" id="fx-9">
+      <div class="fx-info">
+        <div class="num">09 · Cursor &amp; hover</div>
+        <h2>Cursor-follow preview</h2>
+        <p>Hover a treatment and a card with its details floats at your cursor. With the keyboard, Tab through the list.</p>
+        <dl>
+          <dt>How it's built</dt><dd>One floating card, nudged toward the mouse every frame; its content changes per row.</dd>
+          <dt>Clinic site use</dt><dd>The services list: quick to scan, rich on hover.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage plist" id="plist">
+        <div class="preview" id="preview"><div class="preview-art"></div><div class="preview-body"></div></div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="fx" id="fx-10">
+      <div class="fx-info">
+        <div class="num">10 · Cursor &amp; hover</div>
+        <h2>Magnetic glowing button</h2>
+        <p>The booking button leans toward your cursor and glows brighter the closer you get. Click it.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Button moves by 35% of the mouse offset, the label by a bit more; the glow follows the pointer through CSS variables.</dd>
+          <dt>Clinic site use</dt><dd>Every "Book now". This is the button that earns money.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage magnet" id="magnet">
+        <div class="ring"></div>
+        <button class="mbtn" id="mbtn"><span class="lbl">Book an appointment →</span></button>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="fx" id="fx-11">
+      <div class="fx-info">
+        <div class="num">11 · Image</div>
+        <h2>Hover glitch</h2>
+        <p>Hover (or focus) the card and it splits into colour slices for a moment.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Two copies of the card, cut into slices with clip-path, colour-shifted and jumped sideways in a stepped animation.</dd>
+          <dt>Clinic site use</dt><dd>Use sparingly. It reads "tech", which suits the AI assistant badge more than treatment photos.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage glitch-stage">
+        <div class="gcard" id="gcard" tabindex="0">
+          <div class="gface g0"><span class="k">AI ASSISTANT · 24/7</span><span class="smile-svg" data-icon="smileMouth"></span><span class="t">Ask BrightSmile anything</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section class="fx" id="fx-12">
+      <div class="fx-info">
+        <div class="num">12 · Transition</div>
+        <h2>Pixel-block transition</h2>
+        <p>Mint blocks sweep across "before" and reveal "after". Press the button.</p>
+        <dl>
+          <dt>How it's built</dt><dd>A grid of small squares grows in, each delayed by its distance from the corner. The content swaps while fully covered, then the squares shrink away.</dd>
+          <dt>Clinic site use</dt><dd>Whitening before/after, or moving between pages.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage pix" id="pix">
+        <div class="pix-panel pix-before"><b>Before</b><span class="smile-svg" data-icon="smileMouth" data-teeth="#e6d39b"></span><span>Two shades darker</span></div>
+        <div class="pix-panel pix-after"><b>After one session</b><span class="smile-svg" data-icon="smileMouth"></span><span>Teeth whitening · 4,500 EGP</span></div>
+        <div class="pix-grid"></div>
+        <button class="replay">Show after →</button>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section class="fx" id="fx-13">
+      <div class="fx-info">
+        <div class="num">13 · Typography</div>
+        <h2>Handwritten scribbles</h2>
+        <p>A hand-drawn circle and arrow draw themselves around the booking button, then a note is written beside it.</p>
+        <dl>
+          <dt>How it's built</dt><dd>SVG lines "drawn" by animating stroke-dashoffset, plus the Caveat handwriting font.</dd>
+          <dt>Clinic site use</dt><dd>Pulls the eye to the call to action and adds a human touch.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage scrib" id="scrib">
+        <div class="bookcard">
+          <small>Next free slot</small>
+          <h4>Thursday · 4:30 PM</h4>
+          <p>Teeth whitening with Dr. Sarah Mansour</p>
+          <span class="cta-wrap">
+            <button class="cta">Book now</button>
+            <svg class="scribble circle" viewBox="0 0 200 80" preserveAspectRatio="none"><path d="M118 8 C 60 2, 8 14, 6 40 C 4 66, 70 76, 120 72 C 175 68, 196 52, 192 34 C 188 14, 140 4, 96 10"/></svg>
+            <svg class="scribble arrow" viewBox="0 0 70 50"><path d="M66 34 C 50 40, 28 36, 10 24"/><path d="M21 13 L 9 24 L 22 33"/></svg>
+            <span class="note">takes 30 seconds!</span>
+          </span>
+        </div>
+        <button class="replay">↻ Replay</button>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section class="fx" id="fx-14">
+      <div class="fx-info">
+        <div class="num">14 · The product itself</div>
+        <h2>Live AI receptionist</h2>
+        <p>The assistant answers a price question, shows where the answer came from, offers free slots and books one.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Scripted here: typing dots, then text typed letter by letter. The real widget streams from your backend over Server-Sent Events.</dd>
+          <dt>Clinic site use</dt><dd>The heart of the site. Other clinics' sites can't do this.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span> UI (backend already done)</dd>
+        </dl>
+      </div>
+      <div class="stage chat" id="chat">
+        <div class="chat-head"><div class="av" data-icon="toothSolidWhite"></div><div><b>BrightSmile assistant</b><span>online · replies instantly</span></div></div>
+        <div class="chat-body"></div>
+        <div class="chat-input">Ask a question or book an appointment…</div>
+        <button class="replay" style="top:12px;bottom:auto">↻ Replay</button>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section class="fx" id="fx-15">
+      <div class="fx-info">
+        <div class="num">15 · 3D transforms</div>
+        <h2>Exploded layers</h2>
+        <p>Hover (or press the button) and the app splits into the four layers that power it.</p>
+        <dl>
+          <dt>How it's built</dt><dd>CSS 3D: tilt the stack, then push each layer up a different distance.</dd>
+          <dt>Clinic site use</dt><dd>"Why trust us / how it works": shows the clinic runs on real tech, not a form.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+      </div>
+      <div class="stage explode" id="explode">
+        <div class="stack">
+          <div class="lay lay-db" style="--i:0"><div class="rows"><i></i><i></i><i></i><i></i><i></i></div><span class="name">Bookings database</span></div>
+          <div class="lay lay-rag" style="--i:1"><div class="rows"><i></i><i></i><i></i></div><span class="name">Clinic knowledge (RAG)</span></div>
+          <div class="lay lay-ai" style="--i:2"><div class="nodes"><i style="left:20%;top:30%"></i><i style="left:55%;top:18%"></i><i style="left:70%;top:60%"></i><i style="left:32%;top:66%"></i></div><span class="name">AI agent</span></div>
+          <div class="lay lay-ui" style="--i:3"><div class="ui-bub"></div><div class="ui-bub me"></div><div class="ui-bub"></div><div class="ui-btn"></div><span class="name">Website &amp; chat</span></div>
+        </div>
+        <button class="replay">Explode ⤢</button>
+      </div>
+    </section>
+
+    <!-- 16 -->
+    <section class="fx" id="fx-16">
+      <div class="fx-info">
+        <div class="num">16 · Cursor &amp; hover</div>
+        <h2>Sparkle cursor trail</h2>
+        <p>Move your cursor and it leaves a fading mint line with little sparkles behind it. Leave it alone and it draws a figure-eight by itself.</p>
+        <dl>
+          <dt>How it's built</dt><dd>A canvas keeps a short list of recent points and sparkles; each frame they drift, fade and get redrawn.</dd>
+          <dt>Clinic site use</dt><dd>A playful touch for the whitening page or the kids' section. Not for the whole site.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage trail" id="trail">
+        <canvas></canvas>
+        <div class="trail-copy"><strong>Leave it sparkling.</strong><span>Move your cursor here</span></div>
+      </div>
+    </section>
+
+    <!-- 17 -->
+    <section class="fx" id="fx-17">
+      <div class="fx-info">
+        <div class="num">17 · Typography</div>
+        <h2>ASCII portrait</h2>
+        <p>A tooth drawn only with text characters that shimmer. Your cursor works like a torch and lights up the characters under it.</p>
+        <dl>
+          <dt>How it's built</dt><dd>The tooth is drawn small and off-screen; each pixel's brightness picks a character from <code>&nbsp;.:-=+*#%@</code>, redrawn every frame.</dd>
+          <dt>Clinic site use</dt><dd>Fits the "AI assistant" side of the brand, e.g. behind the chat widget's intro.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+      </div>
+      <div class="stage ascii" id="ascii">
+        <div class="tag">brightsmile.ai — move your cursor</div>
+        <canvas></canvas>
+      </div>
+    </section>
+
+    <!-- 18 -->
+    <section class="fx tall" id="fx-18">
+      <div class="fx-info">
+        <div class="num">18 · 3D · scroll-driven</div>
+        <h2>Curved ribbon gallery</h2>
+        <p>The team and treatments sit on a curved ribbon that slides as you scroll. Scroll faster and it bends more; stop and it relaxes.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Each card is placed on a circle with CSS 3D. The circle gets tighter with scroll speed. The video version bends real images in WebGL; this is the light, CSS-only version.</dd>
+          <dt>Clinic site use</dt><dd>"Meet the team" or the services gallery as a wow moment.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↓ scroll, then scroll fast</div>
+      </div>
+      <div class="stage ribbon" id="ribbon">
+        <div class="ribbon-track"></div>
+        <div class="hud-bar"><i></i></div>
+      </div>
+    </section>
+
+    <!-- 19 -->
+    <section class="fx" id="fx-19">
+      <div class="fx-info">
+        <div class="num">19 · Media</div>
+        <h2>Click-to-advance scenes</h2>
+        <p>Each click plays the next part of a cleaning: tartar scaled away, stains polished off, then the shine.</p>
+        <dl>
+          <dt>How it's built</dt><dd>One animation cut into four segments; a click plays exactly one segment and stops. The woodpecker video does it with a pre-rendered clip; here a canvas draws it.</dd>
+          <dt>Clinic site use</dt><dd>"What happens in a cleaning" on each treatment page. It calms nervous patients.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage steps" id="steps">
+        <div class="steps-label">Before: plaque and tartar</div>
+        <canvas></canvas>
+        <div class="steps-ui">
+          <div class="steps-dots"><i class="on"></i><i></i><i></i><i></i></div>
+          <button class="steps-btn">Next step →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 20 -->
+    <section class="fx" id="fx-20">
+      <div class="fx-info">
+        <div class="num">20 · Aesthetic</div>
+        <h2>Glass, light &amp; grain</h2>
+        <p>A frosted-glass appointment card over slowly drifting colour, with film grain on top. It tilts toward your cursor and a soft light follows it.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Blurred colour blobs drift in a loop; backdrop-filter frosts the card; an SVG noise texture adds the grain; CSS variables move the light.</dd>
+          <dt>Clinic site use</dt><dd>Booking confirmation and reminder cards. It looks premium and calm.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage glass" id="glass">
+        <div class="mesh"><i></i><i></i><i></i><i></i></div>
+        <div class="grain"></div>
+        <div class="gcard2">
+          <small>Your next visit</small>
+          <h4>Thursday · 4:30 PM</h4>
+          <p>Teeth whitening with Dr. Sarah Mansour</p>
+          <div class="gcard2-row"><span class="pill">✓ Reminder set</span><span class="pill">60 min</span><span class="pill">4,500 EGP</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="part"><span>Part 3</span>Ten heavier effects: real shaders, physics, scroll cinema.</div>
+
+    <!-- 21 -->
+    <section class="fx" id="fx-21">
+      <div class="fx-info">
+        <div class="num">21 · WebGL shader · signature candidate</div>
+        <h2>Depth-map 2.5D</h2>
+        <p>The real Lando Norris technique: one flat picture plus a grey "depth map". Every pixel moves by its own depth, so the scene bends like 3D. Press <b>Depth map</b> to see the secret ingredient.</p>
+        <dl>
+          <dt>How it's built</dt><dd>A raw WebGL fragment shader reads the depth map (white = near, black = far) and shifts each pixel by mouse × depth. No library, about 30 lines of GPU code.</dd>
+          <dt>vs. effect 08</dt><dd>08 moves six separate layers. This moves every pixel on its own, which gives smooth, round depth. On the real site, the picture would be your clinic photo with an AI-made depth map.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↗ move your mouse slowly</div>
+      </div>
+      <div class="stage depthmap" id="depthmap">
+        <canvas></canvas>
+        <div class="seg"><button class="on" data-view="0">Image</button><button data-view="1">Depth map</button></div>
+      </div>
+    </section>
+
+    <!-- 22 -->
+    <section class="fx" id="fx-22">
+      <div class="fx-info">
+        <div class="num">22 · WebGL shader</div>
+        <h2>Liquid ripple</h2>
+        <p>The hero turns to liquid. Your cursor drags waves through it and a click drops a splash, like mouthwash.</p>
+        <dl>
+          <dt>How it's built</dt><dd>A shader adds up to 12 expanding rings; each ring bends the picture and adds a highlight on its crest, then fades. Text stays real HTML on the live site; here it is painted in for the demo.</dd>
+          <dt>Clinic site use</dt><dd>Hero for the "fresh breath / cleaning" page, or a hover on service images.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↗ hover, then click</div>
+      </div>
+      <div class="stage ripple" id="ripple"><canvas></canvas></div>
+    </section>
+
+    <!-- 23 -->
+    <section class="fx" id="fx-23">
+      <div class="fx-info">
+        <div class="num">23 · Cursor &amp; mask</div>
+        <h2>X-ray flashlight</h2>
+        <p>Your cursor becomes the dentist's eye. Inside the lens you see the X-ray: an early cavity, an old filling, a treated root.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Two drawings with exactly the same geometry stacked on each other. The X-ray layer is cut to a circle with a CSS mask that follows the cursor.</dd>
+          <dt>Clinic site use</dt><dd>"See what we see": explains check-ups and digital X-rays in one glance.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span>–<span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↗ sweep your cursor across the teeth</div>
+      </div>
+      <div class="stage xray" id="xray">
+        <div class="xr-layer xr-smile"></div>
+        <div class="xr-layer xr-ray"></div>
+        <div class="xr-lens"><span>X-ray</span></div>
+      </div>
+    </section>
+
+    <!-- 24 -->
+    <section class="fx" id="fx-24">
+      <div class="fx-info">
+        <div class="num">24 · Interaction · spring physics</div>
+        <h2>Before / after slider</h2>
+        <p>Drag the handle to compare. It follows with a little spring and squashes when you move it fast. Arrow keys work too.</p>
+        <dl>
+          <dt>How it's built</dt><dd>The "after" image is clipped at the handle's position. The handle chases your finger with a spring (speed + friction), so it overshoots and settles.</dd>
+          <dt>Clinic site use</dt><dd>Every treatment page. Before/after is a dental site's most persuasive element.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+      </div>
+      <div class="stage compare" id="compare">
+        <div class="cmp cmp-before"><span class="smile-svg" data-icon="smileMouth" data-teeth="#e3cf94"></span><b>Before</b></div>
+        <div class="cmp cmp-after"><span class="smile-svg" data-icon="smileMouth"></span><b>After · 1 session</b></div>
+        <div class="cmp-handle" role="slider" tabindex="0" aria-label="Before and after comparison" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span>‹ ›</span></div>
+      </div>
+    </section>
+
+    <!-- 25 -->
+    <section class="fx" id="fx-25">
+      <div class="fx-info">
+        <div class="num">25 · Interaction · drag physics</div>
+        <h2>Swipeable review deck</h2>
+        <p>Throw the top review left or right. A fast flick throws it away; a small drag springs back. The card under it rises as you drag.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Pointer capture tracks the drag and its speed. A release past a distance or speed limit flies the card off; it then rejoins the back of the stack.</dd>
+          <dt>Clinic site use</dt><dd>Patient reviews. Fun to flick through, and visitors read more of them.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↔ drag the card · sample reviews</div>
+      </div>
+      <div class="stage deck" id="deck">
+        <div class="deck-cards"></div>
+        <div class="deck-ui"><button data-dir="-1" aria-label="Previous review">←</button><span class="deck-count">1 / 5</span><button data-dir="1" aria-label="Next review">→</button></div>
+      </div>
+    </section>
+
+    <!-- 26 -->
+    <section class="fx tall" id="fx-26">
+      <div class="fx-info">
+        <div class="num">26 · Scroll-driven · cinematic</div>
+        <h2>Zoom-through portal</h2>
+        <p>Scroll and you fly through a tooth-shaped window into the clinic. The welcome scene slowly settles as you arrive.</p>
+        <dl>
+          <dt>How it's built</dt><dd>A navy layer with a tooth-shaped hole (SVG mask). Scroll scales the hole up exponentially, so it feels like flying. The scene behind zooms out from 125% to 100%.</dd>
+          <dt>Clinic site use</dt><dd>The jump from the hero into the site: "step inside".</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↓ keep scrolling</div>
+      </div>
+      <div class="stage portal" id="portal">
+        <div class="portal-scene">
+          <div class="ps-glow"></div>
+          <small>Welcome to BrightSmile</small>
+          <h3>Come in. Dr. Sarah will see you now.</h3>
+          <div class="ps-chips"><span>No waiting room</span><span>Same-week slots</span><span>Calm, gentle visits</span></div>
+        </div>
+        <svg class="portal-mask" viewBox="0 0 1000 625" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs><mask id="portalHole"><rect x="-1000" y="-1000" width="3000" height="3000" fill="#fff"/><path class="ph" fill="#000"/></mask></defs>
+          <rect x="-1000" y="-1000" width="3000" height="3000" fill="#0b2545" mask="url(#portalHole)"/>
+          <path class="ph ph-ring" fill="none" stroke="#5eead4" stroke-width="2" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <div class="portal-copy"><span>Step inside</span><b>BrightSmile</b></div>
+      </div>
+    </section>
+
+    <!-- 27 -->
+    <section class="fx tall" id="fx-27">
+      <div class="fx-info">
+        <div class="num">27 · Scroll-driven · SVG</div>
+        <h2>Scroll-drawn journey</h2>
+        <p>A path draws itself as you scroll, the camera follows the patient, and each milestone lights up as they reach it.</p>
+        <dl>
+          <dt>How it's built</dt><dd>One SVG path. Scroll progress sets how much of it is drawn (stroke-dashoffset) and where the marker sits (getPointAtLength). The view pans to keep the marker centred.</dd>
+          <dt>Clinic site use</dt><dd>"Your visit, start to finish". It sells the AI assistant without saying "AI".</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↓ keep scrolling</div>
+      </div>
+      <div class="stage journey" id="journey"><svg class="jr" viewBox="0 0 600 1600" aria-hidden="true"></svg></div>
+    </section>
+
+    <!-- 28 -->
+    <section class="fx" id="fx-28">
+      <div class="fx-info">
+        <div class="num">28 · Typography · scroll velocity</div>
+        <h2>Velocity marquee</h2>
+        <p>Giant words drift on their own. Scroll and they speed up, lean into the motion and change direction with you.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Each line loops a duplicated row of text. Speed = base speed + how fast you're scrolling; the lean (skew) and blur come from that same speed.</dd>
+          <dt>Clinic site use</dt><dd>A band between sections that carries the brand promises.</dd>
+          <dt>Effort</dt><dd><span class="effort low">Low</span></dd>
+        </dl>
+        <div class="hint">↕ scroll up and down quickly here</div>
+      </div>
+      <div class="stage marquee" id="marquee">
+        <div class="mq-line" data-dir="1">Gentle care ✦ Modern clinic ✦ </div>
+        <div class="mq-line outline" data-dir="-1">24/7 answers ✦ No waiting ✦ </div>
+        <div class="mq-line" data-dir="1">Real prices ✦ Bright smiles ✦ </div>
+      </div>
+    </section>
+
+    <!-- 29 -->
+    <section class="fx" id="fx-29">
+      <div class="fx-info">
+        <div class="num">29 · Navigation</div>
+        <h2>Page wipe + text decode</h2>
+        <p>A mini version of the site. Click the menu: two colour panels sweep across, the page changes underneath, and the new title decodes like the AI is writing it.</p>
+        <dl>
+          <dt>How it's built</dt><dd>Web Animations API for the two panels; the content swaps while it's fully covered. The title cycles random characters before settling on each letter.</dd>
+          <dt>Clinic site use</dt><dd>Moving between Home, Services and Booking.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+        <div class="hint">↗ click Services, then Book</div>
+      </div>
+      <div class="stage wipe" id="wipe">
+        <div class="wb-bar"><i></i><i></i><i></i><span class="wb-url">brightsmile / home</span></div>
+        <nav class="wb-nav"><b>BrightSmile</b><button data-page="home" class="on">Home</button><button data-page="services">Services</button><button data-page="book">Book</button></nav>
+        <div class="wb-page"></div>
+        <div class="wb-cover c1"></div><div class="wb-cover c2"></div>
+      </div>
+    </section>
+
+    <!-- 30 -->
+    <section class="fx" id="fx-30">
+      <div class="fx-info">
+        <div class="num">30 · Interaction · SVG filter</div>
+        <h2>Gooey contact menu</h2>
+        <p>Press the button and the contact options squeeze out like toothpaste, stretching and snapping apart. Idle, it drips a little.</p>
+        <dl>
+          <dt>How it's built</dt><dd>The blobs sit under an SVG filter that blurs them, then sharpens the edges back, so nearby shapes melt together. Icons sit on a separate layer so they stay crisp.</dd>
+          <dt>Clinic site use</dt><dd>The floating "contact us" button on phones: call, WhatsApp, book, directions.</dd>
+          <dt>Effort</dt><dd><span class="effort med">Medium</span></dd>
+        </dl>
+      </div>
+      <div class="stage goo" id="goo">
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="gooF"><feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="g"/><feComposite in="SourceGraphic" in2="g" operator="atop"/></filter></svg>
+        <p class="goo-caption">Need us? We're one tap away.</p>
+        <div class="goo-blobs"><i class="main"></i><i class="opt"></i><i class="opt"></i><i class="opt"></i><i class="opt"></i><i class="drip"></i></div>
+        <div class="goo-icons">
+          <a class="opt" href="#fx-30"><span data-icon="phone"></span><em>Call</em></a>
+          <a class="opt" href="#fx-30"><span data-icon="chat"></span><em>WhatsApp</em></a>
+          <a class="opt" href="#fx-30"><span data-icon="calendar"></span><em>Book</em></a>
+          <a class="opt" href="#fx-30"><span data-icon="pin"></span><em>Directions</em></a>
+          <button class="main" aria-expanded="false" aria-label="Contact options"><span>+</span></button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script src="effects-21-30.js"></script>
+</body>
+</html>

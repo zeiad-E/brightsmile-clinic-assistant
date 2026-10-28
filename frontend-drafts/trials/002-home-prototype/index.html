@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BrightSmile Home Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Geist:wght@400..800&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Trial 002: a home page built from the effects-lab shortlist. Plain HTML/CSS/JS. -->
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="#top"><span data-icon="toothSolid"></span>BrightSmile</a>
+      <nav class="links">
+        <a href="#services">Services</a>
+        <a href="#how">How it works</a>
+        <a href="#assistant">Assistant</a>
+        <a href="#results">Results</a>
+        <a href="#reviews">Reviews</a>
+      </nav>
+      <a class="btn btn-dark btn-sm" href="#book">Book now</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO: letter reveal + magnetic button + scribble + depth-layer scene (lab 03, 10, 13, 08) -->
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <div class="eyebrow">Dental clinic · Sat–Thu, 10 AM – 6 PM</div>
+        <h1 data-split>Your smile, <span class="mint">our priority.</span></h1>
+        <p class="lead">Gentle dentistry with clear prices, and an assistant that answers your questions and books your visit at any hour.</p>
+        <div class="cta-row">
+          <span class="cta-wrap">
+            <button class="btn btn-mint btn-lg magnetic" data-href="#book"><span class="lbl">Book an appointment →</span></button>
+            <svg class="scribble circle" viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true"><path d="M118 8 C 60 2, 8 14, 6 40 C 4 66, 70 76, 120 72 C 175 68, 196 52, 192 34 C 188 14, 140 4, 96 10"/></svg>
+            <span class="note" aria-hidden="true">takes 30 seconds!</span>
+          </span>
+          <a class="btn btn-ghost btn-lg" href="#assistant">Ask a question</a>
+        </div>
+        <ul class="facts">
+          <li><b>2</b> dentists &amp; a hygienist</li>
+          <li><b>8</b> treatments, fixed prices</li>
+          <li><b>24/7</b> answers &amp; booking</li>
+        </ul>
+      </div>
+      <div class="hero-art" id="heroArt" aria-hidden="true">
+        <div class="depth-scene">
+          <div class="layer" data-depth="0.15">
+            <div class="blob" style="left:6%;top:8%;width:46%;height:52%;background:#a7f3e4"></div>
+            <div class="blob" style="right:4%;top:34%;width:40%;height:48%;background:#bfe3ff"></div>
+          </div>
+          <div class="layer" data-depth="0.35">
+            <div class="bubble" style="left:14%;top:18%;width:46px;height:46px"></div>
+            <div class="bubble" style="right:18%;top:12%;width:30px;height:30px"></div>
+            <div class="bubble" style="right:26%;bottom:22%;width:22px;height:22px"></div>
+          </div>
+          <div class="layer" data-depth="0.6"><span class="floss" data-icon="floss"></span></div>
+          <div class="layer" data-depth="0.85"><span class="mascot" data-icon="mascot"></span></div>
+          <div class="layer" data-depth="1.15"><span class="brush" data-icon="brush"></span></div>
+          <div class="layer" data-depth="1.6" style="filter:blur(3px)">
+            <div class="bubble" style="left:4%;bottom:6%;width:70px;height:70px"></div>
+            <div class="bubble" style="right:2%;top:6%;width:54px;height:54px"></div>
+          </div>
+        </div>
+        <div class="slot-chip"><span class="dot"></span>Next free: <b>Thu 4:30 PM</b></div>
+      </div>
+    </section>
+
+    <!-- SIGNATURE MOMENT: scroll-scrubbed tooth + pinned beats (lab 04 + 05) -->
+    <section class="story" id="story">
+      <div class="story-pin">
+        <canvas></canvas>
+        <div class="story-beats wrap">
+          <div class="beat"><b>01 · Repair</b><h2>Fillings and root canals that last.</h2><p>Tooth-coloured fillings and careful root canal treatment, explained before we start.</p></div>
+          <div class="beat"><b>02 · Restore</b><h2>Calm, gentle visits.</h2><p>Dr. Karim is known for quiet, unhurried appointments. Nervous patients are welcome.</p></div>
+          <div class="beat"><b>03 · Brighten</b><h2>Whiter in one session.</h2><p>In-clinic whitening with Dr. Sarah: 60 minutes, 4,500 EGP, no surprises.</p></div>
+        </div>
+        <div class="story-rail"><i></i></div>
+      </div>
+    </section>
+
+    <!-- SERVICES: cursor-follow preview (lab 09) -->
+    <section class="services wrap" id="services">
+      <div class="sec-head">
+        <div class="eyebrow">Services &amp; prices</div>
+        <h2 class="reveal-title">Eight treatments. Prices up front.</h2>
+        <p>Every price below is what you pay. Hover a treatment to see who does it.</p>
+      </div>
+      <div class="plist" id="plist">
+        <div class="preview" id="preview" aria-hidden="true"><div class="preview-art"></div><div class="preview-body"></div></div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS: scroll-drawn journey (lab 27) -->
+    <section class="journey" id="how">
+      <div class="journey-pin">
+        <div class="wrap journey-grid">
+          <div class="sec-head">
+            <div class="eyebrow">How it works</div>
+            <h2>Your visit, start to finish.</h2>
+            <p>From a late-night question to your six-month check-up, nothing falls through the cracks.</p>
+          </div>
+          <div class="journey-window"><svg class="jr" viewBox="0 0 600 1600" aria-hidden="true"></svg></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ASSISTANT: live AI receptionist (lab 14) -->
+    <section class="assistant wrap" id="assistant">
+      <div class="sec-head">
+        <div class="eyebrow">The assistant</div>
+        <h2>Ask anything.<br>Book in seconds.</h2>
+        <ul class="ticks">
+          <li>Answers from the clinic's own prices, hours and policies, and shows where each answer came from.</li>
+          <li>Sees the real calendar, so it never double-books.</li>
+          <li>Sends a reminder the day before. Arabic and English.</li>
+        </ul>
+      </div>
+      <div class="chat" id="chat">
+        <div class="chat-head"><div class="av" data-icon="toothSolidWhite"></div><div><b>BrightSmile assistant</b><span>online · replies instantly</span></div></div>
+        <div class="chat-body"></div>
+        <div class="chat-input">Ask a question or book an appointment…</div>
+      </div>
+    </section>
+
+    <!-- RESULTS: before / after slider (lab 24) -->
+    <section class="results wrap" id="results">
+      <div class="sec-head center">
+        <div class="eyebrow">Results</div>
+        <h2>One whitening session.</h2>
+        <p>Drag the handle. Illustration for the prototype; real patient photos go here.</p>
+      </div>
+      <div class="compare" id="compare">
+        <div class="cmp cmp-before"><span class="smile-svg" data-icon="smileMouth" data-teeth="#e3cf94"></span><b>Before</b></div>
+        <div class="cmp cmp-after"><span class="smile-svg" data-icon="smileMouth"></span><b>After</b></div>
+        <div class="cmp-handle" role="slider" tabindex="0" aria-label="Before and after comparison" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span>‹ ›</span></div>
+      </div>
+    </section>
+
+    <!-- REVIEWS: swipeable deck (lab 25) -->
+    <section class="reviews wrap" id="reviews">
+      <div class="sec-head">
+        <div class="eyebrow">Patients say</div>
+        <h2>Flick through a few.</h2>
+        <p>Sample reviews for the prototype. Real reviews replace these before launch.</p>
+        <div class="deck-ui"><button data-dir="-1" aria-label="Previous review">←</button><span class="deck-count">1 / 5</span><button data-dir="1" aria-label="Next review">→</button></div>
+      </div>
+      <div class="deck" id="deck"><div class="deck-cards"></div></div>
+    </section>
+
+    <!-- BOOK: glass card over drifting light (lab 20) -->
+    <section class="book" id="book">
+      <div class="mesh" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="grain" aria-hidden="true"></div>
+      <div class="wrap book-grid">
+        <div class="sec-head">
+          <div class="eyebrow">Book a visit</div>
+          <h2>The next free slot is Thursday.</h2>
+          <p>Pick it here, or ask the assistant for another time. You'll get a reminder the day before.</p>
+        </div>
+        <div class="glass" id="glass">
+          <small>Next free slot</small>
+          <h3>Thursday · 4:30 PM</h3>
+          <p>Teeth whitening with Dr. Sarah Mansour</p>
+          <div class="pills"><span>60 min</span><span>4,500 EGP</span><span>Reminder included</span></div>
+          <button class="btn btn-dark btn-lg magnetic"><span class="lbl">Book this slot →</span></button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER: giant name (lab 02) -->
+  <footer class="footer">
+    <div class="wrap foot-row">
+      <div><b>BrightSmile Dental Clinic</b><br>Sat–Thu · 10 AM – 6 PM</div>
+      <div>Dr. Sarah Mansour · Dr. Karim Adel · Nadia Fawzy</div>
+      <div><a href="#top">Back to top ↑</a></div>
+    </div>
+    <div class="giant" id="giant" aria-hidden="true"><span>BrightSmile</span></div>
+  </footer>
+
+  <!-- CONTACT BUTTON: gooey menu, on every page (lab 30) -->
+  <div class="fab" id="fab">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="gooF"><feGaussianBlur in="SourceGraphic" stdDeviation="9" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="g"/><feComposite in="SourceGraphic" in2="g" operator="atop"/></filter></svg>
+    <div class="goo-blobs"><i class="main"></i><i class="opt"></i><i class="opt"></i><i class="opt"></i><i class="opt"></i></div>
+    <div class="goo-icons">
+      <a class="opt" href="#book"><span data-icon="calendar"></span><em>Book</em></a>
+      <a class="opt" href="#assistant"><span data-icon="chat"></span><em>Chat</em></a>
+      <a class="opt" href="#top"><span data-icon="phone"></span><em>Call</em></a>
+      <a class="opt" href="#top"><span data-icon="pin"></span><em>Map</em></a>
+      <button class="main" aria-expanded="false" aria-label="Contact options"><span>+</span></button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

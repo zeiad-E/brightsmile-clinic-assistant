@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BrightSmile Home Journey</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Trial 003: one continuous journey. A smooth 3D tooth assembles as the hero itself, then travels with the
+       scroll through the story, services, journey, assistant and booking. The portal stands on its own. -->
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="#top"><span data-icon="toothSolid"></span>BrightSmile</a>
+      <nav class="links">
+        <a href="#services">Services</a>
+        <a href="#how">How it works</a>
+        <a href="#assistant">Assistant</a>
+      </nav>
+      <a class="btn btn-dark btn-sm" href="#book">Book now</a>
+    </div>
+  </header>
+
+  <!-- The travelling 3D tooth lives on one fixed canvas above the page; "spots" in each section tell it where to be. -->
+  <canvas id="companion" aria-hidden="true"></canvas>
+
+  <main>
+    <!-- 1 · HERO: the whole section is the scene — depth layers, the assembling tooth, animated text -->
+    <section class="hero" id="top">
+      <div class="hero-bg" aria-hidden="true">
+        <div class="depth-scene">
+          <div class="layer" data-depth="0.12">
+            <div class="blob" style="left:38%;top:-6%;width:52%;height:70%;background:#a7f3e4"></div>
+            <div class="blob" style="right:-8%;top:30%;width:40%;height:62%;background:#bfe3ff"></div>
+            <div class="blob" style="left:-10%;bottom:-20%;width:40%;height:50%;background:#d9f7f1"></div>
+          </div>
+          <div class="layer" data-depth="0.3">
+            <div class="ring" style="left:58%;top:12%;width:46vh;height:46vh"></div>
+            <div class="bubble" style="left:52%;top:18%;width:40px;height:40px"></div>
+            <div class="bubble" style="right:9%;top:14%;width:26px;height:26px"></div>
+            <div class="bubble" style="left:6%;top:22%;width:18px;height:18px"></div>
+          </div>
+          <div class="layer" data-depth="0.6">
+            <span class="floss" data-icon="floss"></span>
+            <div class="bubble" style="right:30%;bottom:16%;width:22px;height:22px"></div>
+          </div>
+          <div class="layer" data-depth="1.1"><span class="brush" data-icon="brush"></span></div>
+          <div class="layer" data-depth="1.7" style="filter:blur(4px)">
+            <div class="bubble" style="left:44%;bottom:6%;width:80px;height:80px"></div>
+            <div class="bubble" style="right:3%;top:8%;width:60px;height:60px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="spot" id="spotHero"></div>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow">Dental clinic · Sat–Thu, 10 AM – 6 PM</div>
+          <h1>
+            <span class="h-line" data-split>Your smile,</span>
+            <span class="rotator"><span class="rot-word">our priority.</span></span>
+          </h1>
+          <p class="lead">Gentle dentistry with clear prices, and an assistant that answers your questions and books your visit at any hour.</p>
+          <div class="cta-row">
+            <a class="btn btn-mint btn-lg" href="#book">Book an appointment →</a>
+            <a class="btn btn-ghost btn-lg" href="#assistant">Ask a question</a>
+          </div>
+        </div>
+      </div>
+      <div class="slot-chip"><span class="dot"></span>Next free: <b>Thu 4:30 PM</b></div>
+      <div class="scroll-cue"><span>Scroll</span><i></i></div>
+    </section>
+
+    <!-- 2 · PINNED STORY: four beats, the tooth turns to a new angle on each (lab 05) -->
+    <section class="story" id="story">
+      <div class="pin">
+        <div class="wrap story-grid">
+          <div class="spot" id="spotStory"></div>
+          <div class="story-text">
+            <div class="beat"><b>01 · Ask</b><h2>Questions answered at 3 a.m.</h2><p>Prices, insurance, hours, what to do before a visit. The assistant answers from the clinic's own information.</p></div>
+            <div class="beat"><b>02 · Pick</b><h2>Real free slots, not a phone queue.</h2><p>Choose Dr. Sarah or Dr. Karim and a time that is actually open. No double-booking.</p></div>
+            <div class="beat"><b>03 · Remember</b><h2>A reminder the day before.</h2><p>Fewer no-shows. If you can't come, your slot goes to the next patient on the waitlist.</p></div>
+            <div class="beat"><b>04 · Smile</b><h2>Walk in. Walk out brighter.</h2><p>Everything was ready before you arrived.</p></div>
+          </div>
+        </div>
+        <div class="rail"><i></i></div>
+      </div>
+    </section>
+
+    <!-- 3 · PORTAL: the third section, stands alone — fly through a tooth-shaped window into the clinic (lab 26) -->
+    <section class="portal" id="portal">
+      <div class="pin">
+        <div class="portal-scene">
+          <div class="ps-glow"></div>
+          <small>Welcome to BrightSmile</small>
+          <h2>Come in. Dr. Sarah will see you now.</h2>
+          <div class="ps-chips"><span>No waiting room</span><span>Same-week slots</span><span>Calm, gentle visits</span></div>
+        </div>
+        <svg class="portal-mask" viewBox="0 0 1000 625" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs><mask id="portalHole"><rect x="-2000" y="-2000" width="5000" height="5000" fill="#fff"/><path class="ph" fill="#000"/></mask></defs>
+          <rect x="-2000" y="-2000" width="5000" height="5000" fill="#0b2545" mask="url(#portalHole)"/>
+          <path class="ph ph-ring" fill="none" stroke="#5eead4" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <div class="portal-copy"><span>Step inside</span><b>BrightSmile</b></div>
+      </div>
+    </section>
+
+    <!-- 5 · HORIZONTAL SERVICES with a gentle ribbon curve (lab 06 + a touch of 18) -->
+    <section class="services" id="services">
+      <div class="pin">
+        <div class="wrap services-head">
+          <div>
+            <div class="eyebrow light">Services &amp; prices</div>
+            <h2>Eight treatments.<br>Prices up front.</h2>
+          </div>
+          <div class="spot" id="spotServices"></div>
+        </div>
+        <div class="track-wrap"><div class="track" id="track"></div></div>
+        <div class="wrap"><div class="bar"><i></i></div></div>
+      </div>
+    </section>
+
+    <!-- 6 · X-RAY: the tooth steps aside, the lens takes over (lab 23) -->
+    <section class="xray-sec" id="xray-sec">
+      <div class="wrap">
+        <div class="sec-head center">
+          <div class="eyebrow light">Check-ups</div>
+          <h2>See what we see.</h2>
+          <p>Move the lens across the teeth. A check-up finds the small things before they become big ones.</p>
+        </div>
+        <div class="xray" id="xray">
+          <div class="xr-layer xr-smile"></div>
+          <div class="xr-layer xr-ray"></div>
+          <div class="xr-lens"><span>X-ray</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 · JOURNEY: the tooth becomes the marker on the path (lab 27) -->
+    <section class="journey" id="how">
+      <div class="pin">
+        <div class="wrap journey-grid">
+          <div class="sec-head">
+            <div class="eyebrow">How it works</div>
+            <h2>Your visit, start to finish.</h2>
+            <p>From a late-night question to your six-month check-up, nothing falls through the cracks.</p>
+          </div>
+          <div class="journey-window"><svg class="jr" viewBox="0 0 600 1600" aria-hidden="true"></svg></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 · AI RECEPTIONIST: the product itself (lab 14) -->
+    <section class="assistant wrap" id="assistant">
+      <div class="assistant-copy">
+        <div class="sec-head">
+          <div class="eyebrow">The assistant</div>
+          <h2>Ask anything.<br>Book in seconds.</h2>
+          <ul class="ticks">
+            <li>Answers from the clinic's own prices, hours and policies, and shows where each answer came from.</li>
+            <li>Sees the real calendar, so it never double-books.</li>
+            <li>Sends a reminder the day before, in Arabic or English.</li>
+          </ul>
+        </div>
+        <div class="spot" id="spotAssistant"></div>
+      </div>
+      <div class="chat" id="chat">
+        <div class="chat-head"><div class="av" data-icon="toothSolidWhite"></div><div><b>BrightSmile assistant</b><span>online · replies instantly</span></div></div>
+        <div class="chat-body"></div>
+        <div class="chat-input">Ask a question or book an appointment…</div>
+      </div>
+    </section>
+
+    <!-- 9 · UNDER THE HOOD: the stack opens, then one question travels down and back up (lab 15, reworked) -->
+    <section class="stack-sec" id="stack">
+      <div class="pin">
+        <div class="wrap stack-grid">
+          <div class="sec-head">
+            <div class="eyebrow">Under the hood</div>
+            <h2>Follow one question through the system.</h2>
+            <ol class="layers-list">
+              <li data-layer="3"><b>Website &amp; chat</b>Where the patient types.</li>
+              <li data-layer="2"><b>AI agent</b>Understands the question and decides what to do.</li>
+              <li data-layer="1"><b>Clinic knowledge</b>The clinic's own documents, so answers are never made up.</li>
+              <li data-layer="0"><b>Bookings database</b>The real calendar, reminders and waitlist.</li>
+            </ol>
+            <div class="stack-status" aria-live="polite"><span class="pulse-dot"></span><span class="txt">Scroll to send a question</span></div>
+          </div>
+          <div class="explode">
+            <div class="stack3d">
+              <div class="lay lay-db" data-i="0">
+                <span class="tag">04 · Bookings</span>
+                <div class="cal"><i></i><i class="b"></i><i></i><i class="b"></i><i></i><i class="b"></i><i></i><i></i><i class="b"></i><i></i><i></i><i class="slot"></i><i></i><i class="b"></i><i></i></div>
+              </div>
+              <div class="lay lay-rag" data-i="1">
+                <span class="tag">03 · Knowledge</span>
+                <div class="docs"><div class="doc"><i></i><i></i><i></i></div><div class="doc"><i></i><i></i><i></i></div><div class="doc"><i></i><i></i><i></i></div></div>
+              </div>
+              <div class="lay lay-ai" data-i="2">
+                <span class="tag">02 · AI agent</span>
+                <svg class="graph" viewBox="0 0 300 160"><path d="M60 110 L130 50 L210 90 L250 40 M130 50 L150 125 L210 90 M60 110 L150 125"/><circle cx="60" cy="110" r="9"/><circle cx="130" cy="50" r="9"/><circle cx="210" cy="90" r="9"/><circle cx="250" cy="40" r="7"/><circle cx="150" cy="125" r="7"/></svg>
+              </div>
+              <div class="lay lay-ui" data-i="3">
+                <span class="tag">01 · Website &amp; chat</span>
+                <div class="ui-bub">Is Thursday free?</div>
+                <div class="ui-bub bot">Yes, 4:30 PM with Dr. Sarah ✓</div>
+                <div class="ui-btn">Book</div>
+              </div>
+              <div class="beam"></div>
+              <div class="pulse"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 · BOOK: the tooth comes to rest -->
+    <section class="book" id="book">
+      <div class="mesh" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="grain" aria-hidden="true"></div>
+      <div class="wrap book-grid">
+        <div class="book-copy">
+          <div class="sec-head">
+            <div class="eyebrow">Book a visit</div>
+            <h2>The next free slot is Thursday.</h2>
+            <p>Pick it here, or ask the assistant for another time.</p>
+          </div>
+          <div class="spot" id="spotBook"></div>
+        </div>
+        <div class="glass" id="glass">
+          <small>Next free slot</small>
+          <h3>Thursday · 4:30 PM</h3>
+          <p>Teeth whitening with Dr. Sarah Mansour</p>
+          <div class="pills"><span>60 min</span><span>4,500 EGP</span><span>Reminder included</span></div>
+          <a class="btn btn-dark btn-lg" href="#book">Book this slot →</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap foot-row">
+      <div><b>BrightSmile Dental Clinic</b><br>Sat–Thu · 10 AM – 6 PM</div>
+      <div>Dr. Sarah Mansour · Dr. Karim Adel · Nadia Fawzy</div>
+      <div><a href="#book">Book a visit</a> · <a href="#top">Back to top ↑</a></div>
+    </div>
+    <div class="wrap foot-base">© 2026 BrightSmile Dental Clinic</div>
+  </footer>
+
+
+  <script src="app.js"></script>
+  <script src="companion.js"></script>
+</body>
+</html>
