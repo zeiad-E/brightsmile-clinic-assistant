@@ -63,6 +63,7 @@ export default async function ServicesPage() {
           cards={cards}
           people={people}
           t={t}
+          servicesBase={localePath(locale, '/services')}
           bookBase={localePath(locale, '/book')}
           assistantBase={localePath(locale, '/assistant')}
         />

@@ -249,6 +249,23 @@
     "ctaTitle": "Not sure what you need?",
     "ctaText": "Describe how your tooth feels and the assistant will suggest the right visit and find you a time.",
     "ctaButton": "Ask the assistant",
-    "askPrompt": "Tell me about {service}"
+    "askPrompt": "Tell me about {service}",
+    "details": "Details"
+  },
+  "servicePage": {
+    "back": "All services",
+    "eyebrow": "Treatment",
+    "minutes": "{n} min",
+    "expectTitle": "What to expect",
+    "teamTitle": "Who does it",
+    "dentist": "Dentist",
+    "hygienist": "Hygienist",
+    "bookWith": "Book with {name}",
+    "timesTitle": "Next free times",
+    "timesNote": "Pick a time and we fill in the booking for you.",
+    "noTimes": "No free times in the next 7 days. Ask the assistant, it can check further ahead.",
+    "book": "Book this",
+    "ask": "Ask about this",
+    "moreTitle": "Other treatments"
   }
 }

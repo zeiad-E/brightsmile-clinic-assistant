@@ -50,6 +50,11 @@
 .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 .meta span { padding: 5px 10px; border-radius: 99px; background: var(--color-page); border: 1px solid var(--color-line); font: 600 12px var(--font-mono); color: var(--color-ink-2); }
 .foot { display: grid; gap: 14px; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--color-line); }
+.priceRow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.details { font-size: 14px; font-weight: 650; color: var(--color-mint-deep); white-space: nowrap; }
+.details:hover { text-decoration: underline; text-underline-offset: 3px; }
+.card h2 a { transition: color .25s; }
+.card h2 a:hover { color: var(--color-mint-deep); }
 .price { white-space: nowrap; font-size: 24px; font-weight: 750; color: var(--color-mint-deep); letter-spacing: -.02em; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ask, .book { text-align: center; white-space: nowrap; }

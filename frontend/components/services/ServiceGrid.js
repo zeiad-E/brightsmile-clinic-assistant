@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useRef, useState, ViewTransition } from 'react';
 import { useWhenVisible } from '@/lib/motion';
 import { FallbackServiceIcon, SERVICE_ICONS } from '@/components/home/icons';
 import styles from './Services.module.css';
@@ -11,7 +11,7 @@ import styles from './Services.module.css';
  * A client component because the filter remembers a choice (state) and the cards animate in when
  * they scroll into view. The data itself was loaded on the server and arrives as props.
  */
-export default function ServiceGrid({ cards, people, t, bookBase, assistantBase }) {
+export default function ServiceGrid({ cards, people, t, servicesBase, bookBase, assistantBase }) {
   const [person, setPerson] = useState('all');
   const [shown, setShown] = useState(false);
   const gridRef = useRef(null);
@@ -57,7 +57,12 @@ export default function ServiceGrid({ cards, people, t, bookBase, assistantBase 
                 <div className={styles.icon}>
                   <Icon />
                 </div>
-                <h2>{card.name}</h2>
+                {/* same name as the heading on the detail page: the title morphs into it */}
+                <ViewTransition name={`service-${card.slug}`} share="morph" default="none">
+                  <h2>
+                    <Link href={`${servicesBase}/${card.slug}`}>{card.name}</Link>
+                  </h2>
+                </ViewTransition>
                 <p className={styles.desc}>{card.description}</p>
                 <div className={styles.meta}>
                   <span>
@@ -68,7 +73,12 @@ export default function ServiceGrid({ cards, people, t, bookBase, assistantBase 
                   </span>
                 </div>
                 <div className={styles.foot}>
-                  <span className={styles.price}>{card.price}</span>
+                  <div className={styles.priceRow}>
+                    <span className={styles.price}>{card.price}</span>
+                    <Link className={styles.details} href={`${servicesBase}/${card.slug}`} aria-label={`${t.details}: ${card.name}`}>
+                      {t.details} <span className="flip-rtl" aria-hidden="true">→</span>
+                    </Link>
+                  </div>
                   <div className={styles.actions}>
                     <Link className={styles.ask} href={`${assistantBase}?q=${encodeURIComponent(t.askPrompt.replace('{service}', card.name))}`}>
                       {t.ask}

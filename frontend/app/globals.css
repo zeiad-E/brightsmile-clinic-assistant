@@ -138,8 +138,22 @@
   background: var(--color-mint);
 }
 
+/*
+ * Page-to-page morphs (React <ViewTransition share="morph">), e.g. a service card title on /services
+ * flying into the heading of its detail page. Global on purpose: CSS Modules would rename `.morph`.
+ */
+::view-transition-group(.morph) {
+  animation-duration: 450ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* Visitors who turned animations off in their phone/computer settings get a calm, still page. */
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
   *,
   *::before,
   *::after {

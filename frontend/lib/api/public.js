@@ -66,3 +66,26 @@ export async function getNextFreeSlot(serviceId) {
     return null;
   }
 }
+
+/**
+ * The earliest free time on each of the next days that have one, across all the service's doctors:
+ * [{ starts_at, staff_id }, …] (at most `limit`). Cached for about a minute, like getNextFreeSlot.
+ */
+export async function getFreeTimes(serviceId, limit = 5) {
+  'use cache';
+  cacheLife('minutes');
+  try {
+    const { doctors } = await apiRequest(`/availability/range?service_id=${serviceId}&days=7`, { timeout: 8000 });
+    const firstByDay = new Map(); // "2026-10-30" → the earliest slot that day
+    for (const doctor of doctors) {
+      for (const day of doctor.days) {
+        const first = day.slots[0];
+        const best = firstByDay.get(day.date);
+        if (first && (!best || first.starts_at < best.starts_at)) firstByDay.set(day.date, { starts_at: first.starts_at, staff_id: doctor.staff_id });
+      }
+    }
+    return [...firstByDay.values()].toSorted((a, b) => a.starts_at.localeCompare(b.starts_at)).slice(0, limit);
+  } catch {
+    return [];
+  }
+}
