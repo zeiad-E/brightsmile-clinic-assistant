@@ -27,10 +27,18 @@
 .main { display: grid; gap: 48px; }
 .main h2, .card h2, .more h2 { margin: 0 0 18px; font-size: clamp(22px, 2.2vw, 28px); font-weight: 800; letter-spacing: -.03em; }
 
-.steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-.step { display: flex; gap: 16px; align-items: flex-start; padding: 18px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--color-line); }
-.step p { margin: 4px 0 0; line-height: 1.6; color: var(--color-ink); }
-.stepNumber { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--color-mint-soft); color: var(--color-mint-deep); font: 700 14px var(--font-mono); }
+.steps { position: relative; display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+/* the timeline: a grey track, and a mint line drawn over it as you scroll (StepsTimeline sets the numbers) */
+.steps::before, .steps::after { content: ""; position: absolute; inset-inline-start: 16px; top: var(--line-top, 26px); width: 2px; height: var(--line-height, 0); border-radius: 2px; } /* 16px + 2px wide = centred on the 34px numbers, in both directions */
+.steps::before { background: var(--color-line); }
+.steps::after { background: linear-gradient(var(--color-mint-light), var(--color-mint)); transform: scaleY(var(--progress, 0)); transform-origin: top; }
+.step { display: grid; grid-template-columns: 34px 1fr; gap: 16px; align-items: start; }
+.step p { margin: 0; padding: 16px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--color-line); line-height: 1.6; color: var(--color-ink); transition: border-color .5s, box-shadow .5s; }
+.stepNumber { width: 34px; height: 34px; margin-top: 11px; border-radius: 50%; display: grid; place-items: center; background: var(--color-mint-soft); color: var(--color-mint-deep); font: 700 14px var(--font-mono); box-shadow: 0 0 0 5px var(--color-page); transition: background .4s, color .4s; }
+/* a step lights up when the line reaches it */
+.step[data-lit] .stepNumber { background: var(--color-mint); color: #fff; animation: dotPop .5s cubic-bezier(.3, 1.6, .5, 1); }
+.step[data-lit] p { border-color: rgb(20 184 166 / .35); box-shadow: 0 12px 30px rgb(11 37 69 / .06); }
+@keyframes dotPop { 0% { scale: 1; } 45% { scale: 1.25; } 100% { scale: 1; } }
 
 .team { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
 .doctor { display: flex; gap: 16px; padding: 20px; border-radius: 20px; background: #fff; border: 1px solid var(--color-line); transition: transform .4s cubic-bezier(.2, .8, .2, 1), box-shadow .4s; }

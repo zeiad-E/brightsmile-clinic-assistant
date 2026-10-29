@@ -7,6 +7,7 @@ import { localePath } from '@/i18n/config';
 import { getDoctors, getFreeTimes, getServices } from '@/lib/api/public';
 import { describeSlot, formatPrice, shortName } from '@/lib/format';
 import { FallbackServiceIcon, SERVICE_ICONS } from '@/components/home/icons';
+import StepsTimeline from '@/components/services/StepsTimeline';
 import styles from '@/components/services/ServiceDetail.module.css';
 
 /**
@@ -45,7 +46,11 @@ export default async function ServicePage({ params }) {
   const digits = locale === 'ar' ? 'ar-EG' : 'en-US';
 
   const Icon = SERVICE_ICONS[service.slug] ?? FallbackServiceIcon;
-  const steps = (name(service, 'details') ?? '').split('\n').map((line) => line.trim()).filter(Boolean);
+  const steps = (name(service, 'details') ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((text, i) => ({ number: (i + 1).toLocaleString(digits), text }));
   const team = doctors.filter((d) => d.service_ids.includes(service.id));
 
   const bookBase = `${localePath(locale, '/book')}?service=${service.slug}`;
@@ -88,14 +93,7 @@ export default async function ServicePage({ params }) {
           {steps.length > 0 && (
             <section>
               <h2>{t.expectTitle}</h2>
-              <ol className={styles.steps}>
-                {steps.map((step, i) => (
-                  <li key={i} className={styles.step}>
-                    <span className={styles.stepNumber}>{(i + 1).toLocaleString(digits)}</span>
-                    <p>{step}</p>
-                  </li>
-                ))}
-              </ol>
+              <StepsTimeline steps={steps} />
             </section>
           )}
 
