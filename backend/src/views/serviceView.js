@@ -7,6 +7,8 @@ export function serviceView(row) {
     name_ar: row.name_ar,
     description_en: row.description_en,
     description_ar: row.description_ar,
+    details_en: row.details_en, // "what to expect": one step per line
+    details_ar: row.details_ar,
     duration_minutes: row.duration_minutes,
     price_egp: Number(row.price_egp),
   };

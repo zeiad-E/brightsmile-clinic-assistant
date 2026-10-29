@@ -11,6 +11,8 @@ const ServiceFields = {
   name_ar: Text(120),
   description_en: OptionalText(2000),
   description_ar: OptionalText(2000),
+  details_en: OptionalText(3000),
+  details_ar: OptionalText(3000),
   duration_minutes: z.number().int().min(5).max(480).multipleOf(5, 'Use steps of 5 minutes.'),
   price_egp: z.number().min(0).max(1_000_000),
   is_active: z.boolean().optional(),
