@@ -18,9 +18,13 @@ export class ApiError extends Error {
   }
 }
 
-/** A pre-configured axios: every request starts with the API address, JSON and a 30 s time limit. */
+/**
+ * A pre-configured axios: every request starts with the API address, JSON and a 30 s time limit.
+ * On the server it calls the API directly; in the browser it calls /api on this site, which
+ * next.config.mjs forwards to the API (so no cross-site request, no CORS).
+ */
 export const http = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: typeof window === 'undefined' ? `${API_URL}/api` : '/api',
   headers: { Accept: 'application/json' },
   timeout: 30_000,
 });
