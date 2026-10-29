@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateOfBirth, Email, PersonName, Phone } from './common.js';
+import { DateOfBirth, Email, Language, notEmpty, PersonName, Phone } from './common.js';
 
 export const StaffLoginBody = z.object({
   email: Email,
@@ -30,3 +30,15 @@ export const PasswordBody = z.object({
   current_password: z.string().min(1).max(200),
   new_password: z.string().min(10, 'Use at least 10 characters.').max(72),
 });
+
+/** A team member's own details (G6). Doctors also edit their public bio and photo. */
+export const TeamProfilePatch = notEmpty(
+  z.object({
+    full_name: PersonName.optional(),
+    phone: Phone.nullable().optional(),
+    preferred_language: Language.optional(),
+    bio_en: z.string().trim().max(2000).nullable().optional(),
+    bio_ar: z.string().trim().max(2000).nullable().optional(),
+    photo_url: z.url().max(500).nullable().optional(),
+  }),
+);

@@ -7,10 +7,10 @@ import { requireRole } from '../middlewares/requireRole.js';
 import { ROLES } from '../utils/roles.js';
 import { IdParams } from '../validators/common.js';
 import { CancelBody, MyAppointmentsQuery, RescheduleBody } from '../validators/appointments.js';
-import { UpdateMeBody } from '../validators/me.js';
+import { ContactStartBody, ContactVerifyBody, UpdateMeBody } from '../validators/me.js';
 
 /** /api/me — the signed-in patient's own profile and bookings. */
-export function meRouter() {
+export function meRouter(limits) {
   const router = Router();
   router.use(requireRole(ROLES.PATIENT));
 
@@ -22,6 +22,10 @@ export function meRouter() {
   router.post('/appointments/:id/reschedule', validate({ params: IdParams, body: RescheduleBody }), me.reschedule);
   router.get('/conversations', validate({ query: ConversationListQuery }), chat.mine);
   router.delete('/memory', me.forgetMe);
+
+  // New email / phone, confirmed with a code (G10).
+  router.post('/contact', limits.auth, validate({ body: ContactStartBody }), me.startContactChange);
+  router.post('/contact/verify', limits.code, validate({ body: ContactVerifyBody }), me.verifyContactChange);
 
   return router;
 }

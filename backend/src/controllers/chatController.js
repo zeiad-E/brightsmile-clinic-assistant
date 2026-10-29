@@ -26,7 +26,7 @@ export async function stream(req, res) {
       { user: req.user, db: req.db, ip: req.ip, evalCase: req.evalCase, onEvent: events.send },
       { conversationId, message, language },
     );
-    const chunks = replyChunks(result.reply);
+    const chunks = result.reply ? replyChunks(result.reply) : [];
     const pause = Math.min(30, 1200 / Math.max(chunks.length, 1)); // the whole reply types out in ≤ ~1.2 s
     for (const text of chunks) {
       if (events.closed) break;

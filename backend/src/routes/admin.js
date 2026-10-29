@@ -9,12 +9,15 @@ import * as memories from '../controllers/admin/agentMemoryController.js';
 import * as intake from '../controllers/admin/intakeController.js';
 import * as agentStatus from '../controllers/admin/agentStatusController.js';
 import * as knowledge from '../controllers/admin/knowledgeController.js';
+import * as stats from '../controllers/staff/statsController.js';
+import * as reports from '../controllers/staff/assistantReportController.js';
 import { fileUpload } from '../middlewares/fileUpload.js';
 import { validate } from '../middlewares/validate.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { ROLES } from '../utils/roles.js';
 import { IdParams } from '../validators/common.js';
 import {
+  ActivityQuery,
   AuditQuery,
   DoctorBody,
   DoctorPatch,
@@ -30,12 +33,16 @@ import {
   MemoryPatch,
   MemoryQuery,
   NotificationQuery,
+  RangeStatsQuery,
+  ReportQuery,
+  ReportResolveBody,
   RoleBody,
   ServiceBody,
   ServicePatch,
   SettingsPatch,
   StaffServicesBody,
   TeamCreateBody,
+  TeamMemberPatch,
   WorkingHoursBody,
 } from '../validators/admin.js';
 
@@ -66,7 +73,9 @@ export function adminRouter() {
 
   router.get('/team', read, team.list);
   router.post('/team', write, validate({ body: TeamCreateBody }), team.create);
+  router.patch('/team/:id', write, validate({ params: IdParams, body: TeamMemberPatch }), team.update);
   router.patch('/team/:id/role', write, validate({ params: IdParams, body: RoleBody }), team.setRole);
+  router.post('/team/:id/resend-invite', write, id, team.resendInvite);
   router.post('/team/:id/disable', write, id, team.disable);
   router.post('/team/:id/enable', write, id, team.enable);
 
@@ -74,6 +83,12 @@ export function adminRouter() {
   router.get('/notifications', read, validate({ query: NotificationQuery }), notifications.list);
 
   router.get('/agent/status', read, agentStatus.status);
+  router.get('/agent/activity', read, validate({ query: ActivityQuery }), stats.activity);
+  router.get('/agent/reports', read, validate({ query: ReportQuery }), reports.list);
+  router.post('/agent/reports/:id/resolve', write, validate({ params: IdParams, body: ReportResolveBody }), reports.resolve);
+
+  // The owner's overview for any period (G9).
+  router.get('/stats', read, validate({ query: RangeStatsQuery }), stats.range);
 
   // Knowledge base: the upload route is declared before '/:id' so "upload" isn't read as an id.
   router.get('/knowledge', read, validate({ query: KnowledgeQuery }), knowledge.list);

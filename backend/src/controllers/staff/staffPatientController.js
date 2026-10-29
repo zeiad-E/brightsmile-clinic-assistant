@@ -22,3 +22,7 @@ export async function unlock(req, res) {
 export async function sendCode(req, res) {
   res.json(await patientService.sendNewCode(ctxOf(req), req.valid.params.id));
 }
+
+export async function create(req, res) {
+  res.status(201).json(await patientService.create(ctxOf(req), req.valid.body));
+}

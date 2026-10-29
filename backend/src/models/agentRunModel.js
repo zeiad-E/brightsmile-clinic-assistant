@@ -1,4 +1,4 @@
-import { unwrap } from './query.js';
+import { pageRange, unwrap, unwrapPage } from './query.js';
 
 /** One row per assistant turn: model, speed, tools used, outcome, tokens. Feeds the owner's AI stats. */
 export function insert(db, run) {
@@ -15,5 +15,18 @@ export function insert(db, run) {
       tokens_out: run.tokensOut ?? null,
       retries: run.retries ?? 0,
     }),
+  );
+}
+
+/** What the assistant DID (booked, changed, handed over, failed), newest first (G3). */
+export function listActions(db, { limit, offset }) {
+  return unwrapPage(
+    db
+      .from('agent_runs')
+      .select('id, conversation_id, outcome, tool_calls, latency_ms, created_at', { count: 'exact' })
+      .eq('assistant', 'patient')
+      .in('outcome', ['booked', 'changed_data', 'escalated', 'fallback'])
+      .order('created_at', { ascending: false })
+      .range(...pageRange({ limit, offset })),
   );
 }

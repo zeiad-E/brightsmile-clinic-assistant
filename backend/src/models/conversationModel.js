@@ -2,8 +2,12 @@ import { pageRange, unwrap, unwrapPage } from './query.js';
 
 /** Chat threads. Each one belongs to an assistant (patient/staff) and, once known, a patient. */
 
-const LIST_COLUMNS = 'id, assistant, status, title, language, profile_id, patient_id, turn_count, last_message_at, created_at, reviewed_at';
-const FULL_COLUMNS = `${LIST_COLUMNS}, state, off_topic_count, blocked_until, summary, review_note`;
+const LIST_COLUMNS =
+  'id, assistant, status, title, language, profile_id, patient_id, turn_count, last_message_at, created_at, reviewed_at, review_note, taken_over_by, taken_over_at';
+const FULL_COLUMNS = `${LIST_COLUMNS}, state, off_topic_count, blocked_until, summary, reviewed_by`;
+
+/** "Live" on the dashboard = a message in the last 10 minutes. */
+export const LIVE_MINUTES = 10;
 
 export function create(db, { assistant = 'patient', profileId = null, patientId = null, language = 'en' }) {
   return unwrap(
@@ -65,8 +69,8 @@ export async function removeMany(db, ids) {
   return rows.length;
 }
 
-/** Staff/owner list, newest activity first, optionally by status. */
-export function listForStaff(db, { status, patientId, limit, offset }) {
+/** Staff/owner list, newest activity first, with the dashboard's filters. */
+export function listForStaff(db, { status, patientId, live, reviewed, withTeam, limit, offset }, now = new Date()) {
   let query = db
     .from('conversations')
     .select(LIST_COLUMNS, { count: 'exact' })
@@ -74,5 +78,9 @@ export function listForStaff(db, { status, patientId, limit, offset }) {
     .order('last_message_at', { ascending: false });
   if (status) query = query.eq('status', status);
   if (patientId) query = query.eq('patient_id', patientId);
+  if (live) query = query.gte('last_message_at', new Date(now.getTime() - LIVE_MINUTES * 60_000).toISOString());
+  if (reviewed === 'yes') query = query.not('reviewed_at', 'is', null);
+  if (reviewed === 'no') query = query.is('reviewed_at', null);
+  if (withTeam) query = query.not('taken_over_by', 'is', null);
   return unwrapPage(query.range(...pageRange({ limit, offset })));
 }

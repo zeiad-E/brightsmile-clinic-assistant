@@ -1,11 +1,15 @@
 import * as escalationModel from '../models/escalationModel.js';
+import * as patientModel from '../models/patientModel.js';
 import { AppError } from '../utils/AppError.js';
 import { listView } from '../views/listView.js';
 
 /** Hand-offs from the assistant to a human. Staff see and resolve them. */
 
+/** Newest first, each with the patient's name (masked for the viewer) for the inbox list. */
 export async function list({ db }, filters) {
-  return listView(await escalationModel.list(db, filters), filters);
+  const page = await escalationModel.list(db, filters);
+  const names = await patientModel.namesByIds(db, page.rows.map((row) => row.patient_id));
+  return listView(page, filters, (row) => ({ ...row, patient_name: names.get(row.patient_id) ?? null }));
 }
 
 export async function resolve({ user, db }, id) {

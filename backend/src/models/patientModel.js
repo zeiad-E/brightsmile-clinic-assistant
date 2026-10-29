@@ -16,6 +16,15 @@ export function findByProfileId(db, profileId) {
   return unwrap(db.from('patients').select(COLUMNS).eq('profile_id', profileId).maybeSingle());
 }
 
+export function findByPhone(db, phone) {
+  return unwrap(db.from('patients').select(COLUMNS).eq('phone', phone).maybeSingle());
+}
+
+/** A new patient record (staff, G5). Unique email/phone clashes surface as error 23505. */
+export function create(db, row) {
+  return unwrap(db.from('patients').insert(row).select(COLUMNS).single());
+}
+
 export function findByEmail(db, email) {
   return unwrap(db.from('patients').select(COLUMNS).eq('email', email).maybeSingle());
 }
@@ -106,4 +115,12 @@ export function verifyByPhone(db, { phone, fullName, dateOfBirth }) {
 /** find_patient_by_code → { ok, patient_id, profile_id } | { ok:false, error } */
 export function findByCodeHmac(db, codeHmac) {
   return unwrap(db.rpc('find_patient_by_code', { p_code_hmac: codeHmac }));
+}
+
+/** id → name for list screens (masked for the viewer by v_patients). */
+export async function namesByIds(db, ids) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return new Map();
+  const rows = await unwrap(db.from('v_patients').select('id, full_name').in('id', unique));
+  return new Map(rows.map((row) => [row.id, row.full_name]));
 }

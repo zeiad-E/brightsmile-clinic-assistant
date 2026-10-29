@@ -46,6 +46,22 @@ export function listTeam(db) {
   );
 }
 
+/**
+ * id → full name, for "who wrote this" labels. Dashboard callers pass `from: 'v_profiles'`
+ * (masked for the viewer); the server key reads `profiles`.
+ */
+export async function namesByIds(db, ids, { from = 'profiles' } = {}) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return new Map();
+  const rows = await unwrap(db.from(from).select('id, full_name').in('id', unique));
+  return new Map(rows.map((row) => [row.id, row.full_name]));
+}
+
+/** Name / phone / language of a login: the member themself (G6) or the owner (G7). */
+export function updateDetails(db, id, patch) {
+  return unwrap(db.from('profiles').update(patch).eq('id', id).select(PROFILE_COLUMNS).maybeSingle());
+}
+
 export function updateRole(db, id, role) {
   return unwrap(db.from('profiles').update({ role }).eq('id', id).select(PROFILE_COLUMNS).maybeSingle());
 }

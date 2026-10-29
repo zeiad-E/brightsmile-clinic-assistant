@@ -24,7 +24,7 @@ export function createApiRouter({ rateLimit = true } = {}) {
 
   router.use('/auth', authRouter(limits));
   router.use('/appointments', appointmentsRouter(limits));
-  router.use('/me', meRouter());
+  router.use('/me', meRouter(limits));
   router.use('/staff', staffRouter(limits));
   router.use('/admin', adminRouter());
   router.use('/chat', chatRouter(limits));

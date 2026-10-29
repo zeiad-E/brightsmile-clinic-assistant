@@ -1,12 +1,17 @@
 import { config } from '../config/index.js';
 import { requireAdmin } from '../db/supabase.js';
 import { anonClient, createUserClient } from '../db/userClient.js';
+import { adminAs } from '../db/supabase.js';
 import * as clinicModel from '../models/clinicModel.js';
 import * as conversationModel from '../models/conversationModel.js';
 import * as messageModel from '../models/messageModel.js';
 import * as agentRunModel from '../models/agentRunModel.js';
 import * as escalationModel from '../models/escalationModel.js';
+import * as patientModel from '../models/patientModel.js';
+import * as profileModel from '../models/profileModel.js';
+import * as assistantReportModel from '../models/assistantReportModel.js';
 import { findIdentity } from '../models/profileModel.js';
+import { revokeSession } from './sessionService.js';
 import { buildContext } from '../agent/context.js';
 import { buildSystemPrompt } from '../agent/systemPrompt.js';
 import { runAgentTurn } from '../agent/loop.js';
@@ -120,9 +125,14 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     },
     onProgress: (progress) => notify('status', progressEvent(progress, lang)),
     // Called by sign-in and booking tools: the conversation now belongs to this patient.
+    // Only a patient is ever signed in here; any other login is closed again at once.
     signedIn: async (session) => {
       const userDb = createUserClient(session.access_token);
       const identity = await findIdentity(userDb, session.user.id);
+      if (!isPatient(identity)) {
+        await revokeSession(session.access_token).catch(() => {});
+        return null;
+      }
       if (identity) {
         Object.assign(ctx, { user: identity, isPatient: isPatient(identity), db: userDb, session });
         Object.assign(patch, { profile_id: identity.id, patient_id: identity.patientId });
@@ -143,6 +153,15 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     return save({ admin, conversationId, ctx, patch: { ...patch, status: 'handed_off' }, maskedMessage, reply, startedAt, outcome: 'escalated', run: {} });
   }
 
+  // A team member has taken this chat over (G1): the assistant stays quiet and the message waits
+  // for them. The patient's page shows it and checks every few seconds for the reply.
+  if (conversation.taken_over_by) {
+    await messageModel.insertMany(admin, [{ conversation_id: conversationId, role: 'user', content: maskedMessage }]);
+    await conversationModel.update(admin, conversationId, { ...patch, state: { ...state, placeholders: withoutCodes(map) }, turn_count: turnNumber });
+    const names = await profileModel.namesByIds(admin, [conversation.taken_over_by]);
+    return { conversation_id: conversationId, reply: '', cards: [], session: null, status: 'with_team', team_member: firstName(names.get(conversation.taken_over_by)) };
+  }
+
   // Budgets and AI health: decide whether (and how) to use the AI at all this turn.
   const allowance = await budget.check(keys);
   if (!allowance.allowed) {
@@ -157,7 +176,10 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
   const context = await buildContext({ conversation, state, user: ctx.user, db: ctx.db, settings, language: lang });
   context.safeMode = ctx.safeMode;
   const system = { role: 'system', content: buildSystemPrompt(context) };
-  const history = (await messageModel.recentDialogue(admin, conversationId, LIMITS.historyMessages)).map((m) => ({ role: m.role, content: m.content }));
+  // What a team member wrote reaches the AI as the clinic's own words.
+  const history = (await messageModel.recentDialogue(admin, conversationId, LIMITS.historyMessages)).map((m) =>
+    m.role === 'staff' ? { role: 'assistant', content: `(Clinic team) ${m.content}` } : { role: m.role, content: m.content },
+  );
   const userTurn = { role: 'user', content: maskedMessage };
   const toolset = ctx.safeMode ? { tools: safeModeToolsByName, definitions: safeModeDefinitions } : {};
 
@@ -291,18 +313,35 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
   };
 }
 
-/** A conversation's history, for the patient who owns it (placeholders shown as real values). */
+/** "Dr. Sarah Mansour" → "Sarah": how a team member introduces themself to the patient. */
+export function firstName(fullName) {
+  return String(fullName ?? '').split(' ').find((word) => word && !/^(Dr\.?|د\.)$/i.test(word)) ?? null;
+}
+
+/**
+ * A conversation's history, for the patient who owns it (placeholders shown as real values).
+ * Team members' messages carry their first name; `with_team` tells the page to keep checking for replies.
+ */
 export async function getConversation({ user }, id) {
   const admin = requireAdmin();
   const conversation = await loadOwned(admin, id, user);
   const map = conversation.state?.placeholders ?? {};
   const messages = await messageModel.listForConversation(admin, id);
+  const names = await profileModel.namesByIds(admin, [conversation.taken_over_by, ...messages.map((m) => m.author_id)]);
   return {
     id: conversation.id,
     status: conversation.status,
     title: conversation.title ? restoreForPatient(conversation.title, map) : null,
     language: conversation.language,
-    messages: messages.map((m) => ({ role: m.role, content: restoreForPatient(m.content, map), created_at: m.created_at })),
+    with_team: Boolean(conversation.taken_over_by),
+    team_member: conversation.taken_over_by ? firstName(names.get(conversation.taken_over_by)) : null,
+    messages: messages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: restoreForPatient(m.content, map),
+      created_at: m.created_at,
+      ...(m.role === 'staff' && { author: firstName(names.get(m.author_id)), event: m.tool_name ?? null }),
+    })),
   };
 }
 
@@ -312,13 +351,106 @@ export async function listMine({ db }, page) {
 
 // ----- staff screens (Row Level Security: staff/owner/viewer; viewer masked) -----
 
+const isLive = (row, now = Date.now()) => now - new Date(row.last_message_at).getTime() < conversationModel.LIVE_MINUTES * 60_000;
+
 export async function listForStaff({ db }, filters) {
-  return listView(await conversationModel.listForStaff(db, filters), filters);
+  const page = await conversationModel.listForStaff(db, filters);
+  const [patients, team] = await Promise.all([
+    patientModel.namesByIds(db, page.rows.map((row) => row.patient_id)),
+    profileModel.namesByIds(db, page.rows.map((row) => row.taken_over_by), { from: 'v_profiles' }),
+  ]);
+  return listView(page, filters, (row) => ({
+    ...row,
+    patient_name: patients.get(row.patient_id) ?? null,
+    taken_over_by_name: team.get(row.taken_over_by) ?? null,
+    live: isLive(row),
+  }));
 }
 
+/** One conversation for the dashboard: every message (tool calls too), who wrote what, open reports. */
 export async function getForStaff({ db }, id) {
   const conversation = await conversationModel.findById(db, id);
   if (!conversation) throw AppError.notFound('conversation_not_found', 'Conversation not found.');
   const { state: _state, ...rest } = conversation; // state holds contact details: not for the dashboard
-  return { ...rest, messages: await messageModel.listForStaff(db, id) };
+  const [messages, reports, patients] = await Promise.all([
+    messageModel.listForStaff(db, id),
+    assistantReportModel.forConversation(requireAdmin(), id),
+    patientModel.namesByIds(db, [conversation.patient_id]),
+  ]);
+  const team = await profileModel.namesByIds(
+    db,
+    [conversation.taken_over_by, conversation.reviewed_by, ...messages.map((m) => m.author_id), ...reports.map((r) => r.reported_by)],
+    { from: 'v_profiles' },
+  );
+  return {
+    ...rest,
+    live: isLive(conversation),
+    patient_name: patients.get(conversation.patient_id) ?? null,
+    taken_over_by_name: team.get(conversation.taken_over_by) ?? null,
+    reviewed_by_name: team.get(conversation.reviewed_by) ?? null,
+    messages: messages.map((m) => (m.role === 'staff' ? { ...m, author_name: team.get(m.author_id) ?? null } : m)),
+    reports: reports.map((r) => ({ ...r, reported_by_name: team.get(r.reported_by) ?? null })),
+  };
+}
+
+async function loadForTeam(id) {
+  const conversation = await conversationModel.findById(requireAdmin(), id);
+  if (!conversation || conversation.assistant !== 'patient') throw AppError.notFound('conversation_not_found', 'Conversation not found.');
+  return conversation;
+}
+
+const takenByOther = () => AppError.conflict('taken_by_other', 'Another team member is answering this chat. They can hand it back first.');
+
+/**
+ * "Take over" (G1): the assistant stops answering this chat and the team member does. Runs inside
+ * the conversation's lock, so a reply the assistant is writing right now finishes first.
+ */
+export async function takeOver(ctx, id) {
+  const { user } = ctx;
+  await withConversationLock(id, async () => {
+    const conversation = await loadForTeam(id);
+    if (conversation.taken_over_by === user.id) return;
+    if (conversation.taken_over_by) throw takenByOther();
+    await conversationModel.update(adminAs(user.id), id, { taken_over_by: user.id, taken_over_at: new Date().toISOString(), status: 'handed_off' });
+    await messageModel.insertStaff(requireAdmin(), { conversationId: id, authorId: user.id, event: 'joined' });
+  });
+  return getForStaff(ctx, id);
+}
+
+/** Gives the chat back to the assistant. Any team member may do it (e.g. for a colleague who left). */
+export async function handBack(ctx, id) {
+  const { user } = ctx;
+  await withConversationLock(id, async () => {
+    const conversation = await loadForTeam(id);
+    if (!conversation.taken_over_by) return;
+    await conversationModel.update(adminAs(user.id), id, { taken_over_by: null, taken_over_at: null, status: 'active' });
+    await messageModel.insertStaff(requireAdmin(), { conversationId: id, authorId: user.id, event: 'left' });
+  });
+  return getForStaff(ctx, id);
+}
+
+/** A team member's reply in the patient's chat. Replying takes the chat over if nobody has. */
+export async function staffReply(ctx, id, { message }) {
+  const { user } = ctx;
+  const conversation = await loadForTeam(id);
+  if (conversation.taken_over_by && conversation.taken_over_by !== user.id) throw takenByOther();
+  if (!conversation.taken_over_by) await takeOver(ctx, id);
+
+  const saved = await messageModel.insertStaff(requireAdmin(), { conversationId: id, authorId: user.id, content: message });
+  await conversationModel.update(requireAdmin(), id, { last_message_at: saved.created_at });
+  return { ...saved, author_name: user.fullName ?? null };
+}
+
+/** Marks a conversation reviewed (G2), with an optional note the owner sees; reviewed=false undoes it. */
+export async function review(ctx, id, { reviewed, note }) {
+  const { user } = ctx;
+  await loadForTeam(id);
+  await conversationModel.update(
+    adminAs(user.id),
+    id,
+    reviewed
+      ? { reviewed_at: new Date().toISOString(), reviewed_by: user.id, review_note: note ?? null }
+      : { reviewed_at: null, reviewed_by: null, review_note: null },
+  );
+  return getForStaff(ctx, id);
 }

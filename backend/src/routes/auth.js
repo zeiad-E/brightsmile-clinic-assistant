@@ -4,7 +4,16 @@ import { validate } from '../middlewares/validate.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { ROLES } from '../utils/roles.js';
-import { CodeLoginBody, EmailStartBody, EmailVerifyBody, PasswordBody, PhoneLoginBody, RefreshBody, StaffLoginBody } from '../validators/auth.js';
+import {
+  CodeLoginBody,
+  EmailStartBody,
+  EmailVerifyBody,
+  PasswordBody,
+  PhoneLoginBody,
+  RefreshBody,
+  StaffLoginBody,
+  TeamProfilePatch,
+} from '../validators/auth.js';
 
 /** /api/auth — every way to sign in, plus session and password actions. */
 export function authRouter(limits) {
@@ -20,7 +29,12 @@ export function authRouter(limits) {
 
   router.post('/logout', requireAuth(), auth.logout);
   router.get('/me', requireAuth(), auth.me);
-  router.post('/password', requireRole(ROLES.TEAM), limits.auth, validate({ body: PasswordBody }), auth.changePassword);
+  // The read-only demo login can't change its password (or anything else).
+  router.post('/password', requireRole(ROLES.STAFF_WRITE), limits.auth, validate({ body: PasswordBody }), auth.changePassword);
+
+  // A team member's own profile page (G6).
+  router.get('/profile', requireRole(ROLES.TEAM), auth.profile);
+  router.patch('/profile', requireRole(ROLES.STAFF_WRITE), validate({ body: TeamProfilePatch }), auth.updateProfile);
 
   return router;
 }

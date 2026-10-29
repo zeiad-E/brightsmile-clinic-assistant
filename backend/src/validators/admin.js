@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateTime, Email, Language, notEmpty, Pagination, PersonName, Time, Uuid } from './common.js';
+import { DateTime, Day, Email, Language, notEmpty, Pagination, PersonName, Phone, Time, Uuid } from './common.js';
 
 const Slug = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Use lowercase words joined by dashes, e.g. teeth-cleaning.');
 const Text = (max) => z.string().trim().min(1).max(max);
@@ -59,6 +59,9 @@ export const SettingsPatch = notEmpty(
     min_lead_minutes: z.number().int().min(0).max(10080).optional(),
     booking_horizon_days: z.number().int().min(1).max(365).optional(),
     cancellation_window_hours: z.number().int().min(0).max(168).optional(),
+    // the assistant control room: pause switch and how long chats are kept
+    assistant_enabled: z.boolean().optional(),
+    chat_retention_days: z.number().int().min(7).max(3650).optional(),
   }),
 );
 
@@ -74,6 +77,28 @@ export const TeamCreateBody = z.object({
 });
 
 export const RoleBody = z.object({ role: TeamRole });
+
+/** The owner edits a team member's details (G7). staff_id links (or, with null, unlinks) a doctor record. */
+export const TeamMemberPatch = notEmpty(
+  z.object({
+    full_name: PersonName.optional(),
+    email: Email.optional(),
+    phone: Phone.nullable().optional(),
+    preferred_language: Language.optional(),
+    staff_id: Uuid.nullable().optional(),
+  }),
+);
+
+/** Owner numbers for any period (G9): from and to are clinic days, both included, at most a year. */
+export const RangeStatsQuery = z
+  .object({ from: Day, to: Day })
+  .refine((q) => q.to >= q.from, { message: 'The end must be on or after the start.', path: ['to'] })
+  .refine((q) => (new Date(q.to) - new Date(q.from)) / 86_400_000 <= 366, { message: 'Pick at most one year.', path: ['to'] });
+
+// ----- the assistant control room (owner) -----
+export const ReportQuery = Pagination.extend({ status: z.enum(['open', 'resolved']).optional() });
+export const ReportResolveBody = z.object({ owner_note: z.string().trim().max(1000).nullable().optional() });
+export const ActivityQuery = Pagination;
 
 export const AuditQuery = Pagination.extend({
   entity: z.string().trim().max(50).optional(),
@@ -146,5 +171,16 @@ export const GapPatch = z.object({ status: z.enum(['open', 'resolved', 'ignored'
 
 export const NotificationQuery = Pagination.extend({
   status: z.enum(['queued', 'sent', 'failed']).optional(),
-  template: z.enum(['booking_confirmed', 'login_code', 'booking_cancelled', 'welcome']).optional(),
+  template: z
+    .enum([
+      'booking_confirmed',
+      'login_code',
+      'booking_cancelled',
+      'welcome',
+      'staff_alert',
+      'appointment_reminder',
+      'waitlist_slot_open',
+      'contact_change_code',
+    ])
+    .optional(),
 });

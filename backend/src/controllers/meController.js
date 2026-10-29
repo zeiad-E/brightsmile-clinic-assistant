@@ -33,3 +33,11 @@ export async function forgetMe(req, res) {
 export async function reschedule(req, res) {
   res.json(await appointmentService.reschedule(ctxOf(req), req.valid.params.id, req.valid.body));
 }
+
+export async function startContactChange(req, res) {
+  res.json(await patientService.startContactChange(ctxOf(req), req.valid.body));
+}
+
+export async function verifyContactChange(req, res) {
+  res.json(await patientService.verifyContactChange(ctxOf(req), req.valid.body));
+}

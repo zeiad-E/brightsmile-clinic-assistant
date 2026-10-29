@@ -1,4 +1,4 @@
-import { requireAdmin } from '../db/supabase.js';
+import { adminAs, requireAdmin } from '../db/supabase.js';
 import { createAuthClient } from '../db/userClient.js';
 import * as patientModel from '../models/patientModel.js';
 import * as profileModel from '../models/profileModel.js';
@@ -6,7 +6,8 @@ import * as staffModel from '../models/staffModel.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { sessionView } from '../views/sessionView.js';
-import { meView } from '../views/profileView.js';
+import { meView, teamProfileView } from '../views/profileView.js';
+import { ROLES } from '../utils/roles.js';
 import * as sessionService from './sessionService.js';
 import * as accountService from './accountService.js';
 import * as personalCodeService from './personalCodeService.js';
@@ -21,31 +22,52 @@ import { isPlaceholderEmail, sendEmailInBackground } from './email/emailService.
  */
 const SAME_ANSWER = { sent: true, message: 'If this email is registered, we have sent it a message.' };
 
-/** Clinic team: email + password. */
+/**
+ * Clinic team: email + password. A patient login is turned away here (G8): the session that
+ * was just made is closed again, and the answer points them to the patient sign-in.
+ */
 export async function staffLogin({ email, password }) {
   const { data, error } = await createAuthClient().auth.signInWithPassword({ email, password });
   if (error?.code === 'user_banned') throw AppError.forbidden('account_disabled', 'This account has been disabled.');
   if (error || !data.session) throw AppError.unauthorized('invalid_credentials', 'Wrong email or password.');
 
   const profile = await profileModel.findById(requireAdmin(), data.user.id);
-  return sessionView(data.session, { id: data.user.id, email: data.user.email, role: profile?.role ?? null });
+  if (!ROLES.TEAM.includes(profile?.role)) {
+    await sessionService.revokeSession(data.session.access_token).catch(() => {});
+    throw AppError.forbidden('patient_account', 'This is the team sign-in. If you are a patient, please use the Patient tab.');
+  }
+  return sessionView(data.session, { id: data.user.id, email: data.user.email, role: profile.role });
 }
 
-/** Step 1 of email sign-in: Supabase emails a 6-digit code (only to existing accounts). */
+/**
+ * Step 1 of the PATIENT email sign-in: Supabase emails a 6-digit code — only to patient logins.
+ * A team account never gets one: an emailed code skips the password, so team members sign in
+ * on the Team tab with their password. The answer is the same either way (privacy rule above).
+ */
 export async function startEmailCode({ email }) {
   if (isPlaceholderEmail(email)) return SAME_ANSWER;
+  const profile = await profileModel.findByEmail(requireAdmin(), email);
+  if (profile?.role !== 'patient') return SAME_ANSWER;
   const { error } = await createAuthClient().auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
   if (error) logger.info(`Email code not sent (${error.code ?? error.status}): ${error.message}`);
   return SAME_ANSWER;
 }
 
-/** Step 2 of email sign-in: the code from the email → a session. */
+/**
+ * Step 2 of the patient email sign-in: the code from the email → a session.
+ * Even with a correct code, a team account is turned away and the session just made is closed
+ * (a code sent before this rule existed must not open the owner's dashboard).
+ */
 export async function verifyEmailCode({ email, code }) {
   const { data, error } = await createAuthClient().auth.verifyOtp({ email, token: code, type: 'email' });
   if (error || !data.session) throw AppError.unauthorized('invalid_code', 'This code is wrong or has expired.');
 
   const profile = await profileModel.findById(requireAdmin(), data.user.id);
-  return sessionView(data.session, { id: data.user.id, email: data.user.email, role: profile?.role ?? null });
+  if (profile?.role !== 'patient') {
+    await sessionService.revokeSession(data.session.access_token).catch(() => {});
+    throw AppError.forbidden('team_account', 'This email belongs to a clinic team account. Team members sign in on the Team tab with their password.');
+  }
+  return sessionView(data.session, { id: data.user.id, email: data.user.email, role: 'patient' });
 }
 
 /** Signs in a patient we have already verified some other way. */
@@ -121,4 +143,34 @@ export async function changePassword({ user }, { current_password: currentPasswo
   if (error) throw AppError.unauthorized('wrong_password', 'Your current password is not correct.');
   await accountService.changePassword(user.id, newPassword);
   return { changed: true };
+}
+
+// ----- a team member's own profile (G6) -----
+
+export async function teamProfile({ user }) {
+  const admin = requireAdmin();
+  const [profile, staff] = await Promise.all([
+    profileModel.findById(admin, user.id),
+    user.staffId ? staffModel.findById(admin, user.staffId) : null,
+  ]);
+  return teamProfileView(profile, staff);
+}
+
+/**
+ * Name, phone and language for everyone; doctors also their public bio and photo. Their title,
+ * role and email stay with the owner (the email is how they sign in).
+ */
+export async function updateTeamProfile({ user }, patch) {
+  const { bio_en: bioEn, bio_ar: bioAr, photo_url: photoUrl, ...details } = patch;
+  const doctor = Object.fromEntries(
+    Object.entries({ bio_en: bioEn, bio_ar: bioAr, photo_url: photoUrl }).filter(([, value]) => value !== undefined),
+  );
+  if (Object.keys(doctor).length && !user.staffId) {
+    throw AppError.badRequest('no_doctor_record', 'Only doctors have a public bio and photo.');
+  }
+
+  const db = adminAs(user.id);
+  if (Object.keys(details).length) await profileModel.updateDetails(db, user.id, details);
+  if (Object.keys(doctor).length) await staffModel.update(db, user.staffId, doctor);
+  return teamProfile({ user });
 }

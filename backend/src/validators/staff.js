@@ -65,4 +65,32 @@ export const TimeOffPatch = notEmpty(
   }),
 ).refine(endsAfterStart, { message: 'The end must be after the start.', path: ['ends_at'] });
 
+/** A new patient record without a booking (G5). Email or phone is required, like for bookings. */
+export const PatientCreateBody = z
+  .object({
+    full_name: PersonName,
+    date_of_birth: DateOfBirth,
+    email: Email.optional(),
+    phone: Phone.optional(),
+    preferred_language: Language.default('en'),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .refine((body) => body.email || body.phone, { message: 'Enter an email or a phone number.', path: ['email'] });
+
+/** A team member's message in a patient's chat (G1). */
+export const StaffReplyBody = z.object({ message: z.string().trim().min(1, 'Type a message.').max(2000) });
+
+/** Mark a conversation reviewed (or undo it), with an optional note for the owner (G2). */
+export const ReviewBody = z.object({
+  reviewed: z.boolean().default(true),
+  note: z.string().trim().max(1000).nullable().optional(),
+});
+
+/** "The assistant got this wrong" (G4): which answer, what kind of mistake, what should have happened. */
+export const ReportBody = z.object({
+  message_id: z.number().int().positive().optional(),
+  kind: z.enum(['wrong_answer', 'wrong_action', 'tone', 'missed_handover', 'other']),
+  note: z.string().trim().min(3, 'Say what went wrong.').max(1000),
+});
+
 export { StaffBookBody } from './appointments.js';

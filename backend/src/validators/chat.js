@@ -10,7 +10,11 @@ export const ChatBody = z.object({
 
 export const ConversationListQuery = Pagination;
 
+/** live = a message in the last 10 minutes; reviewed = yes/no; with_team = a team member has taken it over. */
 export const StaffConversationQuery = Pagination.extend({
   status: z.enum(['active', 'handed_off', 'needs_attention', 'closed']).optional(),
   patient_id: Uuid.optional(),
-}).transform(({ patient_id: patientId, ...rest }) => ({ ...rest, patientId }));
+  live: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+  reviewed: z.enum(['yes', 'no']).optional(),
+  with_team: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+}).transform(({ patient_id: patientId, with_team: withTeam, ...rest }) => ({ ...rest, patientId, withTeam }));

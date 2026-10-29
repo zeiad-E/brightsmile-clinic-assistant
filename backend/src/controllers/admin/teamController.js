@@ -22,3 +22,11 @@ export async function disable(req, res) {
 export async function enable(req, res) {
   res.json(await teamService.setDisabled(ctxOf(req), req.valid.params.id, false));
 }
+
+export async function update(req, res) {
+  res.json(await teamService.updateMember(ctxOf(req), req.valid.params.id, req.valid.body));
+}
+
+export async function resendInvite(req, res) {
+  res.json(await teamService.resendInvite(ctxOf(req), req.valid.params.id));
+}

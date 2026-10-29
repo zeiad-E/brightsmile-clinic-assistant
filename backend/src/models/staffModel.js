@@ -46,6 +46,15 @@ export function linkProfile(db, staffId, profileId) {
   return unwrap(db.from('staff').update({ profile_id: profileId }).eq('id', staffId).select('id, profile_id').maybeSingle());
 }
 
+/** The doctor record linked to a login, if any. */
+export function findByProfileId(db, profileId) {
+  return unwrap(db.from('staff').select(COLUMNS).eq('profile_id', profileId).maybeSingle());
+}
+
+export function unlinkProfile(db, profileId) {
+  return unwrap(db.from('staff').update({ profile_id: null }).eq('profile_id', profileId));
+}
+
 export function listLinkedProfiles(db) {
   return unwrap(db.from('staff').select('id, profile_id, full_name_en, full_name_ar').not('profile_id', 'is', null));
 }

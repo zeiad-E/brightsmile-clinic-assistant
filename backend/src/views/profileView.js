@@ -33,3 +33,25 @@ export function teamMemberView(profile, { staff = null, disabled = false } = {})
     created_at: profile.created_at,
   };
 }
+
+/** A team member's own profile page (G6): the login, plus their doctor record when linked. */
+export function teamProfileView(profile, staff = null) {
+  return {
+    id: profile.id,
+    role: profile.role,
+    full_name: profile.full_name,
+    email: profile.email,
+    phone: profile.phone,
+    preferred_language: profile.preferred_language,
+    created_at: profile.created_at,
+    doctor: staff && {
+      id: staff.id,
+      full_name_en: staff.full_name_en,
+      full_name_ar: staff.full_name_ar,
+      title: staff.title,
+      bio_en: staff.bio_en,
+      bio_ar: staff.bio_ar,
+      photo_url: staff.photo_url,
+    },
+  };
+}

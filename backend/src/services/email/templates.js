@@ -5,7 +5,8 @@ import { formatDateTime } from '../../utils/clinicTime.js';
  * Every value placed into the HTML is escaped, so a patient named "<script>" stays text.
  *
  * Template names match the notifications.template column:
- * booking_confirmed · booking_cancelled · login_code · welcome · appointment_reminder · waitlist_slot_open
+ * booking_confirmed · booking_cancelled · login_code · welcome · appointment_reminder · waitlist_slot_open ·
+ * contact_change_code
  */
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -80,6 +81,27 @@ const TEMPLATES = {
         : [`Your new personal sign-in code for ${escapeHtml(data.clinicName)}:`, codeBlock(data.personalCode), 'Your old code no longer works.'];
     return {
       subject: language === 'ar' ? 'رمز تسجيل الدخول' : 'Your sign-in code',
+      text: lines.join('\n').replace(/<[^>]+>/g, ''),
+      html: page(language, lines),
+    };
+  },
+
+  contact_change_code: (data, language) => {
+    const what = language === 'ar' ? (data.field === 'email' ? 'بريدك الإلكتروني' : 'رقم هاتفك') : data.field === 'email' ? 'email' : 'phone number';
+    const lines =
+      language === 'ar'
+        ? [
+            `طلبت تغيير ${what} في ${escapeHtml(data.clinicName)} إلى ${escapeHtml(data.newValue)}.`,
+            `رمز التأكيد: ${codeBlock(data.code)}`,
+            `الرمز صالح لمدة ${escapeHtml(data.minutes)} دقيقة. إذا لم تطلب هذا التغيير، تجاهل هذه الرسالة.`,
+          ]
+        : [
+            `You asked to change your ${what} at ${escapeHtml(data.clinicName)} to ${escapeHtml(data.newValue)}.`,
+            `Your confirmation code: ${codeBlock(data.code)}`,
+            `It works for ${escapeHtml(data.minutes)} minutes. If you didn't ask for this, ignore this email.`,
+          ];
+    return {
+      subject: language === 'ar' ? 'رمز تأكيد التغيير' : 'Confirm your new contact details',
       text: lines.join('\n').replace(/<[^>]+>/g, ''),
       html: page(language, lines),
     };

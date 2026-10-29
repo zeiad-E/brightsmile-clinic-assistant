@@ -5,6 +5,7 @@ import * as escalations from '../controllers/staff/escalationController.js';
 import * as timeOff from '../controllers/staff/timeOffController.js';
 import * as stats from '../controllers/staff/statsController.js';
 import * as conversations from '../controllers/staff/conversationController.js';
+import * as reports from '../controllers/staff/assistantReportController.js';
 import { StaffConversationQuery } from '../validators/chat.js';
 import { validate } from '../middlewares/validate.js';
 import { requireRole } from '../middlewares/requireRole.js';
@@ -14,10 +15,14 @@ import { IdParams } from '../validators/common.js';
 import { CancelBody, RescheduleBody } from '../validators/appointments.js';
 import {
   EscalationQuery,
+  PatientCreateBody,
   PatientSearchQuery,
   PatientUpdateBody,
+  ReportBody,
+  ReviewBody,
   StaffAppointmentsQuery,
   StaffBookBody,
+  StaffReplyBody,
   StatusBody,
   TimeOffBody,
   TimeOffPatch,
@@ -42,6 +47,7 @@ export function staffRouter(limits) {
   router.patch('/appointments/:id/status', write, validate({ params: IdParams, body: StatusBody }), appointments.setStatus);
 
   router.get('/patients', read, validate({ query: PatientSearchQuery }), patients.search);
+  router.post('/patients', write, validate({ body: PatientCreateBody }), patients.create);
   router.get('/patients/:id', read, id, patients.get);
   router.patch('/patients/:id', write, validate({ params: IdParams, body: PatientUpdateBody }), patients.update);
   router.post('/patients/:id/unlock', write, id, patients.unlock);
@@ -61,6 +67,12 @@ export function staffRouter(limits) {
 
   router.get('/conversations', read, validate({ query: StaffConversationQuery }), conversations.list);
   router.get('/conversations/:id', read, id, conversations.get);
+  // The team in the patient's chat (G1), review (G2), "the assistant got this wrong" (G4).
+  router.post('/conversations/:id/take-over', write, id, conversations.takeOver);
+  router.post('/conversations/:id/hand-back', write, id, conversations.handBack);
+  router.post('/conversations/:id/messages', write, validate({ params: IdParams, body: StaffReplyBody }), conversations.reply);
+  router.post('/conversations/:id/review', write, validate({ params: IdParams, body: ReviewBody }), conversations.review);
+  router.post('/conversations/:id/reports', write, validate({ params: IdParams, body: ReportBody }), reports.create);
 
   return router;
 }

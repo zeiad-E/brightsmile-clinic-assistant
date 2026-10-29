@@ -24,7 +24,7 @@ const stubModule = (names, value = {}) => Object.fromEntries(names.map((n) => [n
 const LIST = { data: [], meta: {} };
 
 vi.mock('../../src/services/authService.js', () =>
-  stubModule(['staffLogin', 'startEmailCode', 'verifyEmailCode', 'phoneLogin', 'codeLogin', 'resendCode', 'refresh', 'logout', 'me', 'changePassword']),
+  stubModule(['staffLogin', 'startEmailCode', 'verifyEmailCode', 'phoneLogin', 'codeLogin', 'resendCode', 'refresh', 'logout', 'me', 'changePassword', 'teamProfile', 'updateTeamProfile']),
 );
 vi.mock('../../src/services/catalogService.js', () => stubModule(['clinicInfo', 'listServices', 'getService', 'listDoctors', 'getDoctor']));
 vi.mock('../../src/services/availabilityService.js', () => stubModule(['forDay', 'forRange']));
@@ -36,17 +36,20 @@ vi.mock('../../src/services/appointmentService.js', () =>
   stubModule(['listMine', 'getMine', 'cancel', 'reschedule', 'listForStaff', 'getForStaff', 'setStatus'], LIST),
 );
 vi.mock('../../src/services/patientService.js', () =>
-  stubModule(['myProfile', 'updateMyLanguage', 'search', 'getWithAppointments', 'update', 'unlock', 'sendNewCode'], LIST),
+  stubModule(['myProfile', 'updateMyLanguage', 'search', 'getWithAppointments', 'update', 'unlock', 'sendNewCode', 'create', 'startContactChange', 'verifyContactChange'], LIST),
 );
 vi.mock('../../src/services/escalationService.js', () => stubModule(['list', 'resolve'], LIST));
 vi.mock('../../src/services/scheduleService.js', () =>
   stubModule(['listTimeOff', 'createTimeOff', 'updateTimeOff', 'removeTimeOff', 'replaceWorkingHours', 'replaceStaffServices'], LIST),
 );
-vi.mock('../../src/services/reportService.js', () => stubModule(['statsToday', 'upcomingByDoctor', 'aiOutcomes', 'auditLog', 'notifications'], LIST));
+vi.mock('../../src/services/reportService.js', () =>
+  stubModule(['statsToday', 'upcomingByDoctor', 'aiOutcomes', 'auditLog', 'notifications', 'rangeStats', 'assistantActivity'], LIST),
+);
+vi.mock('../../src/services/assistantReportService.js', () => stubModule(['create', 'list', 'resolve'], LIST));
 vi.mock('../../src/services/adminService.js', () =>
   stubModule(['listServices', 'createService', 'updateService', 'deactivateService', 'listDoctors', 'createDoctor', 'updateDoctor', 'deactivateDoctor', 'getSettings', 'updateSettings']),
 );
-vi.mock('../../src/services/teamService.js', () => stubModule(['list', 'create', 'setRole', 'setDisabled']));
+vi.mock('../../src/services/teamService.js', () => stubModule(['list', 'create', 'setRole', 'setDisabled', 'updateMember', 'resendInvite']));
 vi.mock('../../src/services/memoryService.js', () =>
   stubModule(['listForOwner', 'createByOwner', 'updateByOwner', 'removeByOwner', 'forgetPatient', 'scheduleSummaries'], LIST),
 );
@@ -55,7 +58,7 @@ vi.mock('../../src/services/knowledge/knowledgeService.js', () =>
 );
 vi.mock('../../src/services/intakeService.js', () => stubModule(['listFields', 'createField', 'updateField', 'removeField', 'missingFor', 'saveAnswers'], LIST));
 vi.mock('../../src/services/chatService.js', () =>
-  stubModule(['sendMessage', 'getConversation', 'listMine', 'listForStaff', 'getForStaff'], LIST),
+  stubModule(['sendMessage', 'getConversation', 'listMine', 'listForStaff', 'getForStaff', 'takeOver', 'handBack', 'staffReply', 'review'], LIST),
 );
 
 const { createApp } = await import('../../src/app.js');
@@ -96,7 +99,10 @@ const MATRIX = [
   ['post', '/api/auth/code', { code: 'K7Q4-9M2X' }, ALL],
   ['post', '/api/auth/logout', null, SIGNED_IN],
   ['get', '/api/auth/me', null, SIGNED_IN],
-  ['post', '/api/auth/password', { current_password: 'old', new_password: 'a-new-password' }, TEAM],
+  // The read-only demo login can't change its password.
+  ['post', '/api/auth/password', { current_password: 'old', new_password: 'a-new-password' }, STAFF_WRITE],
+  ['get', '/api/auth/profile', null, TEAM],
+  ['patch', '/api/auth/profile', { full_name: 'Sara Adel' }, STAFF_WRITE],
 
   // Staff are refused inside the booking service (tested there), not at the door.
   ['post', '/api/appointments', booking, ALL, { 'idempotency-key': KEY }],
@@ -107,6 +113,8 @@ const MATRIX = [
   ['get', `/api/me/appointments/${ID}`, null, ['patient']],
   ['post', `/api/me/appointments/${ID}/cancel`, {}, ['patient']],
   ['post', `/api/me/appointments/${ID}/reschedule`, { starts_at: SOON }, ['patient']],
+  ['post', '/api/me/contact', { field: 'email', value: 'new@b.co' }, ['patient']],
+  ['post', '/api/me/contact/verify', { field: 'email', code: '123456' }, ['patient']],
 
   ['get', '/api/staff/appointments', null, STAFF_READ],
   ['get', `/api/staff/appointments/${ID}`, null, STAFF_READ],
@@ -115,6 +123,7 @@ const MATRIX = [
   ['post', `/api/staff/appointments/${ID}/reschedule`, { starts_at: SOON }, STAFF_WRITE],
   ['patch', `/api/staff/appointments/${ID}/status`, { status: 'completed' }, STAFF_WRITE],
   ['get', '/api/staff/patients?q=ahmed', null, STAFF_READ],
+  ['post', '/api/staff/patients', { full_name: 'New Patient', date_of_birth: '1990-01-01', phone: '+201001234567' }, STAFF_WRITE],
   ['get', `/api/staff/patients/${ID}`, null, STAFF_READ],
   ['patch', `/api/staff/patients/${ID}`, { notes: 'Prefers mornings' }, STAFF_WRITE],
   ['post', `/api/staff/patients/${ID}/unlock`, null, STAFF_WRITE],
@@ -142,7 +151,9 @@ const MATRIX = [
   ['patch', '/api/admin/settings', { min_lead_minutes: 60 }, OWNER],
   ['get', '/api/admin/team', null, ADMIN_READ],
   ['post', '/api/admin/team', { email: 'new@b.co', full_name: 'New Person', role: 'staff' }, OWNER],
+  ['patch', `/api/admin/team/${ID}`, { full_name: 'New Name' }, OWNER],
   ['patch', `/api/admin/team/${ID}/role`, { role: 'viewer' }, OWNER],
+  ['post', `/api/admin/team/${ID}/resend-invite`, null, OWNER],
   ['post', `/api/admin/team/${ID}/disable`, null, OWNER],
   ['post', `/api/admin/team/${ID}/enable`, null, OWNER],
   ['get', '/api/admin/audit-log', null, ADMIN_READ],
@@ -154,6 +165,11 @@ const MATRIX = [
   ['get', '/api/me/conversations', null, ['patient']],
   ['get', '/api/staff/conversations', null, STAFF_READ],
   ['get', `/api/staff/conversations/${ID}`, null, STAFF_READ],
+  ['post', `/api/staff/conversations/${ID}/take-over`, null, STAFF_WRITE],
+  ['post', `/api/staff/conversations/${ID}/hand-back`, null, STAFF_WRITE],
+  ['post', `/api/staff/conversations/${ID}/messages`, { message: 'Hello, this is Sara from the clinic.' }, STAFF_WRITE],
+  ['post', `/api/staff/conversations/${ID}/review`, { note: 'Good' }, STAFF_WRITE],
+  ['post', `/api/staff/conversations/${ID}/reports`, { kind: 'wrong_answer', note: 'Wrong price' }, STAFF_WRITE],
   ['get', '/api/staff/stats/ai-outcomes', null, STAFF_READ],
 
   // Memory: the agent's notes are owner-only (not even the viewer); "forget me" is the patient's.
@@ -167,6 +183,10 @@ const MATRIX = [
   ['delete', `/api/admin/intake-fields/${ID}`, null, OWNER],
   ['delete', '/api/me/memory', null, ['patient']],
   ['get', '/api/admin/agent/status', null, ADMIN_READ],
+  ['get', '/api/admin/agent/activity', null, ADMIN_READ],
+  ['get', '/api/admin/agent/reports', null, ADMIN_READ],
+  ['post', `/api/admin/agent/reports/${ID}/resolve`, {}, OWNER],
+  ['get', '/api/admin/stats?from=2026-10-01&to=2026-10-31', null, ADMIN_READ],
 
   // Knowledge base and unanswered questions.
   ['get', '/api/admin/knowledge', null, ADMIN_READ],

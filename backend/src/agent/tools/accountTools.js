@@ -32,6 +32,7 @@ function guard(ctx) {
 
 async function finish(ctx, session) {
   const identity = await ctx.signedIn(session);
+  if (!identity) return toolError('login_unavailable', 'Online sign-in is not available for this person here. Offer to connect them with staff.');
   ctx.state.signInAttempts = 0;
   return { signed_in: true, first_name: identity?.fullName?.split(' ')[0] ?? null };
 }

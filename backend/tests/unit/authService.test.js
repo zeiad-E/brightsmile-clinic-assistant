@@ -7,7 +7,7 @@ const authClient = {
 vi.mock('../../src/db/supabase.js', () => ({ requireAdmin: () => ({ admin: true }) }));
 vi.mock('../../src/db/userClient.js', () => ({ createAuthClient: () => authClient }));
 vi.mock('../../src/models/patientModel.js', () => ({ verifyByPhone: vi.fn(), findById: vi.fn(), findByEmail: vi.fn() }));
-vi.mock('../../src/models/profileModel.js', () => ({ findById: vi.fn(async () => ({ role: 'staff' })) }));
+vi.mock('../../src/models/profileModel.js', () => ({ findById: vi.fn(async () => ({ role: 'staff' })), findByEmail: vi.fn(async () => ({ role: 'patient' })) }));
 vi.mock('../../src/models/staffModel.js', () => ({ findById: vi.fn() }));
 vi.mock('../../src/services/sessionService.js', () => ({
   mintSession: vi.fn(async () => ({ access_token: 'minted', refresh_token: 'r', expires_in: 3600, expires_at: 1 })),

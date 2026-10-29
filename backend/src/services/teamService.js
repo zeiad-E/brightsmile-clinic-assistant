@@ -66,6 +66,49 @@ async function loadChangeableMember(actor, memberId) {
   return member;
 }
 
+/** One member as the team screen shows them (after an edit). */
+async function memberRow(memberId) {
+  const admin = requireAdmin();
+  const [profile, staff, disabled] = await Promise.all([
+    profileModel.findById(admin, memberId),
+    staffModel.findByProfileId(admin, memberId),
+    accountService.disabledUserIds(),
+  ]);
+  return teamMemberView(profile, { staff, disabled: disabled.has(memberId) });
+}
+
+/** The owner edits a member's details (G7): name, email (their sign-in), phone, language, doctor link. */
+export async function updateMember({ user }, memberId, { email, staff_id: staffId, ...details }) {
+  const member = await loadChangeableMember(user, memberId);
+  const db = adminAs(user.id);
+
+  if (email && email !== member.email) {
+    if (await profileModel.findByEmail(requireAdmin(), email)) throw AppError.conflict('email_in_use', 'An account with this email already exists.');
+    await accountService.changeLoginEmail(memberId, email);
+  }
+  if (Object.keys(details).length) await profileModel.updateDetails(db, memberId, details);
+  if (staffId !== undefined) {
+    await staffModel.unlinkProfile(db, memberId);
+    if (staffId && !(await staffModel.linkProfile(db, staffId, memberId))) throw AppError.notFound('doctor_not_found', 'Doctor not found.');
+  }
+  return memberRow(memberId);
+}
+
+/** Sends the welcome email again with a new temporary password (returned once, like on create). */
+export async function resendInvite({ user }, memberId) {
+  const member = await loadChangeableMember(user, memberId);
+  const temporaryPassword = await accountService.resetTemporaryPassword(memberId);
+  const language = member.preferred_language ?? 'en';
+  const brand = await clinicBranding();
+  sendEmailInBackground({
+    template: 'welcome',
+    to: member.email,
+    language,
+    data: { clinicName: clinicNameIn(brand, language), fullName: member.full_name, email: member.email, temporaryPassword, appUrl: config.appUrl },
+  });
+  return { sent: true, temporary_password: temporaryPassword };
+}
+
 export async function setRole({ user }, memberId, role) {
   await loadChangeableMember(user, memberId);
   return teamMemberView(await accountService.setTeamRole(user.id, memberId, role));

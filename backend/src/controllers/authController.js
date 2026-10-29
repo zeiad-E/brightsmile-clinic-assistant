@@ -43,3 +43,11 @@ export async function me(req, res) {
 export async function changePassword(req, res) {
   res.json(await authService.changePassword(ctxOf(req), req.valid.body));
 }
+
+export async function profile(req, res) {
+  res.json(await authService.teamProfile(ctxOf(req)));
+}
+
+export async function updateProfile(req, res) {
+  res.json(await authService.updateTeamProfile(ctxOf(req), req.valid.body));
+}

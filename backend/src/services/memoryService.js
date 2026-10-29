@@ -4,6 +4,7 @@ import * as conversationModel from '../models/conversationModel.js';
 import * as jobModel from '../models/jobModel.js';
 import * as memoryModel from '../models/memoryModel.js';
 import * as messageModel from '../models/messageModel.js';
+import * as patientModel from '../models/patientModel.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { normalizeText } from '../utils/text.js';
@@ -219,8 +220,11 @@ export async function forgetPatient({ patientId, keepConversationId = null }) {
 
 // ---------- owner screens ----------
 
+/** The owner's list, each note with its patient's name. */
 export async function listForOwner({ db }, filters) {
-  return listView(await memoryModel.listAll(db, filters), filters);
+  const page = await memoryModel.listAll(db, filters);
+  const names = await patientModel.namesByIds(db, page.rows.map((row) => row.patient_id));
+  return listView(page, filters, (row) => ({ ...row, patient_name: names.get(row.patient_id) ?? null }));
 }
 
 export async function createByOwner({ db }, { patient_id: patientId, kind, content }) {

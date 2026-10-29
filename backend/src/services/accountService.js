@@ -134,6 +134,22 @@ export async function disabledUserIds() {
   );
 }
 
+/** The owner changed a member's email (G7): the login and the profile both follow. */
+export async function changeLoginEmail(userId, email) {
+  const db = requireAdmin();
+  const { error } = await db.auth.admin.updateUserById(userId, { email, email_confirm: true });
+  if (error) throw error;
+  const { error: profileError } = await db.from('profiles').update({ email }).eq('id', userId);
+  if (profileError) throw profileError;
+}
+
+/** A fresh temporary password, for "resend the invitation" (the old one stops working). */
+export async function resetTemporaryPassword(userId) {
+  const password = temporaryPassword();
+  await changePassword(userId, password);
+  return password;
+}
+
 export async function changePassword(userId, newPassword) {
   const { error } = await requireAdmin().auth.admin.updateUserById(userId, { password: newPassword });
   if (error) throw error;
