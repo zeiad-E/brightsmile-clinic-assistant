@@ -1,0 +1,40 @@
+/* Charts: thin marks, rounded data ends, quiet axes, numbers always written as text. */
+
+.columns { display: grid; gap: 6px; }
+.readout { min-height: 22px; font-size: 13px; color: var(--color-ink-2); }
+.readout strong { color: var(--color-ink); font-size: 15px; }
+.plot { position: relative; display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--color-line); padding-top: 18px; }
+.maxLine { position: absolute; top: 0; inset-inline-start: 0; font-size: 11px; color: var(--color-ink-3); border-bottom: 1px dashed var(--color-line); width: 100%; line-height: 16px; }
+.col { flex: 1; height: 100%; display: flex; align-items: flex-end; padding: 0 1px; min-width: 0; }
+.bar { width: 100%; min-height: 2px; border-radius: 4px 4px 0 0; background: #0f9e8e; opacity: .75; transition: opacity .15s; }
+.bar[data-on] { opacity: 1; }
+.axis { display: flex; gap: 2px; }
+.axis span { flex: 1; min-width: 0; font-size: 10.5px; color: var(--color-ink-3); text-align: center; white-space: nowrap; overflow: visible; }
+
+.hbars { display: grid; gap: 10px; }
+.hbars li { display: grid; grid-template-columns: minmax(90px, 38%) 1fr auto; align-items: center; gap: 10px; font-size: 13.5px; }
+.hLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-ink-2); font-weight: 600; }
+.hTrack { height: 10px; border-radius: 99px; background: #eef3f5; overflow: hidden; }
+.hTrack span { display: block; height: 100%; border-radius: 99px; min-width: 3px; }
+.hValue { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.donut { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
+.donut svg { width: 150px; height: 150px; flex: none; transform: rotate(-90deg); }
+.donut svg:dir(rtl) { transform: rotate(-90deg) scaleY(-1); }
+.ringBg { fill: none; stroke: #eef3f5; stroke-width: 12; }
+.ring { fill: none; stroke-width: 12; }
+.center, .centerSub { transform: rotate(90deg); transform-origin: 50px 50px; text-anchor: middle; fill: var(--color-ink); }
+.donut svg:dir(rtl) .center, .donut svg:dir(rtl) .centerSub { transform: scaleY(-1) rotate(90deg); }
+.center { font-size: 17px; font-weight: 750; }
+.centerSub { font-size: 7.5px; fill: var(--color-ink-3); font-weight: 600; }
+.legend { flex: 1; min-width: 160px; display: grid; gap: 8px; }
+.legend li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--color-ink-2); }
+.legend strong { margin-inline-start: auto; color: var(--color-ink); font-variant-numeric: tabular-nums; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+.heatWrap { overflow-x: auto; }
+.heat { border-collapse: separate; border-spacing: 2px; font-size: 11px; }
+.heat th { font-weight: 600; color: var(--color-ink-3); padding: 0 4px; white-space: nowrap; }
+.heat th[scope="row"] { text-align: start; }
+.heat td { width: 26px; height: 22px; border-radius: 4px; background: #f1f5f7; padding: 0; position: relative; }
+.heat td span { position: absolute; inset: 0; border-radius: 4px; background: #0f766e; }

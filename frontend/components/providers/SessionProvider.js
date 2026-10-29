@@ -7,7 +7,7 @@ import { clearSession, isExpiring, readSession, watchOtherTabs, writeSession } f
 /**
  * Who is signed in, shared with every component through React context.
  *
- *   const { status, user, signIn, signOut, api } = useSession();
+ *   const { status, user, signIn, signOut, api, refreshUser } = useSession();
  *   status: 'loading' | 'signed-out' | 'signed-in'
  *   user:   GET /api/auth/me → { role: 'patient' | 'staff' | 'owner' | 'viewer', full_name, … }
  *   api:    apiRequest that adds the token, renews it when it's about to expire, and retries once on 401.
@@ -115,6 +115,7 @@ export default function SessionProvider({ children }) {
     });
   }, [loadUser]);
 
-  const value = useMemo(() => ({ ...state, signIn, signOut, api, getToken }), [state, signIn, signOut, api, getToken]);
+  // refreshUser(): reload /auth/me, e.g. after someone edits their own name on their profile page.
+  const value = useMemo(() => ({ ...state, signIn, signOut, api, getToken, refreshUser: loadUser }), [state, signIn, signOut, api, getToken, loadUser]);
   return <SessionContext value={value}>{children}</SessionContext>;
 }

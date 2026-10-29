@@ -7,6 +7,7 @@ import { localePath } from '@/i18n/config';
 import { buttonClasses } from '@/components/ui/ButtonLink';
 import { useSession } from '@/components/providers/SessionProvider';
 import LanguageSwitch from './LanguageSwitch';
+import AccountMenu, { MobileAccount } from './AccountMenu';
 
 /**
  * The interactive part of the header (a client component, because it needs the browser):
@@ -29,7 +30,9 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
     };
   }, [open]);
 
-  const isActive = (href) => pathname === href || pathname.startsWith(`${href}/`);
+  const { status } = useSession();
+  // Home (/en) is only "current" on the home page itself; every other link also covers its sub-pages.
+  const isActive = (href) => (href === localePath(locale) ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
 
   return (
     <>
@@ -48,7 +51,13 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
 
       <div className="ms-auto flex items-center gap-3 md:ms-0">
         <LanguageSwitch locale={locale} label={labels.switchLanguage} ariaLabel={labels.switchLanguageLabel} className="hidden sm:inline-flex" onDark />
-        <AccountLink locale={locale} labels={labels} className="hidden text-sm font-semibold text-ink-2 hover:text-ink sm:inline" onDark />
+        {status === 'signed-in' ? (
+          <div className="hidden sm:block">
+            <AccountMenu locale={locale} labels={labels} />
+          </div>
+        ) : (
+          <AccountLink locale={locale} labels={labels} className="hidden text-sm font-semibold text-ink-2 hover:text-ink sm:inline" onDark />
+        )}
         <Link href={bookHref} data-book className={buttonClasses({ variant: 'dark', size: 'sm' })}>
           {labels.book}
         </Link>
@@ -70,6 +79,7 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
         hidden={!open}
         className="fixed inset-x-0 top-16 bottom-0 z-40 animate-menu-in overflow-y-auto bg-page px-6 pt-6 pb-10 md:hidden"
       >
+        {status === 'signed-in' && <MobileAccount locale={locale} labels={labels} onNavigate={() => setOpen(false)} />}
         <nav aria-label={labels.nav} className="flex flex-col">
           {links.map((link) => (
             <Link
@@ -84,7 +94,7 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
           ))}
         </nav>
         <div className="mt-8 flex flex-wrap items-center gap-4">
-          <AccountLink locale={locale} labels={labels} className={buttonClasses({ variant: 'ghost', size: 'lg' })} />
+          {status !== 'signed-in' && <AccountLink locale={locale} labels={labels} className={buttonClasses({ variant: 'ghost', size: 'lg' })} />}
           <LanguageSwitch locale={locale} label={labels.switchLanguage} ariaLabel={labels.switchLanguageLabel} />
         </div>
       </div>
@@ -92,18 +102,9 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
   );
 }
 
-/** "Sign in" for visitors; "My account" for patients; "Dashboard" for the clinic team. */
+/** "Sign in" for visitors (signed-in people get the AccountMenu instead). */
 function AccountLink({ locale, labels, className, onDark }) {
-  const { status, user } = useSession();
-
-  if (status === 'signed-in') {
-    const isPatient = user.role === 'patient';
-    return (
-      <Link href={localePath(locale, isPatient ? '/account' : '/dashboard')} data-on-dark={onDark || undefined} className={className}>
-        {isPatient ? labels.myAccount : labels.dashboard}
-      </Link>
-    );
-  }
+  const { status } = useSession();
   return (
     <Link
       href={localePath(locale, '/login')}

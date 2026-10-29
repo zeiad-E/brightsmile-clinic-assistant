@@ -88,3 +88,15 @@
   .bubble, .card, .status, .chips button { animation: none; }
   .check svg { stroke-dashoffset: 0; animation: none; }
 }
+
+/* ---------- a clinic team member in the chat ---------- */
+.staff { align-self: flex-start; background: #f4f0ff; border: 1px solid #ddd2ff; border-end-start-radius: 6px; }
+.staffName { align-self: flex-start; margin: 4px 6px -6px; font-size: 12px; font-weight: 700; color: #6d28d9; animation: msgIn .35s both; }
+.event { align-self: center; display: inline-flex; align-items: center; gap: 8px; margin: 6px 0; padding: 6px 14px; border-radius: 99px; background: #f4f0ff; color: #6d28d9; font-size: 13px; font-weight: 650; animation: eventIn .6s cubic-bezier(.2, .8, .2, 1) both; }
+.event span { width: 8px; height: 8px; border-radius: 50%; background: #8a5cd6; box-shadow: 0 0 0 0 rgb(138 92 214 / .5); animation: ping 1.8s 3; }
+@keyframes eventIn { from { opacity: 0; scale: .8; filter: blur(4px); } to { opacity: 1; scale: 1; filter: none; } }
+@keyframes ping { 70% { box-shadow: 0 0 0 8px rgb(138 92 214 / 0); } 100% { box-shadow: 0 0 0 0 rgb(138 92 214 / 0); } }
+.withTeam { color: #6d28d9; font-weight: 650; }
+@media (prefers-reduced-motion: reduce) {
+  .event, .event span, .staffName { animation: none; }
+}

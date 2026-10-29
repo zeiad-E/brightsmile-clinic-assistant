@@ -27,23 +27,34 @@ export default function LoginForms({ t, locale }) {
   const [method, setMethod] = useState('email');
   const [form, setForm] = useState({ email: '', code: '', phone: '', full_name: '', date_of_birth: '', personal: '', password: '' });
   const [codeSentTo, setCodeSentTo] = useState(null);
-  const [message, setMessage] = useState(null); // { kind: 'error' | 'info', text }
+  const [message, setMessage] = useState(null); // { kind: 'error' | 'info', text, switchTo?: 'patient' | 'team' }
   const [working, setWorking] = useState(false);
 
   const field = (name) => ({ value: form[name], onChange: (e) => setForm((f) => ({ ...f, [name]: e.target.value })) });
 
-  async function run(request) {
+  /** `role`: which kind of login this form may accept ('patient' on the Patient tab, 'team' on the Team tab). */
+  async function run(request, role) {
     setWorking(true);
     setMessage(null);
     try {
       const result = await request();
       if (result?.access_token) {
+        // Second lock (the API is the first): the Patient tab never keeps a team login.
+        // If one ever comes back, it is signed out again at once and never stored.
+        if (role === 'patient' && result.user?.role !== 'patient') {
+          await apiRequest('/auth/logout', { method: 'POST', token: result.access_token }).catch(() => {});
+          setMessage({ kind: 'info', text: t.teamAccount, switchTo: 'team' });
+          return;
+        }
         await signIn(result);
         const next = new URLSearchParams(window.location.search).get('next');
-        router.push(next?.startsWith('/') ? next : localePath(locale));
+        router.push(next?.startsWith('/') ? next : homeFor(result.user?.role, locale));
       }
     } catch (err) {
-      setMessage({ kind: 'error', text: err.message });
+      // A patient who used the Team tab: a kind note and a button to the patient sign-in.
+      if (err.code === 'patient_account') setMessage({ kind: 'info', text: t.patientAccount, switchTo: 'patient' });
+      else if (err.code === 'team_account') setMessage({ kind: 'info', text: t.teamAccount, switchTo: 'team' });
+      else setMessage({ kind: 'error', text: err.message });
     } finally {
       setWorking(false);
     }
@@ -52,7 +63,7 @@ export default function LoginForms({ t, locale }) {
   const submit = (e) => {
     e.preventDefault();
     if (tab === 'team') {
-      return run(() => apiRequest('/auth/staff/login', { method: 'POST', body: { email: form.email, password: form.password } }));
+      return run(() => apiRequest('/auth/staff/login', { method: 'POST', body: { email: form.email, password: form.password } }), 'team');
     }
     if (method === 'email' && !codeSentTo) {
       return run(async () => {
@@ -61,13 +72,13 @@ export default function LoginForms({ t, locale }) {
       });
     }
     if (method === 'email') {
-      return run(() => apiRequest('/auth/email/verify', { method: 'POST', body: { email: codeSentTo, code: form.code } }));
+      return run(() => apiRequest('/auth/email/verify', { method: 'POST', body: { email: codeSentTo, code: form.code } }), 'patient');
     }
     if (method === 'phone') {
       const { phone, full_name, date_of_birth } = form;
-      return run(() => apiRequest('/auth/phone', { method: 'POST', body: { phone, full_name, date_of_birth } }));
+      return run(() => apiRequest('/auth/phone', { method: 'POST', body: { phone, full_name, date_of_birth } }), 'patient');
     }
-    return run(() => apiRequest('/auth/code', { method: 'POST', body: { code: form.personal } }));
+    return run(() => apiRequest('/auth/code', { method: 'POST', body: { code: form.personal } }), 'patient');
   };
 
   if (status === 'signed-in') {
@@ -75,7 +86,11 @@ export default function LoginForms({ t, locale }) {
       <GlassCard className={styles.card}>
         <p className={styles.signedIn}>{t.signedIn.replace('{name}', user.full_name ?? user.email ?? '')}</p>
         <div className={styles.row}>
-          <Magnetic href={localePath(locale, '/book')}>{t.book}</Magnetic>
+          {user.role === 'patient' ? (
+            <Magnetic href={localePath(locale, '/book')}>{t.book}</Magnetic>
+          ) : (
+            <Magnetic href={homeFor(user.role, locale)}>{t.goDashboard}</Magnetic>
+          )}
           <button type="button" className={styles.link} onClick={signOut}>
             {t.signOut}
           </button>
@@ -146,6 +161,11 @@ export default function LoginForms({ t, locale }) {
         {message && (
           <p className={message.kind === 'error' ? styles.error : styles.info} role="alert">
             {message.text}
+            {message.switchTo && (
+              <button type="button" className={styles.link} onClick={() => (setTab(message.switchTo), setMessage(null))}>
+                {message.switchTo === 'patient' ? t.usePatientTab : t.useTeamTab}
+              </button>
+            )}
           </p>
         )}
         <button type="submit" className={styles.submit} disabled={working}>
@@ -185,6 +205,14 @@ export default function LoginForms({ t, locale }) {
       </div>
     </GlassCard>
   );
+}
+
+/** Where each person lands after signing in: the owner (and the demo viewer) on the owner
+ * overview, staff on today's dashboard, patients on the home page. */
+function homeFor(role, locale) {
+  if (role === 'owner' || role === 'viewer') return localePath(locale, '/owner');
+  if (role === 'staff') return localePath(locale, '/dashboard');
+  return localePath(locale);
 }
 
 function Field({ label, hint, ...input }) {

@@ -22,3 +22,13 @@ export async function getLocale() {
 export async function getDictionary() {
   return dictionaries[await getLocale()]();
 }
+
+// The team dashboards have their own (long) word lists, so the public pages never carry them.
+const dashDictionaries = {
+  en: () => import('./dash/en.json').then((module) => module.default),
+  ar: () => import('./dash/ar.json').then((module) => module.default),
+};
+
+export async function getDashDictionary() {
+  return dashDictionaries[await getLocale()]();
+}

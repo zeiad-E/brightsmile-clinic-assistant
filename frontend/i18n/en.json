@@ -22,7 +22,11 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "switchLanguage": "العربية",
-    "switchLanguageLabel": "اقرأ هذه الصفحة بالعربية"
+    "switchLanguageLabel": "اقرأ هذه الصفحة بالعربية",
+    "appointments": "My appointments",
+    "profile": "My profile",
+    "signOut": "Sign out",
+    "accountMenu": "Account menu"
   },
   "home": {
     "eyebrow": "Dental clinic",
@@ -434,7 +438,13 @@
     "none": "No appointments.",
     "bubbleOpen": "Chat with the assistant",
     "bubbleClose": "Close chat",
-    "openFull": "Open full screen"
+    "openFull": "Open full screen",
+    "someone": "Someone",
+    "teamJoined": "{name} from the clinic joined the chat",
+    "teamLeft": "{name} handed you back to the assistant",
+    "teamWith": "{name} from the clinic is with you",
+    "teamWillReply": "{name} will reply here shortly",
+    "teamLabel": "{name} · BrightSmile team"
   },
   "loginPage": {
     "title": "Sign in",
@@ -469,7 +479,12 @@
     "signedIn": "You're signed in as {name}.",
     "signOut": "Sign out",
     "noAccount": "No account yet? Booking a visit creates one for you.",
-    "book": "Book a visit"
+    "book": "Book a visit",
+    "patientAccount": "This is the team sign-in. If you're a patient, please use the Patient tab. We'd love to see you there.",
+    "usePatientTab": "Go to the patient sign-in",
+    "goDashboard": "Open the dashboard",
+    "teamAccount": "This email belongs to a clinic team account. Team members sign in on the Team tab with their password.",
+    "useTeamTab": "Go to the team sign-in"
   },
   "bookPage": {
     "title": "Book a visit",
@@ -513,5 +528,96 @@
     "another": "Book another visit",
     "home": "Back to home",
     "error": "Something went wrong. Please try again."
+  },
+  "accountPage": {
+    "title": "My account",
+    "hello": "Hello, {name}",
+    "loading": "Loading…",
+    "signOut": "Sign out",
+    "notPatient": "This area is for patients. The team dashboard is coming soon.",
+    "tabs": {
+      "appointments": "My appointments",
+      "chats": "My conversations",
+      "profile": "Profile & privacy"
+    },
+    "appointments": {
+      "upcoming": "Upcoming",
+      "past": "Past visits",
+      "none": "No upcoming visits.",
+      "nonePast": "No past visits yet.",
+      "book": "Book a visit",
+      "with": "with {doctor}",
+      "cancel": "Cancel",
+      "move": "Change time",
+      "locked": "Online changes close {hours} hours before the visit. Please call the clinic.",
+      "confirmCancel": "Cancel this visit?",
+      "yesCancel": "Yes, cancel it",
+      "keep": "Keep it",
+      "pickNew": "Pick a new time",
+      "saveMove": "Move my visit",
+      "moved": "Done. Your visit was moved.",
+      "cancelledNote": "Done. Your visit was cancelled.",
+      "more": "Show more",
+      "status": {
+        "booked": "Booked",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "no_show": "Missed"
+      }
+    },
+    "chats": {
+      "none": "No conversations yet.",
+      "untitled": "Conversation",
+      "back": "All conversations",
+      "startNew": "Ask the assistant",
+      "readOnly": "Past conversations are read-only. Start a new one with the assistant.",
+      "you": "You",
+      "bot": "Assistant",
+      "status": {
+        "active": "Open",
+        "handed_off": "With the team",
+        "needs_attention": "With the team",
+        "closed": "Closed"
+      }
+    },
+    "profile": {
+      "detailsTitle": "Your details",
+      "fullName": "Full name",
+      "dob": "Date of birth",
+      "email": "Email",
+      "phone": "Phone",
+      "empty": "—",
+      "detailsNote": "You can change your email and phone here, confirmed with a code. To change your name or date of birth, please call the clinic: with your phone, they're how we recognise you.",
+      "languageTitle": "Language for emails and the assistant",
+      "saved": "Saved.",
+      "codeTitle": "Personal code",
+      "codeText": "Your personal code lets you sign in without a password. Lost it? We can email you a new one.",
+      "codeButton": "Email me a new code",
+      "codeSent": "Sent. Check your inbox.",
+      "codeNoEmail": "Ask the clinic to add your email to receive a personal code.",
+      "forgetTitle": "Forget me",
+      "forgetText": "Deletes what the assistant remembers about you and your past conversations. Your appointments stay.",
+      "forgetButton": "Forget me",
+      "forgetConfirm": "This can't be undone. Delete the assistant's notes and your past conversations?",
+      "forgetYes": "Yes, delete them",
+      "forgetKeep": "Keep them",
+      "forgetDone": "Done. The assistant has forgotten you.",
+      "privacyLink": "Read our privacy page",
+      "change": "Change",
+      "newEmail": "New email",
+      "newPhone": "New phone number",
+      "emailCodeHint": "We send a 6-digit code to the new address to make sure it is yours.",
+      "phoneCodeHint": "International format, e.g. +201001234567. We email a 6-digit code to the address on your record, to make sure it is you.",
+      "phoneNeedsEmail": "We confirm phone changes by email, and your record has no email yet. Add your email first, or call the clinic.",
+      "sendCode": "Send the code",
+      "working": "One moment…",
+      "codeSentTo": "We sent a 6-digit code to {to}. It works for 15 minutes.",
+      "codeLabel": "The code from the email",
+      "confirmChange": "Confirm",
+      "resendCode": "Send a new code",
+      "cancelChange": "Cancel",
+      "changedEmail": "Your email is updated. Sign in with the new one from now on.",
+      "changedPhone": "Your phone number is updated. Use it for phone sign-in from now on."
+    }
   }
 }

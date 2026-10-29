@@ -14,6 +14,7 @@ export default async function Header() {
   const t = dict.nav;
 
   const links = [
+    { href: localePath(locale), label: t.home },
     { href: localePath(locale, '/services'), label: t.services },
     { href: localePath(locale, '/about'), label: t.about },
     { href: localePath(locale, '/assistant'), label: t.assistant },
@@ -37,7 +38,10 @@ export default async function Header() {
             nav: t.label,
             book: t.book,
             signIn: t.signIn,
-            myAccount: t.myAccount,
+            appointments: t.appointments,
+            profile: t.profile,
+            signOut: t.signOut,
+            accountMenu: t.accountMenu,
             dashboard: t.dashboard,
             openMenu: t.openMenu,
             closeMenu: t.closeMenu,

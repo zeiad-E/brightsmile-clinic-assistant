@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { streamChat } from '@/lib/api/chat';
+import { apiRequest } from '@/lib/api/client';
 import { useSession } from '@/components/providers/SessionProvider';
 import DecodeText from '@/components/fx/DecodeText';
 import { intlLocale } from '@/i18n/config';
@@ -18,6 +19,9 @@ import styles from './Chat.module.css';
  * - If the assistant signs you in during the chat, the whole site learns it (useSession().signIn).
  * - The conversation is kept in sessionStorage, so the bubble and the full page share it while the
  *   tab is open.
+ * - A clinic team member can join the chat from the dashboard ("take over"). The page checks for
+ *   their messages every few seconds (every 3 s while they are in the chat) and shows them with
+ *   their name; the assistant stays quiet until they hand the chat back.
  */
 
 const STORE = 'brightsmile.chat';
@@ -36,6 +40,7 @@ export default function Chat({ t, locale, variant = 'page' }) {
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState('');
+  const [team, setTeam] = useState(null); // first name of the team member answering, or null
   const conversationId = useRef(null);
   const listRef = useRef(null);
   const inputRef = useRef(null);
@@ -73,7 +78,7 @@ export default function Chat({ t, locale, variant = 'page' }) {
       if (!message || busy) return;
       setInput('');
       setBusy(true);
-      setStatus(t.thinking);
+      setStatus(team ? null : t.thinking);
       setMessages((all) => [...all, { id: nextId++, role: 'user', content: message }, { id: nextId++, role: 'assistant', content: '', cards: [], streaming: true }]);
 
       await streamChat(
@@ -89,20 +94,54 @@ export default function Chat({ t, locale, variant = 'page' }) {
             updateLast((m) => ({ content: m.content + piece }));
           },
           onDone: (result) => {
-            if (result.session?.access_token) signIn(result.session);
+            // only a patient can be signed in from the chat (the API enforces it too)
+            if (result.session?.access_token && result.session.user?.role === 'patient') signIn(result.session);
+            if (result.status === 'with_team') {
+              // a team member has the chat: no assistant reply, their answer arrives by polling
+              setTeam(result.team_member ?? t.someone);
+              setMessages((all) => all.slice(0, -1));
+              return;
+            }
             updateLast(() => ({ content: result.reply, streaming: false }));
           },
           onError: (err) => updateLast(() => ({ content: err.message || t.error, error: true, streaming: false })),
         },
       );
 
-      updateLast(() => ({ streaming: false }));
+      setMessages((all) => (all.at(-1)?.streaming ? [...all.slice(0, -1), { ...all.at(-1), streaming: false }] : all));
       setStatus(null);
       setBusy(false);
       inputRef.current?.focus({ preventScroll: true });
     },
-    [busy, getToken, locale, signIn, t],
+    [busy, getToken, locale, signIn, t, team],
   );
+
+  // Team messages: anything a team member wrote that this tab hasn't shown yet is added at the end.
+  const checkTeam = useCallback(async () => {
+    const id = conversationId.current;
+    if (!id || busy) return;
+    try {
+      const convo = await apiRequest(`/chat/${id}`, { token: await getToken().catch(() => null) });
+      setTeam(convo.with_team ? (convo.team_member ?? t.someone) : null);
+      setMessages((all) => {
+        const shown = new Set(all.map((m) => m.serverId).filter(Boolean));
+        const fresh = convo.messages.filter((m) => m.role === 'staff' && !shown.has(m.id));
+        if (!fresh.length) return all;
+        return [...all, ...fresh.map((m) => ({ id: nextId++, serverId: m.id, role: 'staff', content: m.content, author: m.author ?? t.someone, event: m.event }))];
+      });
+    } catch {
+      // offline for a moment: the next check tries again
+    }
+  }, [busy, getToken, t]);
+
+  useEffect(() => {
+    const first = setTimeout(checkTeam, 800);
+    const every = setInterval(() => document.visibilityState === 'visible' && checkTeam(), team ? 3000 : 12000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }, [checkTeam, team]);
 
   // /assistant?q=… (from the Services page) asks that question straight away, once
   useEffect(() => {
@@ -119,6 +158,7 @@ export default function Chat({ t, locale, variant = 'page' }) {
   const restart = () => {
     conversationId.current = null;
     setMessages([]);
+    setTeam(null);
   };
 
   const lastId = messages.at(-1)?.id;
@@ -133,7 +173,9 @@ export default function Chat({ t, locale, variant = 'page' }) {
         </span>
         <div>
           <p className={styles.name}>{t.botName}</p>
-          <p className={styles.online}>{user ? t.signedInAs.replace('{name}', user.full_name ?? '') : t.online}</p>
+          <p className={`${styles.online} ${team ? styles.withTeam : ''}`}>
+            {team ? t.teamWith.replace('{name}', team) : user ? t.signedInAs.replace('{name}', user.full_name ?? '') : t.online}
+          </p>
         </div>
         {messages.length > 0 && (
           <button type="button" className={styles.restart} onClick={restart} disabled={busy}>
@@ -146,7 +188,14 @@ export default function Chat({ t, locale, variant = 'page' }) {
         <Bubble role="assistant">{t.hello}</Bubble>
         {messages.map((m) => (
           <div key={m.id} className={styles.turn}>
-            {(m.content || m.role === 'user' || m.error) && (
+            {m.role === 'staff' && m.event && (
+              <p className={styles.event}>
+                <span aria-hidden="true" />
+                {(m.event === 'left' ? t.teamLeft : t.teamJoined).replace('{name}', m.author)}
+              </p>
+            )}
+            {m.role === 'staff' && !m.event && <span className={styles.staffName}>{t.teamLabel.replace('{name}', m.author)}</span>}
+            {!(m.role === 'staff' && m.event) && (m.content || m.role === 'user' || m.error) && (
               <Bubble role={m.role} error={m.error} streaming={m.streaming}>
                 {m.content}
               </Bubble>
@@ -156,6 +205,7 @@ export default function Chat({ t, locale, variant = 'page' }) {
             ))}
           </div>
         ))}
+        {!status && team && messages.at(-1)?.role === 'user' && <p className={styles.status}>{t.teamWillReply.replace('{name}', team)}</p>}
         {status && (
           <p className={styles.status}>
             {status}
