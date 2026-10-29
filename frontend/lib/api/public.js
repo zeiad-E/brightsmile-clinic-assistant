@@ -68,6 +68,34 @@ export async function getNextFreeSlot(serviceId) {
 }
 
 /**
+ * Map coordinates for the clinic address ({ lat, lon } or null), looked up once on OpenStreetMap's
+ * free geocoder (Nominatim) and cached for weeks: the address hardly ever changes.
+ */
+export async function getMapPoint(address) {
+  'use cache';
+  if (!address) return null;
+  // "21 Al Horreya Avenue, 3rd floor, Heliopolis, Cairo": drop the floor, then try less and less
+  // precise versions (without the house number, without the street) until the map knows the place.
+  const parts = address.split(',').map((part) => part.trim()).filter((part) => !/floor/i.test(part));
+  const tries = [parts.join(', '), [parts[0].replace(/^\d+\s*/, ''), ...parts.slice(1)].join(', '), parts.slice(1).join(', ')];
+  try {
+    for (const query of tries) {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+      const response = await fetch(url, { headers: { 'User-Agent': 'BrightSmile clinic website' }, signal: AbortSignal.timeout(8000) });
+      const [place] = await response.json();
+      if (place) {
+        cacheLife('weeks');
+        return { lat: Number(place.lat), lon: Number(place.lon) };
+      }
+    }
+  } catch {
+    // fall through: no map, just the address and a link
+  }
+  cacheLife('hours');
+  return null;
+}
+
+/**
  * The earliest free time on each of the next days that have one, across all the service's doctors:
  * [{ starts_at, staff_id }, …] (at most `limit`). Cached for about a minute, like getNextFreeSlot.
  */

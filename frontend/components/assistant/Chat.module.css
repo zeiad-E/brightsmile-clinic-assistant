@@ -1,0 +1,90 @@
+/*
+ * The assistant chat (full page and bubble panel). Mint for you, white cards for the assistant,
+ * like the trial 001 "live AI receptionist". Logical properties so it mirrors in Arabic.
+ */
+
+.chat { display: flex; flex-direction: column; min-height: 0; background: #fff; }
+.page { height: min(78vh, 760px); border-radius: 28px; border: 1px solid var(--color-line); box-shadow: 0 30px 80px rgb(11 37 69 / .12); overflow: hidden; }
+.panel { height: 100%; }
+
+.head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--color-line); background: linear-gradient(180deg, #f3fbfa, #fff); }
+.avatar { position: relative; width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--color-mint); color: #fff; }
+.avatar svg { width: 22px; height: 22px; fill: currentColor; }
+.avatar::after { content: ""; position: absolute; inset-inline-end: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%; background: #22c55e; border: 2px solid #fff; }
+.name { margin: 0; font-weight: 700; }
+.online { margin: 0; font-size: 13px; color: var(--color-ink-3); }
+.restart { margin-inline-start: auto; padding: 7px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; color: var(--color-ink-2); box-shadow: inset 0 0 0 1px var(--color-line); transition: box-shadow .25s, color .25s; }
+.restart:hover { color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-mint); }
+
+.list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 20px 18px; scroll-behavior: smooth; background: radial-gradient(rgb(11 37 69 / .045) 1px, transparent 1px) 0 0 / 22px 22px, var(--color-page); }
+.turn { display: contents; }
+
+.bubble { max-width: 82%; margin: 0; padding: 11px 15px; border-radius: 18px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; animation: msgIn .35s cubic-bezier(.2, .8, .2, 1) both; }
+.assistant { align-self: flex-start; background: #fff; border: 1px solid var(--color-line); border-end-start-radius: 6px; }
+.user { align-self: flex-end; background: var(--color-mint); color: #fff; border-end-end-radius: 6px; }
+.error { border-color: #fecaca; background: #fff5f5; color: #b42318; }
+.streaming::after { content: ""; display: inline-block; width: 7px; height: 1em; margin-inline-start: 2px; vertical-align: -2px; background: var(--color-mint); animation: caret .8s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+@keyframes msgIn { from { opacity: 0; translate: 0 10px; scale: .97; } to { opacity: 1; translate: 0 0; scale: 1; } }
+
+.status { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 8px 14px; border-radius: 99px; background: rgb(20 184 166 / .1); color: var(--color-mint-deep); font-size: 14px; font-weight: 600; animation: msgIn .3s both; }
+.dots { display: inline-flex; gap: 3px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: dot 1.1s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .15s; }
+.dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 60%, 100% { translate: 0 0; opacity: .4; } 30% { translate: 0 -4px; opacity: 1; } }
+
+/* ---------- cards ---------- */
+.card { align-self: flex-start; width: min(100%, 420px); padding: 16px; border-radius: 18px; background: #fff; border: 1px solid var(--color-line); box-shadow: 0 10px 30px rgb(11 37 69 / .06); animation: cardIn .5s cubic-bezier(.2, .8, .2, 1) both; transform-origin: top; }
+@keyframes cardIn { from { opacity: 0; transform: perspective(700px) rotateX(-18deg) translateY(8px); } to { opacity: 1; transform: none; } }
+.cardTitle { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: 750; }
+.slotDoctor + .slotDoctor { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--color-line); }
+.slotName { margin: 0 0 8px; font: 600 12px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--color-ink-3); }
+.slotDay { display: grid; gap: 6px; margin-bottom: 10px; }
+.slotDay > span { font-size: 14px; font-weight: 600; }
+.times { display: flex; flex-wrap: wrap; gap: 6px; }
+.times button { padding: 7px 12px; border-radius: 99px; border: 1px solid var(--color-line); font: 600 13px var(--font-mono); transition: background .2s, border-color .2s, color .2s, transform .2s; }
+.times button:not(:disabled):hover { background: var(--color-mint); border-color: var(--color-mint); color: #fff; transform: translateY(-1px); }
+.times button:disabled { opacity: .55; cursor: default; }
+.summary { display: grid; gap: 8px; margin: 0; }
+.summary div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.summary dt { color: var(--color-ink-3); }
+.summary dd { margin: 0; font-weight: 650; text-align: end; }
+.cardActions { display: flex; gap: 8px; margin-top: 14px; }
+.cardActions button { flex: 1; padding: 10px 14px; border-radius: 99px; font-size: 14px; font-weight: 650; box-shadow: inset 0 0 0 1.5px var(--color-line); transition: transform .2s, background .2s; }
+.cardActions .primary { background: var(--color-ink); color: #fff; box-shadow: none; }
+.cardActions button:hover { transform: translateY(-1px); }
+.cardActions .primary:hover { background: var(--color-mint-deep); }
+.confirmed { border-color: rgb(20 184 166 / .45); background: linear-gradient(180deg, var(--color-mint-soft), #fff 60%); }
+.check { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--color-mint); }
+.check svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 24; stroke-dashoffset: 24; animation: draw .5s .2s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.note { margin: 12px 0 0; font-size: 14px; color: var(--color-ink-2); }
+.appointments { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.appointments li { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--color-page); font-size: 14px; }
+.appointments span { color: var(--color-ink-2); }
+
+/* ---------- quick questions + composer ---------- */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 18px 0; scrollbar-width: none; }
+.chips button { flex: none; padding: 8px 14px; border-radius: 99px; background: var(--color-mint-soft); color: var(--color-mint-deep); font-size: 14px; font-weight: 600; transition: background .2s, color .2s; animation: msgIn .4s both; }
+.chips button:nth-child(2) { animation-delay: .06s; }
+.chips button:nth-child(3) { animation-delay: .12s; }
+.chips button:nth-child(4) { animation-delay: .18s; }
+.chips button:hover { background: var(--color-mint); color: #fff; }
+.composer { display: flex; gap: 8px; padding: 12px 18px; }
+.composer input { flex: 1; min-width: 0; padding: 13px 18px; border-radius: 99px; border: 1px solid var(--color-line); background: var(--color-page); font-size: 15px; outline: none; transition: border-color .25s, box-shadow .25s; }
+.composer input:focus { border-color: var(--color-mint); box-shadow: 0 0 0 4px rgb(20 184 166 / .15); }
+.composer button { width: 46px; height: 46px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--color-ink); color: #fff; transition: background .25s, transform .25s; }
+.composer button:not(:disabled):hover { background: var(--color-mint-deep); transform: scale(1.05); }
+.composer button:disabled { opacity: .4; }
+.composer svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 0 18px 14px; font-size: 12px; color: var(--color-ink-3); }
+.foot button { font-weight: 650; color: var(--color-mint-deep); text-decoration: underline; text-underline-offset: 3px; }
+.foot button:disabled { opacity: .5; }
+
+.chat:lang(ar) .slotName { letter-spacing: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble, .card, .status, .chips button { animation: none; }
+  .check svg { stroke-dashoffset: 0; animation: none; }
+}

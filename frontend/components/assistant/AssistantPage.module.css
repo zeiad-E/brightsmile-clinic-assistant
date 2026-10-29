@@ -1,0 +1,22 @@
+/* /assistant: intro on one side, the chat on the other (stacked on phones). */
+
+.page { position: relative; overflow: hidden; background: radial-gradient(90% 90% at 85% 10%, #e9fbf7 0%, #f3fafb 50%, var(--color-page) 100%); }
+.glow { position: absolute; inset: 0; filter: blur(70px); pointer-events: none; }
+.glow i { position: absolute; border-radius: 50%; opacity: .6; animation: drift 18s ease-in-out infinite alternate; }
+.glow i:nth-child(1) { inset-inline-end: 8%; top: 12%; width: 34%; height: 46%; background: #a7f3e4; }
+.glow i:nth-child(2) { inset-inline-start: 4%; bottom: 0; width: 28%; height: 36%; background: #bfe3ff; animation-delay: -7s; }
+@keyframes drift { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(8%, -6%) scale(1.1); } 100% { transform: translate(-6%, 8%) scale(.92); } }
+
+.layout { position: relative; display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 48px; align-items: center; padding-block: 56px 72px; }
+.intro h1 { margin: 14px 0 16px; font-size: clamp(36px, 4.6vw, 64px); line-height: 1.04; letter-spacing: -.045em; font-weight: 800; }
+.lead { margin: 0; max-width: 44ch; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.6; color: var(--color-ink-2); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; gap: 28px; padding-block: 36px 48px; }
+}
+
+.page:lang(ar) h1 { letter-spacing: 0; line-height: 1.25; }
+
+@media (prefers-reduced-motion: reduce) {
+  .glow i { animation: none; }
+}

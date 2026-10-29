@@ -1,0 +1,35 @@
+/* The floating assistant button + its chat panel (bottom corner, mirrored in Arabic). */
+
+.root { position: fixed; inset-inline-end: 20px; bottom: 20px; z-index: 60; }
+
+.button { position: relative; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: var(--color-ink); color: #fff; box-shadow: 0 14px 34px rgb(11 37 69 / .3); transition: transform .35s cubic-bezier(.3, 1.4, .5, 1), background .3s; }
+.button:hover { transform: scale(1.07); background: var(--color-mint-deep); }
+.button svg { position: absolute; width: 26px; height: 26px; transition: transform .35s cubic-bezier(.3, 1.4, .5, 1), opacity .2s; }
+.iconChat { fill: currentColor; }
+.iconClose { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; opacity: 0; transform: rotate(-90deg) scale(.6); }
+.buttonOpen .iconChat { opacity: 0; transform: rotate(90deg) scale(.6); }
+.buttonOpen .iconClose { opacity: 1; transform: none; }
+.ping { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--color-mint); animation: ping 2.4s ease-out infinite; }
+@keyframes ping { 0% { transform: scale(1); opacity: .8; } 70%, 100% { transform: scale(1.5); opacity: 0; } }
+
+.panel {
+  position: absolute; inset-inline-end: 0; bottom: 76px; width: min(400px, calc(100vw - 32px)); height: min(620px, calc(100dvh - 120px));
+  display: flex; flex-direction: column; border-radius: 24px; overflow: hidden; background: #fff; border: 1px solid var(--color-line);
+  box-shadow: 0 30px 80px rgb(11 37 69 / .25);
+  transform-origin: bottom right; opacity: 0; transform: translateY(16px) scale(.92); pointer-events: none; visibility: hidden;
+  transition: opacity .25s, transform .35s cubic-bezier(.2, .9, .3, 1.1), visibility 0s .35s;
+}
+.panel:dir(rtl) { transform-origin: bottom left; }
+.panelOpen { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition: opacity .25s, transform .35s cubic-bezier(.2, .9, .3, 1.1), visibility 0s; }
+.panel > :first-child { flex: 1; min-height: 0; }
+.full { padding: 10px; text-align: center; font-size: 13px; font-weight: 650; color: var(--color-mint-deep); border-top: 1px solid var(--color-line); }
+.full:hover { background: var(--color-mint-soft); }
+
+@media (max-width: 480px) {
+  .root { inset-inline-end: 14px; bottom: 14px; }
+  .panel { bottom: 72px; height: calc(100dvh - 100px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ping { animation: none; }
+}

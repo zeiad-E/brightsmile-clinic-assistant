@@ -267,5 +267,251 @@
     "book": "Book this",
     "ask": "Ask about this",
     "moreTitle": "Other treatments"
+  },
+  "aboutPage": {
+    "title": "About us",
+    "eyebrow": "About BrightSmile",
+    "headA": "Dentistry that",
+    "headMark": "explains itself.",
+    "lead": "A neighbourhood clinic where you always know what's happening, what it costs and who is treating you, with an assistant that answers when the front desk is closed.",
+    "storyTitle": "Why we work this way",
+    "story": [
+      "Most people put off the dentist because they don't know what to expect: how much, how long, will it hurt. So we write it all down before you book.",
+      "Our assistant answers questions and books visits at any hour, and hands you to a real person the moment it should."
+    ],
+    "statDoctors": "specialists",
+    "statServices": "treatments",
+    "statLanguages": "languages",
+    "statAssistant": "assistant",
+    "marquee": [
+      "Gentle care · Clear prices · On time",
+      "Real people · Answers at any hour"
+    ],
+    "valuesTitle": "What we promise",
+    "values": [
+      {
+        "title": "Gentle first",
+        "text": "We numb, explain and check in with you. You can stop at any moment."
+      },
+      {
+        "title": "Prices before the chair",
+        "text": "Every price is on this website. If the plan changes, we tell you before we start."
+      },
+      {
+        "title": "On time",
+        "text": "Visits are spaced out, so you don't wait long in the waiting room."
+      },
+      {
+        "title": "A human when it matters",
+        "text": "The assistant helps, but someone from the team takes over whenever you ask or it isn't sure."
+      }
+    ],
+    "teamTitle": "The team",
+    "teamLead": "The people you'll actually meet.",
+    "dentist": "Dentist",
+    "hygienist": "Hygienist",
+    "does": "Treatments",
+    "bookWith": "Book with {name}",
+    "visitTitle": "Visit us",
+    "address": "Address",
+    "phone": "Phone",
+    "email": "Email",
+    "hours": "Opening hours",
+    "closed": "Closed",
+    "today": "Today",
+    "openNow": "Open now · until {time}",
+    "closedNow": "Closed now · opens {day} at {time}",
+    "mapTitle": "Map showing the clinic",
+    "mapLink": "Open in maps",
+    "ctaTitle": "Ready when you are.",
+    "ctaText": "Book online in a minute, or ask the assistant anything first.",
+    "ctaBook": "Book a visit",
+    "ctaAsk": "Ask the assistant"
+  },
+  "privacyPage": {
+    "title": "Privacy",
+    "eyebrow": "Privacy",
+    "headA": "Your data,",
+    "headMark": "kept small.",
+    "lead": "What we keep, why, for how long, and what the assistant can see. In plain words.",
+    "updated": "Last updated: October 2026",
+    "toc": "On this page",
+    "summaryTitle": "In short",
+    "summary": [
+      "We keep only what we need to book and treat you.",
+      "We never sell your data.",
+      "The AI never sees your name, phone or email."
+    ],
+    "sections": [
+      {
+        "id": "keep",
+        "title": "What we keep",
+        "body": [
+          "Your name, date of birth, and a phone number or email, so we know who is booking and can reach you.",
+          "Your appointments: the treatment, the doctor, the time, and whether you came.",
+          "Your chats with the assistant, so the team can follow up if you need help."
+        ]
+      },
+      {
+        "id": "why",
+        "title": "Why we keep it",
+        "body": [
+          "To book, remind and treat you. That's it. We don't sell your data and we don't use it for advertising."
+        ]
+      },
+      {
+        "id": "ai",
+        "title": "What the assistant sees",
+        "body": [
+          "The assistant reads your messages and can look up the clinic's services, prices and free times.",
+          "Before your messages reach the AI model, we swap names, phone numbers and emails for placeholders, so the model never learns who you are.",
+          "When you are signed in, it can see your own bookings so it can move or cancel them for you, and nothing about other patients."
+        ]
+      },
+      {
+        "id": "how-long",
+        "title": "How long we keep it",
+        "body": [
+          "Chats are deleted automatically after 90 days, unless someone from the team is still helping you with that conversation.",
+          "Appointment records stay as long as the clinic needs them for your treatment history."
+        ]
+      },
+      {
+        "id": "choices",
+        "title": "Your choices",
+        "body": [
+          "You can make the assistant forget what it remembers about you, from your profile page.",
+          "You can ask us to correct or delete your details at any time."
+        ]
+      },
+      {
+        "id": "contact",
+        "title": "Contact",
+        "body": [
+          "Questions about your data? Email {email} or call {phone}."
+        ]
+      }
+    ]
+  },
+  "assistantPage": {
+    "title": "Assistant",
+    "eyebrow": "BrightSmile assistant",
+    "heading": "Ask anything. Book in seconds.",
+    "lead": "Prices, free times, what a treatment involves: the assistant checks the real clinic data and can book for you.",
+    "botName": "BrightSmile assistant",
+    "online": "Online · replies in seconds",
+    "you": "You",
+    "placeholder": "Ask a question or book an appointment…",
+    "send": "Send",
+    "chips": [
+      "How much is teeth whitening?",
+      "Book a cleaning this week",
+      "What are your opening hours?",
+      "Show my appointments"
+    ],
+    "human": "Talk to a person",
+    "humanPrompt": "I'd like to talk to a person from the team.",
+    "newChat": "New chat",
+    "thinking": "Thinking",
+    "error": "Something went wrong. Please try again.",
+    "signedInAs": "Signed in as {name}",
+    "disclaimer": "The assistant can make mistakes. For pain or swelling, call the clinic.",
+    "hello": "Hi! I'm the BrightSmile assistant. Ask me about treatments and prices, or tell me when you'd like to come in.",
+    "slotsTitle": "Free times · {service}",
+    "pickTime": "I'd like {weekday} {date} at {time} with {doctor}.",
+    "summaryTitle": "Please check your booking",
+    "when": "When",
+    "with": "With",
+    "duration": "{n} min",
+    "patient": "Patient",
+    "confirm": "Yes, book it",
+    "change": "Change something",
+    "confirmPrompt": "Yes, please confirm the booking.",
+    "changePrompt": "I'd like to change something.",
+    "confirmedTitle": "Booked",
+    "reminder": "We'll remind you the day before.",
+    "appointmentsTitle": "Your appointments",
+    "none": "No appointments.",
+    "bubbleOpen": "Chat with the assistant",
+    "bubbleClose": "Close chat",
+    "openFull": "Open full screen"
+  },
+  "loginPage": {
+    "title": "Sign in",
+    "eyebrow": "Sign in",
+    "heading": "Welcome back.",
+    "lead": "Patients sign in with a code or their details. Team members use their password.",
+    "tabPatient": "Patient",
+    "tabTeam": "Team",
+    "methodEmail": "Email code",
+    "methodPhone": "Phone",
+    "methodCode": "Personal code",
+    "email": "Email",
+    "sendCode": "Send me a code",
+    "codeSent": "We sent a sign-in code to {email}.",
+    "code": "Code from the email",
+    "changeEmail": "Use another email",
+    "phone": "Phone number",
+    "phoneHint": "International format, e.g. +201001234567",
+    "fullName": "Full name",
+    "dob": "Date of birth",
+    "personalCode": "Personal code",
+    "personalCodeHint": "The 8-character code from your booking confirmation email.",
+    "password": "Password",
+    "signIn": "Sign in",
+    "working": "One moment…",
+    "demoTitle": "Just looking around?",
+    "demoText": "Try the site as the demo patient, Mariam.",
+    "demoPatient": "Fill in the demo patient",
+    "demoViewer": "Fill in the read-only team login",
+    "demoFilled": "Filled in. Press Sign in.",
+    "welcome": "Signed in. Welcome, {name}!",
+    "signedIn": "You're signed in as {name}.",
+    "signOut": "Sign out",
+    "noAccount": "No account yet? Booking a visit creates one for you.",
+    "book": "Book a visit"
+  },
+  "bookPage": {
+    "title": "Book a visit",
+    "eyebrow": "Book online",
+    "heading": "Book in a minute.",
+    "steps": [
+      "Treatment",
+      "Who",
+      "When",
+      "Your details",
+      "Confirm"
+    ],
+    "anyone": "First available",
+    "anyoneText": "Whoever is free first",
+    "min": "{n} min",
+    "next": "Continue",
+    "back": "Back",
+    "loadingTimes": "Finding free times…",
+    "noTimes": "No free times in the next two weeks. Try someone else, or ask the assistant.",
+    "pickDay": "Day",
+    "pickTime": "Time",
+    "fullName": "Full name",
+    "dob": "Date of birth",
+    "email": "Email",
+    "phone": "Phone",
+    "phoneHint": "e.g. +201001234567",
+    "contactHint": "An email or a phone number, so we can confirm and remind you.",
+    "notes": "Anything we should know? (optional)",
+    "bookingAs": "Booking as {name}",
+    "treatment": "Treatment",
+    "with": "With",
+    "when": "When",
+    "price": "Price",
+    "patient": "Patient",
+    "confirm": "Confirm booking",
+    "booking": "Booking…",
+    "taken": "Sorry, someone just took that time. Please pick another one.",
+    "doneTitle": "You're booked!",
+    "doneText": "A confirmation is on its way. We'll remind you the day before.",
+    "newPatient": "We also created your account and emailed you a personal code, so you can manage your booking.",
+    "another": "Book another visit",
+    "home": "Back to home",
+    "error": "Something went wrong. Please try again."
   }
 }
