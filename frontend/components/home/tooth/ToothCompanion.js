@@ -7,7 +7,8 @@ import { Mascot } from '../icons';
 import { MODEL_CY, MODEL_H, STRIDE, getMesh } from './toothMesh';
 
 /**
- * The travelling 3D tooth (raw WebGL, no library), ported from trial 003.
+ * The travelling 3D tooth (raw WebGL, no library), ported from trial 003. Its shape is the Blender
+ * molar in /models/molar.glb (see toothMesh.js).
  * One full-screen canvas sits above the page; invisible "spots" in each section (<div data-spot="…">)
  * tell it where to stand. As you scroll, it glides from spot to spot and turns to a new angle.
  *
@@ -60,11 +61,11 @@ const FS = `
     float wrap = pow(max(dot(n, L) * .5 + .5, 0.), 1.7);          // soft, wrapped light: enamel scatters light
     float fill = max(dot(n, L2), 0.);
     float nh = max(dot(n, normalize(L + V)), 0.);
-    float coat = pow(nh, 90.) * .85, sheen = pow(nh, 16.) * .12;  // polished highlight + soft gloss
+    float coat = pow(nh, 44.) * .4, sheen = pow(nh, 10.) * .1;    // soft glossy highlight + broad gloss (kept low so the cusps don't wash out to flat white)
     float fres = pow(1. - max(dot(n, V), 0.), 3.);
-    float ao = mix(.8, 1., smoothstep(.1, .9, v_ao));
-    vec3 col = mix(vec3(.6, .76, .79), vec3(.99, .985, .965), wrap) * ao + fill * vec3(.1, .2, .19);
-    col *= mix(.88, 1., smoothstep(-1.3, .1, v_y));                // roots a touch deeper
+    float ao = mix(.66, 1., smoothstep(.15, .85, v_ao));           // grooves and the gaps between roots go a little darker
+    vec3 col = mix(vec3(.56, .72, .75), vec3(.93, .925, .905), wrap) * ao + fill * vec3(.1, .2, .19);
+    col *= mix(.86, 1., smoothstep(-1.8, .35, v_y));               // roots a touch deeper than the crown
     vec3 R = reflect(-V, n);
     col += vec3(.7, .95, .9) * smoothstep(.1, 1., R.y) * .1;
     col += vec3(.36, .9, .82) * fres * .4 + coat + sheen;
@@ -139,20 +140,24 @@ export default function ToothCompanion() {
 
     let alive = true;
     let COUNT = 0;
-    getMesh().then((mesh) => {
-      if (!alive) return;
-      gl.bufferData(gl.ARRAY_BUFFER, mesh.data, gl.STATIC_DRAW);
-      COUNT = mesh.triCount * 3;
-      if (!toothState.ready) {
-        // tell the hero text to start once the full mesh has been drawn (two frames from now)
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            toothState.ready = true;
-            window.dispatchEvent(new Event(TOOTH_READY));
-          }),
-        );
-      }
-    });
+    getMesh().then(
+      (mesh) => {
+        if (!alive) return;
+        gl.bufferData(gl.ARRAY_BUFFER, mesh.data, gl.STATIC_DRAW);
+        COUNT = mesh.triCount * 3;
+        if (!toothState.ready) {
+          // tell the hero text to start once the full mesh has been drawn (two frames from now)
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              toothState.ready = true;
+              window.dispatchEvent(new Event(TOOTH_READY));
+            }),
+          );
+        }
+      },
+      // the model file failed to download: same fallback as no WebGL (the hero text starts on its own timer)
+      () => alive && setFallbackSpot(document.querySelector('[data-spot="hero"]')),
+    );
 
     /* ---------- canvas size ---------- */
     let VW = 0, VH = 0;
@@ -281,7 +286,8 @@ export default function ToothCompanion() {
 
   return (
     <>
-      <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-30 h-screen w-screen" />
+      {/* the drop shadow follows the tooth's outline, so the white tooth stays clear on white sections */}
+      <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-30 h-screen w-screen drop-shadow-[0_16px_22px_rgba(8,52,58,0.24)]" />
       {fallbackSpot && createPortal(<Mascot />, fallbackSpot)}
     </>
   );
