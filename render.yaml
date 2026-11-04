@@ -35,8 +35,6 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
       # Fingerprints personal sign-in codes (min 32 chars); changing it invalidates issued codes
       - key: PERSONAL_CODE_SECRET
         sync: false

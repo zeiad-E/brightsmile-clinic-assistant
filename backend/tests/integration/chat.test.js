@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { admin, api, app, cleanup, emailFor, freeSlots, nameFor, RUN, tracked, waitForMail } from './helpers.js';
+import { admin, api, app, cleanup, emailFor, freeSlots, nameFor, newBrowser, RUN, tracked, waitForMail } from './helpers.js';
 import { dayInZone, timeInZone } from '../../src/utils/clinicTime.js';
 
 /**
@@ -70,14 +70,22 @@ describe('booking through the chat', () => {
     expect(userText).not.toContain(state.email);
   });
 
-  it('after the patient says yes: a real booking, a new account, and a session', async () => {
+  it('after the patient says yes: a real booking, a new account, and a sign-in ticket', async () => {
     ai.script.push({ tool: 'confirm_pending_action' }, { text: 'Booked!' });
 
     const res = await say('Yes, book it.', { conversationId: state.conversationId });
 
     expect(res.status).toBe(200);
-    expect(res.body.session?.access_token).toBeTruthy();
-    state.token = res.body.session.access_token;
+    expect(res.body.session).toBeUndefined();
+    expect(res.body.sign_in_ticket).toBeTruthy();
+
+    // The browser swaps the ticket for a session, once.
+    const browser = newBrowser();
+    const swapped = await api('post', '/auth/ticket', { body: { ticket: res.body.sign_in_ticket }, agent: browser });
+    expect(swapped.status).toBe(200);
+    expect(swapped.headers['set-cookie'][0]).toMatch(/^bs_rt=.*HttpOnly/);
+    state.token = swapped.body.access_token;
+    expect((await api('post', '/auth/ticket', { body: { ticket: res.body.sign_in_ticket } })).status).toBe(401);
     const { data: patient } = await admin.from('patients').select('id, profile_id').eq('email', state.email).single();
     const { data: booking } = await admin.from('appointments').select('status, starts_at, source').eq('patient_id', patient.id).single();
     expect(booking).toMatchObject({ status: 'booked', source: 'website' });

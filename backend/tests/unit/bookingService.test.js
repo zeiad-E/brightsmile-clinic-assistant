@@ -10,11 +10,8 @@ vi.mock('../../src/db/supabase.js', () => ({
 }));
 vi.mock('../../src/models/appointmentModel.js', () => ({ book: vi.fn(), findById: vi.fn() }));
 vi.mock('../../src/models/patientModel.js', () => ({ findById: vi.fn() }));
-vi.mock('../../src/services/accountService.js', () => ({ ensurePatientLogin: vi.fn() }));
+vi.mock('../../src/services/accountService.js', () => ({ ensurePatientAccount: vi.fn() }));
 vi.mock('../../src/services/personalCodeService.js', () => ({ issueCode: vi.fn(async () => 'K7Q4-9M2X') }));
-vi.mock('../../src/services/sessionService.js', () => ({
-  mintSession: vi.fn(async () => ({ access_token: 'a', refresh_token: 'r', expires_in: 3600, expires_at: 1 })),
-}));
 vi.mock('../../src/services/availabilityService.js', () => ({
   nextFreeSlots: vi.fn(async () => [{ starts_at: '2026-12-01T08:15:00Z', ends_at: '2026-12-01T08:45:00Z' }]),
 }));
@@ -29,7 +26,6 @@ const appointmentModel = await import('../../src/models/appointmentModel.js');
 const patientModel = await import('../../src/models/patientModel.js');
 const accountService = await import('../../src/services/accountService.js');
 const personalCodeService = await import('../../src/services/personalCodeService.js');
-const sessionService = await import('../../src/services/sessionService.js');
 const emailService = await import('../../src/services/email/emailService.js');
 const waitlistService = await import('../../src/services/waitlistService.js');
 const { bookAsVisitor, bookAsStaff } = await import('../../src/services/bookingService.js');
@@ -66,21 +62,23 @@ const appointmentRow = {
 beforeEach(() => {
   vi.clearAllMocks();
   appointmentModel.findById.mockResolvedValue(appointmentRow);
+  accountService.ensurePatientAccount.mockResolvedValue(PROFILE);
   patientModel.findById.mockResolvedValue(patientRow);
-  accountService.ensurePatientLogin.mockResolvedValue({ profileId: 'user-1', email: 'mona@example.com' });
 });
 
+const PROFILE = { id: 'profile-1', role: 'patient' };
 const ok = (extra = {}) => ({ ok: true, replayed: false, appointment_id: 'appt-1', patient_id: 'pat-1', is_new_patient: true, ...extra });
 
 describe('bookAsVisitor', () => {
   it('books a new guest, emails a personal code, and signs them in', async () => {
     appointmentModel.book.mockResolvedValue(ok());
 
-    const { status, body } = await bookAsVisitor({ user: null }, guestInput, KEY);
+    const { status, body, signIn } = await bookAsVisitor({ user: null }, guestInput, KEY);
 
     expect(status).toBe(201);
     expect(body.is_new_patient).toBe(true);
-    expect(body.session.access_token).toBe('a');
+    expect(body.personal_code).toBe('K7Q4-9M2X');
+    expect(signIn).toEqual({ profile: PROFILE, method: 'booking' });
     expect(body.appointment.service.price_egp).toBe(800);
     expect(appointmentModel.book).toHaveBeenCalledWith(
       { actorId: null, via: 'dashboard' },
@@ -95,11 +93,10 @@ describe('bookAsVisitor', () => {
   it('does NOT sign in a guest who matched an existing patient', async () => {
     appointmentModel.book.mockResolvedValue(ok({ is_new_patient: false }));
 
-    const { status, body } = await bookAsVisitor({ user: null }, guestInput, KEY);
+    const { status, signIn } = await bookAsVisitor({ user: null }, guestInput, KEY);
 
     expect(status).toBe(201);
-    expect(body.session).toBeNull();
-    expect(sessionService.mintSession).not.toHaveBeenCalled();
+    expect(signIn).toBeNull();
     expect(personalCodeService.issueCode).not.toHaveBeenCalled();
   });
 
@@ -110,7 +107,7 @@ describe('bookAsVisitor', () => {
 
     expect(status).toBe(200);
     expect(body.replayed).toBe(true);
-    expect(accountService.ensurePatientLogin).not.toHaveBeenCalled();
+    expect(accountService.ensurePatientAccount).not.toHaveBeenCalled();
     expect(emailService.sendEmailInBackground).not.toHaveBeenCalled();
   });
 
@@ -148,13 +145,13 @@ describe('bookAsVisitor', () => {
     appointmentModel.book.mockResolvedValue(ok({ is_new_patient: false }));
     const user = { id: 'user-1', role: 'patient', patientId: 'pat-1' };
 
-    const { body } = await bookAsVisitor({ user }, { ...guestInput, full_name: 'Someone Else', email: 'other@x.com' }, KEY);
+    const { signIn } = await bookAsVisitor({ user }, { ...guestInput, full_name: 'Someone Else', email: 'other@x.com' }, KEY);
 
     expect(appointmentModel.book).toHaveBeenCalledWith(
       { actorId: 'user-1', via: 'dashboard' },
       expect.objectContaining({ fullName: 'Mona Ali', email: 'mona@example.com', createdBy: 'user-1' }),
     );
-    expect(body.session).toBeNull();
+    expect(signIn).toBeNull();
   });
 
   it('sends team members to the staff booking screen', async () => {
@@ -166,13 +163,13 @@ describe('bookAsVisitor', () => {
 
   it('keeps the booking even if the login setup fails afterwards', async () => {
     appointmentModel.book.mockResolvedValue(ok());
-    accountService.ensurePatientLogin.mockRejectedValue(new Error('auth down'));
+    accountService.ensurePatientAccount.mockRejectedValue(new Error('auth down'));
 
-    const { status, body } = await bookAsVisitor({ user: null }, guestInput, KEY);
+    const { status, body, signIn } = await bookAsVisitor({ user: null }, guestInput, KEY);
 
     expect(status).toBe(201);
     expect(body.appointment.id).toBe('appt-1');
-    expect(body.session).toBeNull();
+    expect(signIn).toBeNull();
   });
 });
 

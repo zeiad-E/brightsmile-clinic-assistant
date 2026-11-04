@@ -84,8 +84,27 @@ export function setIntake(db, id, intake) {
 
 // ----- sign-in secrets: service role only -----
 
-export function setCodeHmac(db, id, codeHmac) {
-  return unwrap(db.from('patients').update({ code_hmac: codeHmac }).eq('id', id).select('id').maybeSingle());
+export function setCode(db, id, patch) {
+  return unwrap(db.from('patients').update(patch).eq('id', id).select('id').maybeSingle());
+}
+
+export function findCode(db, id) {
+  return unwrap(db.from('patients').select('code_hmac, code_ciphertext, code_key_id, code_issued_at').eq('id', id).maybeSingle());
+}
+
+/** The patient a code's fingerprint belongs to, or null. */
+export function findByCodeHmac(db, codeHmac) {
+  return unwrap(db.from('patients').select(COLUMNS).eq('code_hmac', codeHmac).maybeSingle());
+}
+
+/** The patient behind a phone number, with the fields phone sign-in checks and counts. */
+export function findForPhoneLogin(db, phone) {
+  return unwrap(db.from('patients').select(`${COLUMNS}, login_failed_attempts, login_locked_until`).eq('phone', phone).maybeSingle());
+}
+
+/** Counts a wrong try, only from the number we read, so guesses at once can't share one. */
+export function recordWrongPhoneLogin(db, patient, patch) {
+  return unwrap(db.from('patients').update(patch).eq('id', patient.id).eq('login_failed_attempts', patient.login_failed_attempts));
 }
 
 export function unlockLogin(db, id) {
@@ -103,18 +122,6 @@ export function loginStatus(db, id) {
   return unwrap(
     db.from('patients').select('id, code_hmac, login_locked_until').eq('id', id).maybeSingle(),
   ).then((row) => row && { id: row.id, hasCode: Boolean(row.code_hmac), lockedUntil: row.login_locked_until });
-}
-
-/** verify_patient_by_phone → { ok, patient_id, profile_id } | { ok:false, error, locked_until? } */
-export function verifyByPhone(db, { phone, fullName, dateOfBirth }) {
-  return unwrap(
-    db.rpc('verify_patient_by_phone', { p_phone: phone, p_full_name: fullName, p_date_of_birth: dateOfBirth }),
-  );
-}
-
-/** find_patient_by_code → { ok, patient_id, profile_id } | { ok:false, error } */
-export function findByCodeHmac(db, codeHmac) {
-  return unwrap(db.rpc('find_patient_by_code', { p_code_hmac: codeHmac }));
 }
 
 /** id → name for list screens (the viewer reads the masked view). */

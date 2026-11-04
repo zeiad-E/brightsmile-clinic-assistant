@@ -1,6 +1,8 @@
 import { requireAdmin } from '../db/supabase.js';
 import * as jobModel from '../models/jobModel.js';
+import * as loginCodeModel from '../models/loginCodeModel.js';
 import * as maintenanceModel from '../models/maintenanceModel.js';
+import * as sessionModel from '../models/sessionModel.js';
 import * as waitlistModel from '../models/waitlistModel.js';
 import { dayInZone } from '../utils/clinicTime.js';
 import { logger } from '../utils/logger.js';
@@ -12,7 +14,7 @@ import { clinicBranding } from './catalogService.js';
  *    unless an escalation on them is still open (privacy: keep personal chats no longer
  *    than needed);
  *  - waitlist wishes whose last day has passed are closed as 'expired';
- *  - finished background jobs are cleared out.
+ *  - finished background jobs, ended sign-in sessions and expired email codes are cleared out.
  *
  * Agent run statistics stay: they hold no personal data and feed the owner's reports.
  */
@@ -33,6 +35,7 @@ export async function nightlyCleanup() {
   }
   const waitlist = await waitlistModel.expirePast(db, dayInZone(new Date(), brand.timeZone));
   const jobs = await jobModel.deleteFinished(db);
+  await Promise.all([sessionModel.deleteEnded(db), loginCodeModel.deleteExpired(db)]);
 
   logger.info(`Nightly clean-up: ${chats} old chat(s) deleted, ${waitlist} waitlist wish(es) expired, ${jobs} old job(s) cleared`);
   return { chats, waitlist, jobs };

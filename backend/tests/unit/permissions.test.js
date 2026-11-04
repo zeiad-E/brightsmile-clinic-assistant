@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { fakeIdentity, fakeSupabaseModule, fakeUserClientModule, ROLE_IDS, tokenFor } from './helpers/fakeAuth.js';
+import { fakeIdentity, fakeSessionsModule, fakeSupabaseModule, ROLE_IDS, signedTokens } from './helpers/fakeAuth.js';
 
 /**
  * The permission matrix: every endpoint × every role → let in, or turned away?
@@ -11,22 +11,16 @@ import { fakeIdentity, fakeSupabaseModule, fakeUserClientModule, ROLE_IDS, token
  * independent statement of who may do what, checked against the permission lists.
  */
 vi.mock('../../src/db/supabase.js', () => fakeSupabaseModule());
-vi.mock('../../src/db/userClient.js', () => fakeUserClientModule());
-vi.mock('../../src/models/profileModel.js', async () => {
-  const { fakeIdentity: identity, ROLE_IDS: ids } = await import('./helpers/fakeAuth.js');
-  return {
-    findIdentity: async (_db, userId) => {
-      const role = Object.keys(ids).find((r) => ids[r] === userId);
-      return role ? identity(role) : null;
-    },
-  };
-});
+vi.mock('../../src/auth/sessions.js', () => fakeSessionsModule());
 
 const stubModule = (names, value = {}) => Object.fromEntries(names.map((n) => [n, vi.fn(async () => value)]));
 const LIST = { data: [], meta: {} };
 
 vi.mock('../../src/services/authService.js', () =>
-  stubModule(['staffLogin', 'startEmailCode', 'verifyEmailCode', 'phoneLogin', 'codeLogin', 'resendCode', 'refresh', 'logout', 'me', 'changePassword', 'teamProfile', 'updateTeamProfile']),
+  stubModule(
+    ['staffLogin', 'demoLogin', 'startEmailCode', 'verifyEmailCode', 'phoneLogin', 'codeLogin', 'resendCode', 'me', 'changePassword', 'teamProfile', 'updateTeamProfile'],
+    { profile: { id: 'p', role: 'patient' }, method: 'phone' },
+  ),
 );
 vi.mock('../../src/services/catalogService.js', () => stubModule(['clinicInfo', 'listServices', 'getService', 'listDoctors', 'getDoctor']));
 vi.mock('../../src/services/availabilityService.js', () => stubModule(['forDay', 'forRange']));
@@ -74,6 +68,7 @@ const { createRateLimits } = await import('../../src/middlewares/rateLimits.js')
 const { requirePermission } = await import('../../src/middlewares/requirePermission.js');
 const { can, permissionsOf } = await import('../../src/auth/permissions.js');
 const app = createApp({ rateLimit: false });
+const tokens = await signedTokens();
 
 const ID = '00000000-0000-4000-a000-000000000999';
 const SERVICE = '00000000-0000-4000-a000-000000000201';
@@ -108,10 +103,12 @@ const MATRIX = [
   ['post', '/api/auth/email/start', { email: 'a@b.co' }, ALL],
   ['post', '/api/auth/email/verify', { email: 'a@b.co', code: '123456' }, ALL],
   ['post', '/api/auth/code/resend', { email: 'a@b.co' }, ALL],
-  ['post', '/api/auth/refresh', { refresh_token: 'x'.repeat(20) }, ALL],
+  ['post', '/api/auth/refresh', null, ALL],
+  ['post', '/api/auth/ticket', { ticket: 'x'.repeat(20) }, ALL],
+  ['post', '/api/auth/demo', null, ALL],
   ['post', '/api/auth/phone', { phone: '+201001234567', full_name: 'Ahmed Ali', date_of_birth: '1990-01-01' }, ALL],
   ['post', '/api/auth/code', { code: 'K7Q4-9M2X' }, ALL],
-  ['post', '/api/auth/logout', null, SIGNED_IN],
+  ['post', '/api/auth/logout', null, ALL], // works from the cookie alone
   ['get', '/api/auth/me', null, SIGNED_IN],
   // The read-only demo login can't change its password.
   ['post', '/api/auth/password', { current_password: 'old', new_password: 'a-new-password' }, STAFF_WRITE],
@@ -215,8 +212,8 @@ const MATRIX = [
 ];
 
 function send(method, path, body, role, headers = {}) {
-  let req = request(app)[method](path).set(headers);
-  if (role !== 'anon') req = req.set('authorization', `Bearer ${tokenFor(role)}`);
+  let req = request(app)[method](path).set('x-brightsmile-client', 'web').set(headers);
+  if (role !== 'anon') req = req.set('authorization', `Bearer ${tokens[role]}`);
   if (body?.multipart) {
     return req
       .field('group_key', 'parking')

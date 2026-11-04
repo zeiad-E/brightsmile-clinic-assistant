@@ -29,15 +29,17 @@ function limiter(windowMs, limit, message) {
 
 export function createRateLimits({ enabled = true } = {}) {
   const off = (_req, _res, next) => next();
-  if (!enabled) return { api: off, auth: off, code: off, booking: off, chat: off };
+  if (!enabled) return { api: off, auth: off, code: off, refresh: off, booking: off, chat: off };
 
   return {
     // Everything under /api.
     api: limiter(FIFTEEN_MINUTES, 300, 'Too many requests. Please slow down.'),
     // Sign-in, email codes, refresh.
     auth: limiter(FIFTEEN_MINUTES, 10, 'Too many sign-in attempts. Please wait 15 minutes.'),
-    // Personal-code sign-in: the database has no lockout for codes, so this limit is the guard.
+    // Personal-code sign-in and email codes: wrong guesses.
     code: limiter(FIFTEEN_MINUTES, 5, 'Too many code attempts. Please wait 15 minutes.'),
+    // Keeping a session alive happens every 15 minutes per tab, from every device behind one router.
+    refresh: limiter(FIFTEEN_MINUTES, 120, 'Too many requests. Please wait a moment.'),
     // Creating bookings.
     booking: limiter(ONE_HOUR, 20, 'Too many booking attempts. Please try again later.'),
     // Chat messages: each one costs AI calls on free tiers.

@@ -18,24 +18,18 @@ import { sendEmailInBackground } from './email/emailService.js';
  */
 
 export async function list({ db }) {
-  const [profiles, linkedStaff, disabled] = await Promise.all([
-    profileModel.listTeam(db),
-    staffModel.listLinkedProfiles(db),
-    accountService.disabledUserIds(),
-  ]);
+  const [profiles, linkedStaff] = await Promise.all([profileModel.listTeam(db), staffModel.listLinkedProfiles(db)]);
   const staffByProfile = new Map(linkedStaff.map((staff) => [staff.profile_id, staff]));
-  return profiles.map((profile) =>
-    teamMemberView(profile, { staff: staffByProfile.get(profile.id), disabled: disabled.has(profile.id) }),
-  );
+  return profiles.map((profile) => teamMemberView(profile, { staff: staffByProfile.get(profile.id) }));
 }
 
 /**
- * Creates the login with a temporary password, emails it, and returns it once so the
- * owner can hand it over if the email doesn't arrive. The member should change it at
+ * Creates the account with a temporary password, emails it, and returns it once so the
+ * owner can hand it over if the email doesn't arrive. The member must change it at
  * first sign-in (POST /api/auth/password).
  */
 export async function create({ user }, { email, full_name: fullName, role, staff_id: staffId, preferred_language: language }) {
-  const created = await accountService.createTeamMember({ email, fullName, role, language });
+  const created = await accountService.createTeamMember(user.id, { email, fullName, role, language });
   if (created.conflict) throw AppError.conflict('email_in_use', 'An account with this email already exists.');
 
   if (staffId) await staffModel.linkProfile(adminAs(user.id), staffId, created.id);
@@ -69,12 +63,8 @@ async function loadChangeableMember(actor, memberId) {
 /** One member as the team screen shows them (after an edit). */
 async function memberRow(memberId) {
   const admin = requireAdmin();
-  const [profile, staff, disabled] = await Promise.all([
-    profileModel.findById(admin, memberId),
-    staffModel.findByProfileId(admin, memberId),
-    accountService.disabledUserIds(),
-  ]);
-  return teamMemberView(profile, { staff, disabled: disabled.has(memberId) });
+  const [profile, staff] = await Promise.all([profileModel.findById(admin, memberId), staffModel.findByProfileId(admin, memberId)]);
+  return teamMemberView(profile, { staff });
 }
 
 /** The owner edits a member's details (G7): name, email (their sign-in), phone, language, doctor link. */
@@ -84,7 +74,7 @@ export async function updateMember({ user }, memberId, { email, staff_id: staffI
 
   if (email && email !== member.email) {
     if (await profileModel.findByEmail(requireAdmin(), email)) throw AppError.conflict('email_in_use', 'An account with this email already exists.');
-    await accountService.changeLoginEmail(memberId, email);
+    await accountService.changeLoginEmail(user.id, memberId, email);
   }
   if (Object.keys(details).length) await profileModel.updateDetails(db, memberId, details);
   if (staffId !== undefined) {
@@ -97,7 +87,7 @@ export async function updateMember({ user }, memberId, { email, staff_id: staffI
 /** Sends the welcome email again with a new temporary password (returned once, like on create). */
 export async function resendInvite({ user }, memberId) {
   const member = await loadChangeableMember(user, memberId);
-  const temporaryPassword = await accountService.resetTemporaryPassword(memberId);
+  const temporaryPassword = await accountService.resetTemporaryPassword(user.id, member);
   const language = member.preferred_language ?? 'en';
   const brand = await clinicBranding();
   sendEmailInBackground({
@@ -115,7 +105,7 @@ export async function setRole({ user }, memberId, role) {
 }
 
 export async function setDisabled({ user }, memberId, disabled) {
-  const member = await loadChangeableMember(user, memberId);
-  await accountService.setDisabled(memberId, disabled);
-  return teamMemberView(member, { disabled });
+  await loadChangeableMember(user, memberId);
+  await accountService.setDisabled(user.id, memberId, disabled);
+  return memberRow(memberId);
 }

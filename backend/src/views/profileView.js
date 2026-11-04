@@ -6,6 +6,7 @@ export function meView(user, { patient = null, staff = null } = {}) {
     id: user.id,
     role: user.role,
     permissions: permissionsOf(user.role),
+    must_change_password: Boolean(user.mustChangePassword),
     email: user.email,
     full_name: user.fullName,
     preferred_language: user.preferredLanguage,
@@ -24,14 +25,16 @@ export function meView(user, { patient = null, staff = null } = {}) {
 }
 
 /** A team member on the owner's team screen. */
-export function teamMemberView(profile, { staff = null, disabled = false } = {}) {
+export function teamMemberView(profile, { staff = null } = {}) {
   return {
     id: profile.id,
     role: profile.role,
     full_name: profile.full_name,
     email: profile.email,
     phone: profile.phone,
-    disabled,
+    disabled: Boolean(profile.disabled_at),
+    must_change_password: Boolean(profile.must_change_password),
+    last_sign_in_at: profile.last_sign_in_at ?? null,
     staff: staff && { id: staff.id, full_name_en: staff.full_name_en, full_name_ar: staff.full_name_ar },
     created_at: profile.created_at,
   };

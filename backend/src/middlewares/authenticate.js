@@ -1,7 +1,7 @@
+import { identityFor } from '../auth/sessions.js';
+import { verifyAccessToken } from '../auth/tokens.js';
+import { dbFor } from '../db/supabase.js';
 import { AppError } from '../utils/AppError.js';
-import { dbFor, requireAdmin } from '../db/supabase.js';
-import { anonClient } from '../db/userClient.js';
-import { findIdentity } from '../models/profileModel.js';
 
 /**
  * Works out who is calling, from the `Authorization: Bearer <access token>` header.
@@ -10,30 +10,19 @@ import { findIdentity } from '../models/profileModel.js';
  * - A header → the token MUST be valid, otherwise 401. We never silently fall back to
  *   anonymous, so a broken login is noticed instead of hidden.
  *
- * The token (a JWT issued by Supabase Auth) is checked for a valid signature and expiry.
- * The role then comes from the database (`profiles.role`), not from the token, so a role
- * change takes effect on the next request.
+ * Two checks: the token's signature and expiry (auth/tokens.js), then that its session still stands
+ * (auth/sessions.js). So signing out or disabling an account works from the next request on.
  *
  * Sets:
- *   req.user  = { id, role, email, fullName, preferredLanguage, patientId, staffId }
- *   req.db    = the database client for this user (audited as them; masked for the viewer)
- *   req.token = the raw access token (needed to sign out)
+ *   req.user = { id, role, sessionId, email, fullName, preferredLanguage, patientId, staffId, mustChangePassword }
+ *   req.db   = the database client for this user (audited as them; masked for the viewer)
  */
 const BEARER = /^Bearer\s+([\w-]+\.[\w-]+\.[\w-]+)$/i;
-
-export async function verifyAccessToken(token) {
-  const { data, error } = await anonClient().auth.getClaims(token);
-  if (error || !data?.claims?.sub) {
-    throw AppError.unauthorized('invalid_token', 'Your session has expired. Please sign in again.');
-  }
-  return data.claims;
-}
 
 export function authenticate() {
   return async (req, _res, next) => {
     req.user = null;
     req.db = null;
-    req.token = null;
 
     const header = req.get('authorization');
     if (!header) return next();
@@ -41,14 +30,9 @@ export function authenticate() {
     const match = BEARER.exec(header);
     if (!match) throw AppError.unauthorized('invalid_token', 'The Authorization header must be "Bearer <token>".');
 
-    const token = match[1];
-    const claims = await verifyAccessToken(token);
-    const identity = await findIdentity(requireAdmin(), claims.sub);
-    if (!identity) throw AppError.unauthorized('account_not_found', 'This account no longer exists.');
-
+    const identity = await identityFor(await verifyAccessToken(match[1]));
     req.user = identity;
     req.db = dbFor(identity);
-    req.token = token;
     return next();
   };
 }

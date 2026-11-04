@@ -1,15 +1,20 @@
+import { ACCESS_TOKEN_SECONDS } from '../auth/tokens.js';
+
 /**
- * A sign-in result. The frontend keeps the access token (sent as "Bearer" on every
- * request, valid ~1 hour) and uses the refresh token to get a new one without asking
- * the user to sign in again.
+ * A sign-in result. The frontend keeps the access token in memory and sends it as "Bearer" on
+ * every request. The refresh token never appears here: it travels only in an httpOnly cookie.
  */
-export function sessionView(session, user = null) {
+export function sessionView({ token, expiresAt }, profile) {
   return {
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
+    access_token: token,
     token_type: 'bearer',
-    expires_in: session.expires_in,
-    expires_at: session.expires_at,
-    user: user ?? (session.user ? { id: session.user.id, email: session.user.email } : null),
+    expires_in: ACCESS_TOKEN_SECONDS,
+    expires_at: expiresAt,
+    user: {
+      id: profile.id,
+      role: profile.role,
+      full_name: profile.full_name ?? null,
+      must_change_password: Boolean(profile.must_change_password),
+    },
   };
 }

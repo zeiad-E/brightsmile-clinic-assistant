@@ -7,8 +7,8 @@ import { defineTool, toolError } from './define.js';
 
 /**
  * Signing in by chatting. The values arrive as placeholders ([PHONE_1], [CODE_1]…) and are
- * swapped back by the code, so the AI never sees them. The session itself (tokens) goes only
- * to the patient's browser; the AI only learns "signed in" and the first name.
+ * swapped back by the code, so the AI never sees them. Anything that signs the patient in goes
+ * only to their browser; the AI only learns "signed in" and the first name.
  */
 
 function attemptsLeft(ctx) {
@@ -30,8 +30,8 @@ function guard(ctx) {
   return null;
 }
 
-async function finish(ctx, session) {
-  const identity = await ctx.signedIn(session);
+async function finish(ctx, verified) {
+  const identity = await ctx.signIn(verified);
   if (!identity) return toolError('login_unavailable', 'Online sign-in is not available for this person here. Offer to connect them with staff.');
   ctx.state.signInAttempts = 0;
   return { signed_in: true, first_name: identity?.fullName?.split(' ')[0] ?? null };
@@ -55,7 +55,7 @@ export const signInWithPhone = defineTool({
     if (!parsedPhone.success) return toolError('invalid_phone', 'Ask for the phone number with country code.');
     if (!parsedDob.success) return toolError('invalid_date_of_birth', 'Ask for the date of birth as day, month and year.');
     try {
-      return await finish(ctx, await authService.phoneLogin({ phone: parsedPhone.data, full_name: fullName, date_of_birth: parsedDob.data }));
+      return await finish(ctx, await authService.phoneLogin({ phone: parsedPhone.data, full_name: fullName, date_of_birth: parsedDob.data }, { visitor: ctx.visitor }));
     } catch (err) {
       return signInFailure(ctx, err);
     }
@@ -70,7 +70,7 @@ export const signInWithCode = defineTool({
     const blocked = guard(ctx);
     if (blocked) return blocked;
     try {
-      return await finish(ctx, await authService.codeLogin({ code }));
+      return await finish(ctx, await authService.codeLogin({ code }, { visitor: ctx.visitor }));
     } catch (err) {
       return signInFailure(ctx, err);
     }

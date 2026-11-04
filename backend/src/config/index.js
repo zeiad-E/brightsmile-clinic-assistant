@@ -61,7 +61,6 @@ const EnvSchema = z
 
     SUPABASE_URL: text(),
     SUPABASE_SERVICE_ROLE_KEY: text(),
-    SUPABASE_ANON_KEY: text(),
 
     AGENT_MAX_TOOL_ITERATIONS: positiveInt(5),
     // A whole assistant turn (all AI calls + tools). Real multi-step turns take 10–30 s on free models.
@@ -121,7 +120,7 @@ const EnvSchema = z
     }
 
     if (env.NODE_ENV !== 'production') return;
-    requireKeys(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY', 'PERSONAL_CODE_SECRET'], 'in production');
+    requireKeys(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'PERSONAL_CODE_SECRET', 'JWT_SECRET', 'PERSONAL_CODE_ENCRYPTION_KEY'], 'in production');
     if (env.PERSONAL_CODE_SECRET && env.PERSONAL_CODE_SECRET.length < 32) {
       ctx.addIssue({ code: 'custom', path: ['PERSONAL_CODE_SECRET'], message: 'must be at least 32 characters' });
     }
@@ -193,7 +192,6 @@ export function loadConfig(rawEnv = process.env) {
     supabase: {
       url: env.SUPABASE_URL,
       serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
-      anonKey: env.SUPABASE_ANON_KEY,
     },
 
     agent: {

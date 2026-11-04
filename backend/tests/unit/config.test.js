@@ -36,8 +36,9 @@ describe('loadConfig', () => {
     NODE_ENV: 'production',
     SUPABASE_URL: 'https://example.supabase.co',
     SUPABASE_SERVICE_ROLE_KEY: 'service-key',
-    SUPABASE_ANON_KEY: 'anon-key',
     PERSONAL_CODE_SECRET: 'x'.repeat(32),
+    JWT_SECRET: 'j'.repeat(32),
+    PERSONAL_CODE_ENCRYPTION_KEY: `k1:${Buffer.alloc(32, 1).toString('base64')}`,
   };
 
   it('starts in production once the required secrets are present', () => {
@@ -45,6 +46,14 @@ describe('loadConfig', () => {
 
     expect(config.supabase.url).toBe('https://example.supabase.co');
     expect(config.auth.personalCodeSecret).toBe('x'.repeat(32));
+  });
+
+  it('refuses to start in production without the sign-in secrets', () => {
+    const { JWT_SECRET: _jwt, ...noJwt } = productionEnv;
+    const { PERSONAL_CODE_ENCRYPTION_KEY: _key, ...noKey } = productionEnv;
+
+    expect(() => loadConfig(noJwt)).toThrow(/JWT_SECRET: is required in production/);
+    expect(() => loadConfig(noKey)).toThrow(/PERSONAL_CODE_ENCRYPTION_KEY: is required in production/);
   });
 
   it('refuses a short personal-code secret in production', () => {

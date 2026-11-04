@@ -27,7 +27,7 @@ const ctxWith = (pending, turnNumber) => ({
   db: {},
   events: {},
   emit: vi.fn(),
-  signedIn: vi.fn(async () => ({ fullName: 'Mona Ali' })),
+  signIn: vi.fn(async () => ({ fullName: 'Mona Ali' })),
 });
 
 beforeEach(() => vi.clearAllMocks());
@@ -45,15 +45,31 @@ describe('confirm_pending_action', () => {
   it('books once the patient has replied, signs a new patient in, and clears the pending action', async () => {
     bookingService.bookAsVisitor.mockResolvedValue({
       status: 201,
-      body: { appointment: { id: 'appt-1' }, is_new_patient: true, session: { access_token: 'a', user: { id: 'u1' } } },
+      body: { appointment: { id: 'appt-1' }, is_new_patient: true, personal_code: 'K7Q4-9M2X' },
+      signIn: { profile: { id: 'u1', role: 'patient' }, method: 'booking' },
     });
     const ctx = ctxWith(pendingBooking(3), 4);
     const result = await confirmPendingAction.run({}, ctx);
 
     expect(result).toMatchObject({ booked: true, service: 'Check-up' });
-    expect(ctx.signedIn).toHaveBeenCalled();
+    expect(ctx.signIn).toHaveBeenCalled();
+    // The code goes to the patient's screen, never to the AI.
+    expect(ctx.emit).toHaveBeenCalledWith({ type: 'personal_code', code: 'K7Q4-9M2X' });
+    expect(JSON.stringify(result)).not.toContain('K7Q4-9M2X');
     expect(ctx.events.booked).toBe(true);
     expect(ctx.state.pending).toBeUndefined();
+  });
+
+  it('still reports the booking if the sign-in after it fails', async () => {
+    bookingService.bookAsVisitor.mockResolvedValue({
+      status: 201,
+      body: { appointment: { id: 'appt-1' }, is_new_patient: true },
+      signIn: { profile: { id: 'u1', role: 'patient' }, method: 'booking' },
+    });
+    const ctx = ctxWith(pendingBooking(3), 4);
+    ctx.signIn.mockRejectedValue(new Error('session store down'));
+
+    expect(await confirmPendingAction.run({}, ctx)).toMatchObject({ booked: true });
   });
 
   it('uses the same retry key for the same pending booking (a retried confirm can never book twice)', async () => {

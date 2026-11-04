@@ -19,6 +19,8 @@ vi.mock('../../src/models/maintenanceModel.js', () => ({
   queueDueReminders: vi.fn(async () => 2),
   purgeExpiredConversations: vi.fn(async () => 0),
 }));
+vi.mock('../../src/models/sessionModel.js', () => ({ deleteEnded: vi.fn(async () => 2) }));
+vi.mock('../../src/models/loginCodeModel.js', () => ({ deleteExpired: vi.fn(async () => 1) }));
 vi.mock('../../src/models/availabilityModel.js', () => ({
   slotsFor: vi.fn(async (_db, { serviceId }) => (store.slots[serviceId] ?? []).map((t) => ({ slot_start: t }))),
 }));

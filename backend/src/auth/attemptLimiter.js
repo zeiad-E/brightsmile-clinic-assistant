@@ -44,6 +44,7 @@ export function createAttemptLimiter({ rules = ATTEMPT_RULES, now = () => Date.n
   return {
     /** Throws 429 if this visitor (or, for codes, the whole clinic) has used up its tries. */
     assertAllowed(kind, visitor) {
+      if (!visitor) return; // the agent evals
       const rule = rules[kind];
       if (rule.clinicMax && (current(clinic, kind)?.count ?? 0) >= rule.clinicMax) {
         throw new AppError(429, 'sign_in_paused', 'This way of signing in is paused for a few minutes. Please use another one or try again soon.');
@@ -54,6 +55,7 @@ export function createAttemptLimiter({ rules = ATTEMPT_RULES, now = () => Date.n
     },
 
     recordFailure(kind, visitor) {
+      if (!visitor) return;
       const rule = rules[kind];
       forgetExpired();
       bump(failures, `${kind}:${visitor}`, rule.windowMs);

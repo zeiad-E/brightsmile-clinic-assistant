@@ -3,26 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 /**
  * Dashboard backend pieces that have real logic (docs/14_DASHBOARD_PLAN.md):
  *  - G9  the owner's numbers for a period are added up correctly
- *  - G8  a patient login is turned away at the team sign-in (and its session closed)
  *  - G1  a team member's first name, as the patient sees it
  *  - the new request rules (validators)
  */
 
-const signIn = vi.fn();
-const revokeSession = vi.fn(async () => {});
-const findProfile = vi.fn();
-
-vi.mock('../../src/db/userClient.js', () => ({
-  createAuthClient: () => ({ auth: { signInWithPassword: signIn } }),
-  createUserClient: vi.fn(),
-  anonClient: vi.fn(),
-}));
 vi.mock('../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), adminAs: () => ({}), dbFor: () => ({}), publicDb: () => ({}) }));
-vi.mock('../../src/models/profileModel.js', () => ({ findById: findProfile, findIdentity: vi.fn(), namesByIds: vi.fn() }));
-vi.mock('../../src/services/sessionService.js', () => ({ revokeSession, mintSession: vi.fn(), refreshSession: vi.fn() }));
+vi.mock('../../src/models/profileModel.js', () => ({ findIdentity: vi.fn(), namesByIds: vi.fn() }));
 
 const { summarize } = await import('../../src/services/reportService.js');
-const { staffLogin } = await import('../../src/services/authService.js');
 const { firstName } = await import('../../src/services/chatService.js');
 const { ContactStartBody, ContactVerifyBody } = await import('../../src/validators/me.js');
 const { RangeStatsQuery, TeamMemberPatch } = await import('../../src/validators/admin.js');
@@ -90,24 +78,6 @@ describe('owner numbers for a period (G9)', () => {
     const empty = summarize({ from: '2026-10-01', to: '2026-10-01', newPatients: 0, escalations: 0, appointments: [], runs: [] });
     expect(empty.totals.no_show_rate).toBeNull();
     expect(empty.totals.ai_handled_rate).toBeNull();
-  });
-});
-
-describe('team sign-in refuses patients (G8)', () => {
-  const session = { access_token: 'tok', refresh_token: 'ref', expires_in: 3600, expires_at: 1 };
-
-  it('turns a patient away and closes the session it just opened', async () => {
-    signIn.mockResolvedValueOnce({ data: { session, user: { id: 'p1', email: 'm@x.co' } }, error: null });
-    findProfile.mockResolvedValueOnce({ id: 'p1', role: 'patient' });
-    await expect(staffLogin({ email: 'm@x.co', password: 'x' })).rejects.toMatchObject({ status: 403, code: 'patient_account' });
-    expect(revokeSession).toHaveBeenCalledWith('tok');
-  });
-
-  it('lets staff in with their role', async () => {
-    signIn.mockResolvedValueOnce({ data: { session, user: { id: 's1', email: 's@x.co' } }, error: null });
-    findProfile.mockResolvedValueOnce({ id: 's1', role: 'staff' });
-    const result = await staffLogin({ email: 's@x.co', password: 'x' });
-    expect(result.user).toEqual({ id: 's1', email: 's@x.co', role: 'staff' });
   });
 });
 

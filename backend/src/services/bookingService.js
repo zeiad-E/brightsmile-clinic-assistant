@@ -4,10 +4,8 @@ import * as patientModel from '../models/patientModel.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { appointmentView } from '../views/appointmentView.js';
-import { sessionView } from '../views/sessionView.js';
 import * as accountService from './accountService.js';
 import * as personalCodeService from './personalCodeService.js';
-import * as sessionService from './sessionService.js';
 import { nextFreeSlots } from './availabilityService.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
 import { sendEmailInBackground } from './email/emailService.js';
@@ -52,16 +50,16 @@ export async function bookingError(code, { db, serviceId, staffId, startsAt }) {
   return new AppError(status, code, message, { alternatives });
 }
 
-/** After a successful booking: login, personal code, waitlist, confirmation email. Never fails the booking. */
-async function afterBooking({ result, appointment, sendCode }) {
+/** After a successful booking: account, personal code, waitlist, confirmation email. Never fails the booking. */
+async function afterBooking({ result, appointment }) {
   const db = requireAdmin();
   const patient = await patientModel.findById(db, result.patient_id);
-  let login = null;
+  let profile = null;
   let personalCode = null;
 
   try {
-    login = await accountService.ensurePatientLogin(patient);
-    if (sendCode && patient.email) personalCode = await personalCodeService.issueCode(patient.id);
+    profile = await accountService.ensurePatientAccount(patient);
+    if (result.is_new_patient) personalCode = await personalCodeService.issueCode(patient.id);
   } catch (err) {
     logger.warn(`Post-booking account setup failed for patient ${patient.id}: ${err.message}`);
   }
@@ -89,7 +87,7 @@ async function afterBooking({ result, appointment, sendCode }) {
     },
   });
 
-  return { patient, login };
+  return { profile, personalCode };
 }
 
 async function runBooking({ db, input, source, actorId, idempotencyKey }) {
@@ -126,9 +124,9 @@ async function runBooking({ db, input, source, actorId, idempotencyKey }) {
  *
  * - Signed-in patient: their own record is used; typed contact details are ignored.
  * - Guest: name + date of birth + email or phone are required.
- * - A guest who becomes a NEW patient is signed in straight away (session in the answer).
- *   A guest matching an EXISTING patient gets the booking but no session — knowing
- *   someone's email and birthday must not be enough to enter their account.
+ * - A guest who becomes a NEW patient is signed in straight away: `signIn` says who was proven,
+ *   and the caller starts the session. A guest matching an EXISTING patient gets the booking but
+ *   no session — knowing someone's email and birthday must not be enough to enter their account.
  */
 export async function bookAsVisitor({ user }, input, idempotencyKey) {
   if (user && user.role !== 'patient') {
@@ -162,24 +160,12 @@ export async function bookAsVisitor({ user }, input, idempotencyKey) {
   // The same request sent again: answer with the original booking, do nothing else.
   if (result.replayed) return { status: 200, body: { appointment: appointmentView(appointment), replayed: true } };
 
-  const { login } = await afterBooking({ result, appointment, sendCode: result.is_new_patient });
-
-  let session = null;
-  if (!user && result.is_new_patient && login) {
-    try {
-      session = sessionView(await sessionService.mintSession(login.email), {
-        id: login.profileId,
-        email: details.email ?? null,
-        role: 'patient',
-      });
-    } catch (err) {
-      logger.warn(`Auto sign-in after booking failed: ${err.message}`);
-    }
-  }
+  const { profile, personalCode } = await afterBooking({ result, appointment });
 
   return {
     status: 201,
-    body: { appointment: appointmentView(appointment), is_new_patient: result.is_new_patient, session },
+    body: { appointment: appointmentView(appointment), is_new_patient: result.is_new_patient, personal_code: personalCode },
+    signIn: !user && result.is_new_patient && profile ? { profile, method: 'booking' } : null,
   };
 }
 
@@ -195,6 +181,6 @@ export async function bookAsStaff({ user }, input, idempotencyKey) {
 
   if (result.replayed) return { status: 200, body: { appointment: appointmentView(appointment), replayed: true } };
 
-  await afterBooking({ result, appointment, sendCode: result.is_new_patient });
-  return { status: 201, body: { appointment: appointmentView(appointment), is_new_patient: result.is_new_patient } };
+  const { personalCode } = await afterBooking({ result, appointment });
+  return { status: 201, body: { appointment: appointmentView(appointment), is_new_patient: result.is_new_patient, personal_code: personalCode } };
 }

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
+import { hashPassword } from '../../src/auth/passwords.js';
 import { supabaseAdmin } from '../../src/db/supabase.js';
 import { setEmailAdapter } from '../../src/services/email/emailService.js';
 
@@ -46,35 +47,33 @@ export async function waitForMail(to, template = '') {
 export const codeIn = (mail) => /([A-Z2-9]{4}-[A-Z2-9]{4})/.exec(mail.text)?.[1];
 
 /** One HTTP call into the app. */
-export function api(method, path, { token, body, key } = {}) {
-  let req = request(app)[method](`/api${path}`);
+export function api(method, path, { token, body, key, agent } = {}) {
+  let req = (agent ?? request(app))[method](`/api${path}`).set('x-brightsmile-client', 'web');
   if (token) req = req.set('authorization', `Bearer ${token}`);
   if (key) req = req.set('idempotency-key', key);
   return body === undefined ? req : req.send(body);
 }
 
-/** Creates a team login (owner/staff/viewer) directly through the Auth admin API. */
+/** A browser of its own: it keeps cookies between calls, like the refresh cookie. */
+export const newBrowser = () => request.agent(app);
+
+/** Creates a team login (owner/staff/viewer) directly in the database. */
 export const createdUserIds = [];
 export async function createTeamUser(role) {
   const email = emailFor(role);
   const password = `It-${crypto.randomBytes(9).toString('base64url')}`;
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    app_metadata: { role },
-    user_metadata: { full_name: `IT ${role}` },
-  });
+  const { data, error } = await admin
+    .from('profiles')
+    .insert({ email, role, full_name: `IT ${role}`, password_hash: await hashPassword(password) })
+    .select('id')
+    .single();
   if (error) throw error;
-  createdUserIds.push(data.user.id);
-  // Same as accountService: the profile trigger can't see app_metadata, so set the role here.
-  const { error: profileError } = await admin.from('profiles').update({ role }).eq('id', data.user.id);
-  if (profileError) throw profileError;
-  return { id: data.user.id, email, password };
+  createdUserIds.push(data.id);
+  return { id: data.id, email, password };
 }
 
-export async function login({ email, password }) {
-  const res = await api('post', '/auth/staff/login', { body: { email, password } });
+export async function login({ email, password }, agent) {
+  const res = await api('post', '/auth/staff/login', { body: { email, password }, agent });
   if (res.status !== 200) throw new Error(`login failed: ${res.status} ${JSON.stringify(res.body)}`);
   return res.body;
 }
@@ -178,12 +177,14 @@ export async function cleanup() {
   }
 
   // Logins: team users made here, patient logins of test patients, and any test-domain login.
-  const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const loginIds = new Set([...createdUserIds, ...patientLogins]);
-  for (const user of users?.users ?? []) if (user.email?.endsWith(`@${TEST_DOMAIN}`)) loginIds.add(user.id);
-  if (loginIds.size) await admin.from('audit_log').delete().in('actor_id', [...loginIds]);
-  for (const id of loginIds) await admin.auth.admin.deleteUser(id);
-  report.logins = loginIds.size;
+  const { data: testLogins } = await admin.from('profiles').select('id').like('email', like);
+  const loginIds = [...new Set([...createdUserIds, ...patientLogins, ...(testLogins ?? []).map((row) => row.id)])];
+  if (loginIds.length) {
+    await admin.from('audit_log').delete().in('actor_id', loginIds);
+    await admin.from('audit_log').delete().eq('entity', 'profiles').in('entity_id', loginIds);
+    await admin.from('profiles').delete().in('id', loginIds); // their sessions go with them
+  }
+  report.logins = loginIds.length;
 
   return report;
 }

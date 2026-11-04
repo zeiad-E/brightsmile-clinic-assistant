@@ -9,8 +9,7 @@ import { AppError } from '../utils/AppError.js';
 import { patientView, staffPatientView } from '../views/patientView.js';
 import { staffAppointmentView } from '../views/appointmentView.js';
 import { listView } from '../views/listView.js';
-import * as accountService from './accountService.js';
-import { sendNewCode as emailNewCode } from './authService.js';
+import { sendCurrentCode } from './authService.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
 import { isPlaceholderEmail, sendEmailInBackground } from './email/emailService.js';
 
@@ -51,7 +50,7 @@ export async function getWithAppointments({ db }, id) {
   ]);
   return {
     ...staffPatientView(patient),
-    // locked = too many wrong phone sign-ins (staff can unlock); has_code = a personal code was sent
+    // locked = too many wrong phone sign-ins (staff can unlock); has_code = the patient has a personal code
     login: { locked_until: login?.lockedUntil ?? null, has_code: Boolean(login?.hasCode) },
     appointments: appointments.rows.map(staffAppointmentView),
   };
@@ -76,7 +75,6 @@ export async function update({ db }, id, patch) {
     throw err;
   }
   if (!patient) throw AppError.notFound('patient_not_found', 'Patient not found.');
-  if (patch.email) await accountService.syncPatientLoginEmail(patient);
   return staffPatientView(patient);
 }
 
@@ -91,7 +89,7 @@ export async function sendNewCode(_ctx, id) {
   const patient = await patientModel.findById(requireAdmin(), id);
   if (!patient) throw AppError.notFound('patient_not_found', 'Patient not found.');
   if (!patient.email) throw AppError.conflict('no_email', 'This patient has no email address, so no code can be sent.');
-  await emailNewCode(patient);
+  await sendCurrentCode(patient);
   return { sent: true };
 }
 
@@ -179,6 +177,5 @@ export async function verifyContactChange({ user }, { field, code }) {
     throw err;
   }
   await contactChangeModel.remove(admin, pending.id);
-  if (field === 'email') await accountService.syncPatientLoginEmail(updated);
   return patientView(updated);
 }

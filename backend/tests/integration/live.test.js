@@ -9,6 +9,7 @@ import {
   freeSlots,
   login,
   nameFor,
+  newBrowser,
   newKey,
   phoneFor,
   rememberSettings,
@@ -258,13 +259,15 @@ describe('phone-only patient booked by staff', () => {
 });
 
 describe('sessions', () => {
-  it('refresh gives a new access token; logout ends the session', async () => {
-    const session = await login(team.viewer);
-    const refreshed = await api('post', '/auth/refresh', { body: { refresh_token: session.refresh_token } });
+  it('refresh gives a new access token from the cookie; logout ends the session', async () => {
+    const browser = newBrowser();
+    const session = await login(team.viewer, browser);
+    expect(session.refresh_token).toBeUndefined();
+    const refreshed = await api('post', '/auth/refresh', { agent: browser });
     expect(refreshed.status, JSON.stringify(refreshed.body)).toBe(200);
 
     const logout = await api('post', '/auth/logout', { token: refreshed.body.access_token });
-    const afterLogout = await api('post', '/auth/refresh', { body: { refresh_token: refreshed.body.refresh_token } });
+    const afterLogout = await api('post', '/auth/refresh', { agent: browser });
 
     expect(logout.status).toBe(204);
     expect(afterLogout.status).toBe(401);

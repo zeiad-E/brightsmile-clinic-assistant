@@ -11,6 +11,7 @@ import * as appointmentService from '../../services/appointmentService.js';
 import * as memoryService from '../../services/memoryService.js';
 import * as waitlistService from '../../services/waitlistService.js';
 import { AppError } from '../../utils/AppError.js';
+import { logger } from '../../utils/logger.js';
 import { addDays, dayInZone, isValidDay, timeInZone, weekdayName, zonedDateTime } from '../../utils/clinicTime.js';
 import { bestMatch } from '../../utils/text.js';
 import { DateOfBirth, Email, Phone } from '../../validators/common.js';
@@ -301,9 +302,12 @@ export const confirmPendingAction = defineTool({
 
     try {
       if (pending.type === 'book') {
-        const { body } = await bookingService.bookAsVisitor({ user: ctx.isPatient ? ctx.user : null }, pending.input, idempotencyKeyFor(ctx.conversation.id, pending.input));
+        const { body, signIn } = await bookingService.bookAsVisitor({ user: ctx.isPatient ? ctx.user : null }, pending.input, idempotencyKeyFor(ctx.conversation.id, pending.input));
         delete ctx.state.pending;
-        if (body.session) await ctx.signedIn(body.session);
+        // The booking has happened: a sign-in problem must not make it look as if it failed.
+        if (signIn) await ctx.signIn(signIn).catch((err) => logger.warn(`Sign-in after a chat booking failed: ${err.message}`));
+        // The patient's screen shows their code; it never goes into the AI's result below.
+        if (body.personal_code) ctx.emit({ type: 'personal_code', code: body.personal_code });
         ctx.events.booked = true;
         ctx.emit({ type: 'booking_confirmed', appointment_id: body.appointment.id, ...pending.summary });
         return {

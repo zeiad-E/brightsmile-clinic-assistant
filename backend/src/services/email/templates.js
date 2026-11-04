@@ -6,7 +6,7 @@ import { formatDateTime } from '../../utils/clinicTime.js';
  *
  * Template names match the notifications.template column:
  * booking_confirmed · booking_cancelled · login_code · welcome · appointment_reminder · waitlist_slot_open ·
- * contact_change_code
+ * contact_change_code · email_code
  */
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -77,10 +77,22 @@ const TEMPLATES = {
   login_code: (data, language) => {
     const lines =
       language === 'ar'
-        ? [`رمزك الشخصي الجديد لتسجيل الدخول إلى ${escapeHtml(data.clinicName)}:`, codeBlock(data.personalCode), 'الرمز القديم لم يعد صالحاً.']
-        : [`Your new personal sign-in code for ${escapeHtml(data.clinicName)}:`, codeBlock(data.personalCode), 'Your old code no longer works.'];
+        ? [`رمزك الشخصي لتسجيل الدخول إلى ${escapeHtml(data.clinicName)}:`, codeBlock(data.personalCode), data.replaced ? 'الرمز القديم لم يعد صالحاً.' : 'احتفظ به ولا تشاركه مع أحد.']
+        : [`Your personal sign-in code for ${escapeHtml(data.clinicName)}:`, codeBlock(data.personalCode), data.replaced ? 'Your old code no longer works.' : 'Keep it private.'];
     return {
       subject: language === 'ar' ? 'رمز تسجيل الدخول' : 'Your sign-in code',
+      text: lines.join('\n').replace(/<[^>]+>/g, ''),
+      html: page(language, lines),
+    };
+  },
+
+  email_code: (data, language) => {
+    const lines =
+      language === 'ar'
+        ? [`رمز تسجيل الدخول إلى ${escapeHtml(data.clinicName)}:`, codeBlock(data.code), `صالح لمدة ${escapeHtml(data.minutes)} دقائق. إذا لم تطلبه، تجاهل هذه الرسالة.`]
+        : [`Your sign-in code for ${escapeHtml(data.clinicName)}:`, codeBlock(data.code), `It works for ${escapeHtml(data.minutes)} minutes. If you didn't ask for it, ignore this email.`];
+    return {
+      subject: language === 'ar' ? `رمز تسجيل الدخول – ${data.clinicName}` : `Your sign-in code – ${data.clinicName}`,
       text: lines.join('\n').replace(/<[^>]+>/g, ''),
       html: page(language, lines),
     };

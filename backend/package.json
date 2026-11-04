@@ -10,6 +10,8 @@
     "test:llm": "node scripts/test-llm.js",
     "ingest": "node scripts/ingest-knowledge.js",
     "seed:accounts": "node scripts/seed-accounts.js",
+    "auth:reset-password": "node scripts/auth-reset-password.js",
+    "auth:issue-missing-codes": "node scripts/auth-issue-missing-codes.js",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:watch": "vitest",

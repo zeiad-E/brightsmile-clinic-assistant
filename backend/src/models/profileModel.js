@@ -1,14 +1,16 @@
 import { unwrap, viewName } from './query.js';
 
-/** Logins (one profile per Supabase Auth user) and their roles. */
+/** Accounts and their roles. Passwords and lockouts are read only by the sign-in code. */
 
-const PROFILE_COLUMNS = 'id, role, full_name, email, phone, preferred_language, created_at';
+const PROFILE_COLUMNS = 'id, role, full_name, email, phone, preferred_language, must_change_password, disabled_at, last_sign_in_at, created_at';
+const LOGIN_COLUMNS = `${PROFILE_COLUMNS}, password_hash, failed_login_attempts, locked_until`;
+const TEAM_ROLES = ['owner', 'staff', 'viewer'];
 
 /** Everything authenticate() needs about the caller: the profile (role), plus the linked patient or staff record. */
 export async function findIdentity(db, userId) {
   const [profile, patient, staff] = await Promise.all([
     unwrap(db.from('profiles').select('id, role, full_name, email, preferred_language').eq('id', userId).maybeSingle()),
-    unwrap(db.from('patients').select('id').eq('profile_id', userId).maybeSingle()),
+    unwrap(db.from('patients').select('id, email, full_name, preferred_language').eq('profile_id', userId).maybeSingle()),
     unwrap(db.from('staff').select('id').eq('profile_id', userId).maybeSingle()),
   ]);
   if (!profile) return null;
@@ -16,9 +18,9 @@ export async function findIdentity(db, userId) {
   return {
     id: profile.id,
     role: profile.role,
-    email: profile.email,
-    fullName: profile.full_name,
-    preferredLanguage: profile.preferred_language,
+    email: patient?.email ?? profile.email,
+    fullName: patient?.full_name ?? profile.full_name,
+    preferredLanguage: patient?.preferred_language ?? profile.preferred_language,
     patientId: patient?.id ?? null,
     staffId: staff?.id ?? null,
   };
@@ -29,7 +31,48 @@ export function findById(db, id) {
 }
 
 export function findByEmail(db, email) {
-  return unwrap(db.from('profiles').select(PROFILE_COLUMNS).eq('email', email).maybeSingle());
+  return unwrap(db.from('profiles').select(PROFILE_COLUMNS).eq('email', email).in('role', TEAM_ROLES).maybeSingle());
+}
+
+/** A team account with its password hash, for signing in. */
+export function findTeamLogin(db, email) {
+  return unwrap(db.from('profiles').select(LOGIN_COLUMNS).eq('email', email).in('role', TEAM_ROLES).maybeSingle());
+}
+
+export function findLogin(db, id) {
+  return unwrap(db.from('profiles').select(LOGIN_COLUMNS).eq('id', id).maybeSingle());
+}
+
+/** Counts a wrong password, only from the number we read, so guesses at once can't share one. */
+export function recordWrongPassword(db, profile, patch) {
+  return unwrap(db.from('profiles').update(patch).eq('id', profile.id).eq('failed_login_attempts', profile.failed_login_attempts));
+}
+
+export function updateLogin(db, id, patch) {
+  return unwrap(db.from('profiles').update(patch).eq('id', id));
+}
+
+/** A patient's account: their name is copied for screens; sign-in details stay on the patient. */
+export function createPatientProfile(db, patient) {
+  return unwrap(
+    db
+      .from('profiles')
+      .insert({ role: 'patient', full_name: patient.full_name, preferred_language: patient.preferred_language })
+      .select(PROFILE_COLUMNS)
+      .single(),
+  );
+}
+
+/** Returns null if a team account already uses this email. */
+export async function createTeamProfile(db, row) {
+  const { data, error } = await db.from('profiles').insert(row).select(PROFILE_COLUMNS).single();
+  if (error?.code === '23505') return null;
+  if (error) throw error;
+  return data;
+}
+
+export function remove(db, id) {
+  return unwrap(db.from('profiles').delete().eq('id', id));
 }
 
 /** Team members (everyone who isn't a patient). The viewer reads the masked view. */
@@ -37,8 +80,8 @@ export function listTeam(db) {
   return unwrap(
     db
       .from(viewName(db, 'v_profiles'))
-      .select('id, role, full_name, email, phone, preferred_language, created_at')
-      .in('role', ['owner', 'staff', 'viewer'])
+      .select('id, role, full_name, email, phone, preferred_language, must_change_password, disabled_at, last_sign_in_at, created_at')
+      .in('role', TEAM_ROLES)
       .order('created_at'),
   );
 }

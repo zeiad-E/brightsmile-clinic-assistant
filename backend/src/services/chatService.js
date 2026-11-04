@@ -10,7 +10,7 @@ import * as patientModel from '../models/patientModel.js';
 import * as profileModel from '../models/profileModel.js';
 import * as assistantReportModel from '../models/assistantReportModel.js';
 import { findIdentity } from '../models/profileModel.js';
-import { revokeSession } from './sessionService.js';
+import * as sessions from '../auth/sessions.js';
 import { buildContext } from '../agent/context.js';
 import { buildSystemPrompt } from '../agent/systemPrompt.js';
 import { runAgentTurn } from '../agent/loop.js';
@@ -75,11 +75,11 @@ export async function sendMessage({ user, ip, evalCase, onEvent }, { conversatio
   const notify = onEvent ?? (() => {});
   notify('conversation', { conversation_id: conversation.id });
   return withConversationLock(conversation.id, () =>
-    runTurn({ admin, settings, user, lang, conversationId: conversation.id, message, keys, notify }),
+    runTurn({ admin, settings, user, lang, conversationId: conversation.id, message, keys, notify, visitor: evalCase ? null : ip }),
   );
 }
 
-async function runTurn({ admin, settings, user, lang, conversationId, message, keys, notify = () => {} }) {
+async function runTurn({ admin, settings, user, lang, conversationId, message, keys, visitor, notify = () => {} }) {
   const startedAt = Date.now();
   const conversation = await conversationModel.findById(admin, conversationId); // fresh, inside the lock
   const patch = { last_message_at: new Date().toISOString(), language: lang };
@@ -116,25 +116,23 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
     events: {},
     cards: [],
     toolLog: [],
-    session: null,
+    visitor,
+    signInTicket: null,
     endTurn: null,
     emit: (card) => {
       ctx.cards.push(card);
       notify('card', card);
     },
     onProgress: (progress) => notify('status', progressEvent(progress, lang)),
-    // Called by sign-in and booking tools: the conversation now belongs to this patient.
-    // Only a patient is ever signed in here; any other login is closed again at once.
-    signedIn: async (session) => {
-      const identity = await findIdentity(admin, session.user.id);
-      if (!isPatient(identity)) {
-        await revokeSession(session.access_token).catch(() => {});
-        return null;
-      }
-      if (identity) {
-        Object.assign(ctx, { user: identity, isPatient: isPatient(identity), db: dbFor(identity, 'patient_assistant'), session });
-        Object.assign(patch, { profile_id: identity.id, patient_id: identity.patientId });
-      }
+    // Called by sign-in and booking tools: the conversation now belongs to this patient. Only a
+    // patient is ever signed in here. The browser gets a one-time ticket, because a chat reply
+    // can't set a cookie; the AI never sees it.
+    signIn: async ({ profile, method }) => {
+      const identity = await findIdentity(admin, profile.id);
+      if (!isPatient(identity)) return null;
+      const { refreshToken } = await sessions.issue({ profile, method, ticket: true, client: { ip: visitor } });
+      Object.assign(ctx, { user: identity, isPatient: true, db: dbFor(identity, 'patient_assistant'), signInTicket: refreshToken });
+      Object.assign(patch, { profile_id: identity.id, patient_id: identity.patientId });
       return identity;
     },
   };
@@ -306,7 +304,7 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
     conversation_id: conversationId,
     reply: restoreForPatient(reply, ctx.map),
     cards: ctx.cards,
-    session: ctx.session,
+    sign_in_ticket: ctx.signInTicket,
     status: update.status ?? ctx.conversation.status,
   };
 }

@@ -1,20 +1,25 @@
 /**
- * Create the login accounts for the demo (safe to re-run; existing accounts are kept):
+ * Create the accounts for the demo (safe to re-run; accounts that have a password are kept):
  *   - owner   : your private login (linked to Dr. Sarah Mansour)
  *   - staff   : private receptionist login (Mona)
  *   - viewer  : read-only login you share with clients
- *   - patient : demo patient Mariam Hassan (phone sign-in), linked to her patient record
+ *   - patient : demo patient Mariam Hassan (phone sign-in)
  *
- * Passwords are generated and written to backend/scripts/demo-accounts.local (gitignored).
- * Nothing secret is printed.
+ * A team account without a password gets a temporary one. Owner and staff must replace it at
+ * first sign-in. This also moves accounts created before sign-in lived in our own backend.
+ *
+ * Passwords are written to backend/scripts/demo-accounts.local (gitignored). Nothing secret is printed.
  *
  * Usage: npm run seed:accounts -- --owner-email you@example.com
  */
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hashPassword, temporaryPassword } from '../src/auth/passwords.js';
 import { supabase } from '../src/db/supabase.js';
+import * as patientModel from '../src/models/patientModel.js';
+import * as profileModel from '../src/models/profileModel.js';
+import * as accountService from '../src/services/accountService.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outputFile = path.join(here, 'demo-accounts.local');
@@ -34,68 +39,38 @@ if (!ownerEmail) {
 const DR_SARAH_STAFF_ID = '5eed0000-0000-4000-a000-000000000101';
 const DEMO_PATIENT_PHONE = '+201000000001';
 
-const password = () => crypto.randomBytes(12).toString('base64url');
+// Create the account if it doesn't exist; give it a temporary password if it has none.
+async function ensureTeamAccount({ email, role, fullName }) {
+  const mustChange = role !== 'viewer'; // the demo account can't change its password
+  const existing = await profileModel.findTeamLogin(supabase, email);
 
-async function findUserByEmail(email) {
-  for (let page = 1; page < 50; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) throw error;
-    const match = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-    if (match) return match;
-    if (data.users.length < 200) return null;
-  }
-  return null;
-}
+  if (existing?.password_hash) return { id: existing.id, email, password: null, state: 'kept' };
 
-// Create the login if it doesn't exist; keep the password of an existing one.
-async function ensureUser({ email, role, fullName, language = 'en' }) {
-  const existing = await findUserByEmail(email);
+  const password = temporaryPassword();
   if (existing) {
-    const { error } = await supabase.from('profiles').update({ role, full_name: fullName }).eq('id', existing.id);
-    if (error) throw error;
-    return { id: existing.id, email, password: null, created: false };
+    await accountService.setPassword(existing.id, password, { mustChange });
+    return { id: existing.id, email, password, state: 'password set' };
   }
 
-  const pwd = password();
-  const { data, error } = await supabase.auth.admin.createUser({
+  const profile = await profileModel.createTeamProfile(supabase, {
     email,
-    password: pwd,
-    email_confirm: true,
-    app_metadata: { role },
-    user_metadata: { full_name: fullName, preferred_language: language },
+    role,
+    full_name: fullName,
+    password_hash: await hashPassword(password),
+    password_changed_at: new Date().toISOString(),
+    must_change_password: mustChange,
   });
-  if (error) throw error;
-  // Supabase attaches app_metadata after the insert, so the profile trigger never sees the role.
-  const { error: roleError } = await supabase.from('profiles').update({ role, full_name: fullName }).eq('id', data.user.id);
-  if (roleError) throw roleError;
-  return { id: data.user.id, email, password: pwd, created: true };
+  return { id: profile.id, email, password, state: 'created' };
 }
 
-const owner = await ensureUser({ email: ownerEmail, role: 'owner', fullName: 'Dr. Sarah Mansour' });
+const owner = await ensureTeamAccount({ email: ownerEmail, role: 'owner', fullName: 'Dr. Sarah Mansour' });
 await supabase.from('staff').update({ profile_id: owner.id }).eq('id', DR_SARAH_STAFF_ID);
 
-const staff = await ensureUser({ email: 'mona.reception@brightsmile.clinic', role: 'staff', fullName: 'Mona Adel' });
-const viewer = await ensureUser({ email: 'demo@brightsmile.clinic', role: 'viewer', fullName: 'Demo Viewer' });
+const staff = await ensureTeamAccount({ email: 'mona.reception@brightsmile.clinic', role: 'staff', fullName: 'Mona Adel' });
+const viewer = await ensureTeamAccount({ email: 'demo@brightsmile.clinic', role: 'viewer', fullName: 'Demo Viewer' });
 
-// Demo patient: phone-only, so the login uses an internal placeholder email.
-const { data: mariam, error: mariamError } = await supabase
-  .from('patients')
-  .select('id, full_name, date_of_birth, profile_id')
-  .eq('phone', DEMO_PATIENT_PHONE)
-  .maybeSingle();
-if (mariamError) throw mariamError;
-
-let patient = null;
-if (mariam) {
-  patient = await ensureUser({
-    email: `patient-${mariam.id}@patients.brightsmile.app`,
-    role: 'patient',
-    fullName: mariam.full_name,
-    language: 'ar',
-  });
-  const { error } = await supabase.from('patients').update({ profile_id: patient.id }).eq('id', mariam.id);
-  if (error) throw error;
-}
+const mariam = await patientModel.findByPhone(supabase, DEMO_PATIENT_PHONE);
+if (mariam) await accountService.ensurePatientAccount(mariam);
 
 // Keep passwords from earlier runs; add new ones.
 const previous = fs.existsSync(outputFile) ? fs.readFileSync(outputFile, 'utf8') : '';
@@ -108,6 +83,7 @@ fs.writeFileSync(
   outputFile,
   [
     '# Demo logins (gitignored). Owner + staff are private; share only the viewer login.',
+    '# Owner and staff passwords here are temporary: they must be changed at first sign-in.',
     line('owner', owner),
     line('staff', staff),
     line('viewer', viewer),
@@ -120,8 +96,8 @@ fs.writeFileSync(
   ].join('\n'),
 );
 
-console.log(`owner   ${owner.created ? 'created' : 'already existed'} (${owner.email}) → linked to Dr. Sarah Mansour`);
-console.log(`staff   ${staff.created ? 'created' : 'already existed'}`);
-console.log(`viewer  ${viewer.created ? 'created' : 'already existed'}`);
-console.log(`patient ${patient ? (patient.created ? 'created' : 'already existed') + ' → linked to Mariam Hassan' : 'skipped (seed missing)'}`);
+console.log(`owner   ${owner.state} (${owner.email}) → linked to Dr. Sarah Mansour`);
+console.log(`staff   ${staff.state}`);
+console.log(`viewer  ${viewer.state}`);
+console.log(`patient ${mariam ? 'ready: Mariam Hassan' : 'skipped (seed missing)'}`);
 console.log(`\nLogins saved to ${path.relative(process.cwd(), outputFile)} (gitignored).`);

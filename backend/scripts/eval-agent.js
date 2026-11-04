@@ -242,7 +242,7 @@ async function cleanup(conversationIds) {
 
   for (const id of logins) {
     await admin.from('audit_log').delete().eq('actor_id', id);
-    await admin.auth.admin.deleteUser(id);
+    await admin.from('profiles').delete().eq('id', id); // their sessions go with them
   }
   return { conversations: convIds.length, patients: patientIds.length, logins: logins.length };
 }

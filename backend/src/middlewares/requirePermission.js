@@ -15,6 +15,10 @@ export function requirePermission(permission) {
   const guard = (req, _res, next) => {
     if (!req.user) return next(AppError.unauthorized());
     if (!can(req.user, permission)) return next(AppError.forbidden());
+    // A temporary password opens nothing except the screen that replaces it.
+    if (req.user.mustChangePassword && permission !== 'account.password.change') {
+      return next(AppError.forbidden('password_change_required', 'Please choose a new password first.'));
+    }
     return next();
   };
   guard.permission = permission;
