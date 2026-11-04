@@ -43,16 +43,16 @@ export default function DashProvider({ words, locale, children }) {
     const tag = intlLocale(locale);
     const dates = (options) => new Intl.DateTimeFormat(tag, { timeZone: CLINIC_TZ, ...options });
     const number = (n, options) => new Intl.NumberFormat(tag, options).format(n ?? 0);
-    const role = user?.role;
+    const has = new Set(user?.permissions ?? []);
     return {
       w: words,
       locale,
       user,
       can: {
-        write: role === 'staff' || role === 'owner',
-        owner: role === 'owner',
-        ownerArea: role === 'owner' || role === 'viewer',
-        viewer: role === 'viewer',
+        write: has.has('appointments.write'),
+        owner: has.has('team.manage'),
+        ownerArea: has.has('team.read'),
+        viewer: user?.role === 'viewer',
       },
       fmt: {
         date: (iso, options = { day: 'numeric', month: 'short', year: 'numeric' }) => (iso ? dates(options).format(new Date(iso)) : '—'),

@@ -6,8 +6,9 @@ import { fakeIdentity, fakeSupabaseModule, fakeUserClientModule, ROLE_IDS, token
  * The permission matrix: every endpoint × every role → let in, or turned away?
  *
  * Services are replaced with stubs, so this test checks ONLY the doors (authenticate +
- * requireRole + validation order), not the business logic. "Let in" = anything except
- * 401/403. The database's own security rules are tested separately (SQL tests).
+ * requirePermission + validation order), not the business logic. "Let in" = anything except
+ * 401/403. The expected roles here are written out by hand on purpose: they are a second,
+ * independent statement of who may do what, checked against the permission lists.
  */
 vi.mock('../../src/db/supabase.js', () => fakeSupabaseModule());
 vi.mock('../../src/db/userClient.js', () => fakeUserClientModule());
@@ -63,6 +64,15 @@ vi.mock('../../src/services/chatService.js', () =>
 );
 
 const { createApp } = await import('../../src/app.js');
+const { adminRouter } = await import('../../src/routes/admin.js');
+const { appointmentsRouter } = await import('../../src/routes/appointments.js');
+const { authRouter } = await import('../../src/routes/auth.js');
+const { meRouter } = await import('../../src/routes/me.js');
+const { publicRouter } = await import('../../src/routes/public.js');
+const { staffRouter } = await import('../../src/routes/staff.js');
+const { createRateLimits } = await import('../../src/middlewares/rateLimits.js');
+const { requirePermission } = await import('../../src/middlewares/requirePermission.js');
+const { can, permissionsOf } = await import('../../src/auth/permissions.js');
 const app = createApp({ rateLimit: false });
 
 const ID = '00000000-0000-4000-a000-000000000999';
@@ -96,6 +106,9 @@ const MATRIX = [
 
   ['post', '/api/auth/staff/login', { email: 'a@b.co', password: 'x' }, ALL],
   ['post', '/api/auth/email/start', { email: 'a@b.co' }, ALL],
+  ['post', '/api/auth/email/verify', { email: 'a@b.co', code: '123456' }, ALL],
+  ['post', '/api/auth/code/resend', { email: 'a@b.co' }, ALL],
+  ['post', '/api/auth/refresh', { refresh_token: 'x'.repeat(20) }, ALL],
   ['post', '/api/auth/phone', { phone: '+201001234567', full_name: 'Ahmed Ali', date_of_birth: '1990-01-01' }, ALL],
   ['post', '/api/auth/code', { code: 'K7Q4-9M2X' }, ALL],
   ['post', '/api/auth/logout', null, SIGNED_IN],
@@ -228,6 +241,58 @@ describe('permission matrix', () => {
     } else {
       expect(res.status, `${role} must be turned away`).toBe(role === 'anon' ? 401 : 403);
     }
+  });
+});
+
+describe('every route is covered', () => {
+  const limits = createRateLimits({ enabled: false });
+  const routesOf = (prefix, router) =>
+    router.stack
+      .filter((layer) => layer.route)
+      .flatMap((layer) =>
+        Object.keys(layer.route.methods).map((method) => ({
+          method,
+          path: `${prefix}${layer.route.path === '/' ? '' : layer.route.path}`,
+          handlers: layer.route.stack.map((step) => step.handle),
+        })),
+      );
+  const signedIn = [...routesOf('/api/me', meRouter(limits)), ...routesOf('/api/staff', staffRouter(limits)), ...routesOf('/api/admin', adminRouter())];
+  const everything = [
+    ...signedIn,
+    ...routesOf('/api/auth', authRouter(limits)),
+    ...routesOf('/api/appointments', appointmentsRouter(limits)),
+    ...routesOf('/api', publicRouter()),
+  ];
+
+  it.each(signedIn.map((route) => [`${route.method.toUpperCase()} ${route.path}`, route]))('%s has a permission guard', (_name, route) => {
+    expect(route.handlers.some((handler) => handler.permission)).toBe(true);
+  });
+
+  it.each(everything.map((route) => [`${route.method.toUpperCase()} ${route.path}`, route]))('%s is in the matrix above', (_name, route) => {
+    const pattern = new RegExp(`^${route.path.replace(/:\w+/g, '[^/]+')}$`);
+    const listed = MATRIX.some(([method, path]) => method === route.method && pattern.test(path.split('?')[0]));
+    expect(listed).toBe(true);
+  });
+});
+
+describe('the permission lists', () => {
+  it('give a role nothing by mistake', () => {
+    expect(can({ role: 'viewer' }, 'pii.read')).toBe(false);
+    expect(can({ role: 'viewer' }, 'patients.code.view')).toBe(false);
+    expect(can({ role: 'staff' }, 'team.manage')).toBe(false);
+    expect(can({ role: 'patient' }, 'patients.read')).toBe(false);
+    expect(can({ role: 'owner' }, 'self.appointments')).toBe(false);
+    expect(can(null, 'patients.read')).toBe(false);
+    expect(can({ role: 'unknown' }, 'patients.read')).toBe(false);
+  });
+
+  it('hold every team permission the owner needs', () => {
+    expect(permissionsOf('owner')).toEqual(expect.arrayContaining(permissionsOf('staff')));
+    expect(permissionsOf('owner')).toEqual(expect.arrayContaining(permissionsOf('viewer')));
+  });
+
+  it('refuse a guard with a misspelled permission when the server starts', () => {
+    expect(() => requirePermission('patients.wirte')).toThrow(/Unknown permission/);
   });
 });
 

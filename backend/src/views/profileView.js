@@ -1,8 +1,11 @@
+import { permissionsOf } from '../auth/permissions.js';
+
 /** The signed-in user, as returned by GET /api/auth/me. */
 export function meView(user, { patient = null, staff = null } = {}) {
   return {
     id: user.id,
     role: user.role,
+    permissions: permissionsOf(user.role),
     email: user.email,
     full_name: user.fullName,
     preferred_language: user.preferredLanguage,

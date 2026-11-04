@@ -1,3 +1,4 @@
+import { can } from '../auth/permissions.js';
 import { requireAdmin } from '../db/supabase.js';
 import * as appointmentModel from '../models/appointmentModel.js';
 import { AppError } from '../utils/AppError.js';
@@ -79,10 +80,10 @@ export async function getMine({ user, db }, id) {
  */
 async function mayChange({ user, db }, id) {
   const appointment = await appointmentModel.findById(db, id);
-  const isPatient = user.role === 'patient';
-  if (!appointment || (isPatient && appointment.patient_id !== user.patientId)) throw changeError({ error: 'not_found' });
+  const anyBooking = can(user, 'appointments.write');
+  if (!appointment || (!anyBooking && appointment.patient_id !== user.patientId)) throw changeError({ error: 'not_found' });
   if (appointment.status !== 'booked') throw changeError({ error: 'not_cancellable' });
-  if (isPatient) {
+  if (!anyBooking) {
     const { cancellationWindowHours: hours } = await clinicBranding();
     if (new Date(appointment.starts_at).getTime() - Date.now() < hours * 3_600_000) {
       throw changeError({ error: 'too_late', window_hours: hours });

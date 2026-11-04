@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
 import { config } from '../config/index.js';
+import { can } from '../auth/permissions.js';
 import { AppError } from '../utils/AppError.js';
 
 /**
@@ -53,12 +54,10 @@ export function adminAs(actorId, via = 'dashboard') {
   });
 }
 
-const SEES_PERSONAL_DATA = new Set(['staff', 'owner']);
-
 /** The database client for one signed-in caller: writes are audited as them. */
 export function dbFor(user, via = 'dashboard') {
   const db = adminAs(user.id, via);
-  db.piiAccess = SEES_PERSONAL_DATA.has(user.role);
+  db.piiAccess = can(user, 'pii.read');
   return db;
 }
 

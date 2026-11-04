@@ -1,3 +1,4 @@
+import { can } from '../auth/permissions.js';
 import { requireAdmin } from '../db/supabase.js';
 import * as agentRunModel from '../models/agentRunModel.js';
 import * as auditModel from '../models/auditModel.js';
@@ -147,7 +148,7 @@ export async function assistantActivity({ user, db }, page) {
   );
   const byId = new Map(conversations.filter(Boolean).map((c) => [c.id, c]));
   const patients = await patientModel.namesByIds(db, conversations.filter(Boolean).map((c) => c.patient_id));
-  const viewer = user.role === 'viewer';
+  const masked = !can(user, 'pii.read');
   return listView(result, page, (run) => {
     const conversation = byId.get(run.conversation_id);
     return {
@@ -157,7 +158,7 @@ export async function assistantActivity({ user, db }, page) {
       latency_ms: run.latency_ms,
       created_at: run.created_at,
       tools: (run.tool_calls ?? []).filter((t) => t?.name && !t.name.startsWith('_')).map((t) => ({ name: t.name, ok: t.ok !== false })),
-      conversation_title: viewer ? null : (conversation?.title ?? null),
+      conversation_title: masked ? null : (conversation?.title ?? null),
       patient_name: patients.get(conversation?.patient_id) ?? null,
     };
   });
