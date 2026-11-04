@@ -10,7 +10,7 @@ vi.mock('../../src/db/supabase.js', () => ({
 }));
 vi.mock('../../src/models/appointmentModel.js', () => ({ book: vi.fn(), findById: vi.fn() }));
 vi.mock('../../src/models/patientModel.js', () => ({ findById: vi.fn() }));
-vi.mock('../../src/services/accountService.js', () => ({ ensurePatientAccount: vi.fn() }));
+vi.mock('../../src/models/profileModel.js', () => ({ findById: vi.fn() }));
 vi.mock('../../src/services/personalCodeService.js', () => ({ issueCode: vi.fn(async () => 'K7Q4-9M2X') }));
 vi.mock('../../src/services/availabilityService.js', () => ({
   nextFreeSlots: vi.fn(async () => [{ starts_at: '2026-12-01T08:15:00Z', ends_at: '2026-12-01T08:45:00Z' }]),
@@ -24,7 +24,7 @@ vi.mock('../../src/services/waitlistService.js', () => ({ closeOnBooking: vi.fn(
 
 const appointmentModel = await import('../../src/models/appointmentModel.js');
 const patientModel = await import('../../src/models/patientModel.js');
-const accountService = await import('../../src/services/accountService.js');
+const profileModel = await import('../../src/models/profileModel.js');
 const personalCodeService = await import('../../src/services/personalCodeService.js');
 const emailService = await import('../../src/services/email/emailService.js');
 const waitlistService = await import('../../src/services/waitlistService.js');
@@ -62,7 +62,7 @@ const appointmentRow = {
 beforeEach(() => {
   vi.clearAllMocks();
   appointmentModel.findById.mockResolvedValue(appointmentRow);
-  accountService.ensurePatientAccount.mockResolvedValue(PROFILE);
+  profileModel.findById.mockResolvedValue(PROFILE);
   patientModel.findById.mockResolvedValue(patientRow);
 });
 
@@ -107,7 +107,7 @@ describe('bookAsVisitor', () => {
 
     expect(status).toBe(200);
     expect(body.replayed).toBe(true);
-    expect(accountService.ensurePatientAccount).not.toHaveBeenCalled();
+    expect(profileModel.findById).not.toHaveBeenCalled();
     expect(emailService.sendEmailInBackground).not.toHaveBeenCalled();
   });
 
@@ -163,7 +163,7 @@ describe('bookAsVisitor', () => {
 
   it('keeps the booking even if the login setup fails afterwards', async () => {
     appointmentModel.book.mockResolvedValue(ok());
-    accountService.ensurePatientAccount.mockRejectedValue(new Error('auth down'));
+    profileModel.findById.mockRejectedValue(new Error('database down'));
 
     const { status, body, signIn } = await bookAsVisitor({ user: null }, guestInput, KEY);
 

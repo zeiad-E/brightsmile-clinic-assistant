@@ -3,8 +3,8 @@ import { pageRange, searchTerm, unwrap, unwrapPage, viewName } from './query.js'
 /**
  * Patient records.
  *
- * Columns are always listed by name: logged-in users are not allowed to read the
- * sign-in secrets (code_hmac, lockout counters), so `select('*')` would be refused.
+ * Columns are always listed by name, so the sign-in secrets (code_hmac, lockout counters) can't
+ * reach a view by accident.
  */
 const COLUMNS = 'id, profile_id, full_name, date_of_birth, email, phone, preferred_language, notes, created_at, updated_at';
 
@@ -54,22 +54,6 @@ export function findInView(db, id) {
 
 export function update(db, id, patch) {
   return unwrap(db.from('patients').update(patch).eq('id', id).select(COLUMNS).maybeSingle());
-}
-
-/**
- * Links a login to the patient — only if no login is linked yet. If two requests race,
- * exactly one wins; the other gets null and re-reads the winner's link.
- */
-export function linkProfile(db, patientId, profileId) {
-  return unwrap(
-    db
-      .from('patients')
-      .update({ profile_id: profileId })
-      .eq('id', patientId)
-      .is('profile_id', null)
-      .select(COLUMNS)
-      .maybeSingle(),
-  );
 }
 
 /** Answers to the owner's intake questions (merged into what is already saved). */

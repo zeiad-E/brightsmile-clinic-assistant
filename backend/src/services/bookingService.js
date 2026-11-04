@@ -1,10 +1,10 @@
 import { adminAs, requireAdmin } from '../db/supabase.js';
 import * as appointmentModel from '../models/appointmentModel.js';
 import * as patientModel from '../models/patientModel.js';
+import * as profileModel from '../models/profileModel.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { appointmentView } from '../views/appointmentView.js';
-import * as accountService from './accountService.js';
 import * as personalCodeService from './personalCodeService.js';
 import { nextFreeSlots } from './availabilityService.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
@@ -58,7 +58,7 @@ async function afterBooking({ result, appointment }) {
   let personalCode = null;
 
   try {
-    profile = await accountService.ensurePatientAccount(patient);
+    profile = await profileModel.findById(db, patient.profile_id);
     if (result.is_new_patient) personalCode = await personalCodeService.issueCode(patient.id);
   } catch (err) {
     logger.warn(`Post-booking account setup failed for patient ${patient.id}: ${err.message}`);

@@ -7,8 +7,7 @@ import { AppError } from '../../src/utils/AppError.js';
  */
 vi.mock('../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), adminAs: () => ({}) }));
 vi.mock('../../src/models/patientModel.js', () => ({ findByEmail: vi.fn(), findByPhone: vi.fn(), create: vi.fn(), update: vi.fn() }));
-vi.mock('../../src/models/profileModel.js', () => ({ updateLogin: vi.fn() }));
-vi.mock('../../src/services/accountService.js', () => ({ ensurePatientAccount: vi.fn(async () => ({ id: 'profile-1', role: 'patient' })) }));
+vi.mock('../../src/models/profileModel.js', () => ({ findById: vi.fn(async () => ({ id: 'profile-1', role: 'patient' })), updateLogin: vi.fn() }));
 vi.mock('../../src/services/authService.js', () => ({ sendEmailCode: vi.fn(), checkEmailCode: vi.fn(), phoneLogin: vi.fn(), sendCurrentCode: vi.fn() }));
 vi.mock('../../src/services/personalCodeService.js', () => ({ issueCode: vi.fn(async () => 'K7Q4-9M2X') }));
 

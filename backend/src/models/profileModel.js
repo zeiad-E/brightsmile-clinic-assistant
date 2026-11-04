@@ -53,26 +53,12 @@ export function updateLogin(db, id, patch) {
 }
 
 /** A patient's account: their name is copied for screens; sign-in details stay on the patient. */
-export function createPatientProfile(db, patient) {
-  return unwrap(
-    db
-      .from('profiles')
-      .insert({ role: 'patient', full_name: patient.full_name, preferred_language: patient.preferred_language })
-      .select(PROFILE_COLUMNS)
-      .single(),
-  );
-}
-
 /** Returns null if a team account already uses this email. */
 export async function createTeamProfile(db, row) {
   const { data, error } = await db.from('profiles').insert(row).select(PROFILE_COLUMNS).single();
   if (error?.code === '23505') return null;
   if (error) throw error;
   return data;
-}
-
-export function remove(db, id) {
-  return unwrap(db.from('profiles').delete().eq('id', id));
 }
 
 /** Team members (everyone who isn't a patient). The viewer reads the masked view. */

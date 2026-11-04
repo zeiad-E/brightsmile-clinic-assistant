@@ -10,8 +10,6 @@ vi.mock('../../src/services/catalogService.js', () => ({
   clinicNameIn: () => 'BrightSmile',
 }));
 vi.mock('../../src/services/email/emailService.js', () => ({
-  PLACEHOLDER_EMAIL_DOMAIN: 'patients.brightsmile.app',
-  isPlaceholderEmail: (a) => String(a).endsWith('@patients.brightsmile.app'),
   sendEmail: vi.fn(async () => ({ sent: true })),
 }));
 vi.mock('../../src/models/appointmentModel.js', () => ({ findForNotification: vi.fn(async () => store.appointment) }));
@@ -81,9 +79,8 @@ describe('appointment reminders', () => {
     ...extra,
   });
 
-  it('the sweep asks the database to skip internal placeholder addresses', async () => {
+  it('the sweep reports how many reminders the database queued', async () => {
     expect(await reminders.queueDueReminders()).toBe(2);
-    expect(maintenanceModel.queueDueReminders).toHaveBeenCalledWith({}, { skipEmailDomain: 'patients.brightsmile.app' });
   });
 
   it('emails the patient, with the online change deadline while it is still ahead', async () => {
@@ -175,8 +172,7 @@ describe('waitlist: joining', () => {
     expect(store.created[0]).toMatchObject({ patientId: 'p1', serviceId: 'clean', staffId: null });
   });
 
-  it('refuses without a real email (the waitlist works by email)', async () => {
-    expect(await join({ patient: patient('p1', { email: 'x@patients.brightsmile.app' }) })).toMatchObject({ error: 'no_email' });
+  it('refuses without an email (the waitlist works by email)', async () => {
     expect(await join({ patient: patient('p1', { email: null }) })).toMatchObject({ error: 'no_email' });
   });
 

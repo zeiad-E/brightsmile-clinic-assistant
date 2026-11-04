@@ -9,11 +9,10 @@ const sent = [];
 
 vi.mock('../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), adminAs: () => ({}), dbFor: () => ({}), publicDb: () => ({}) }));
 vi.mock('../../src/models/patientModel.js', () => ({ findByEmail: vi.fn(async () => null), findForPhoneLogin: vi.fn() }));
-vi.mock('../../src/models/profileModel.js', () => ({ findTeamLogin: vi.fn(), updateLogin: vi.fn(), findIdentity: vi.fn() }));
+vi.mock('../../src/models/profileModel.js', () => ({ findById: vi.fn(async (_db, id) => ({ id, role: 'patient' })), findTeamLogin: vi.fn(), updateLogin: vi.fn(), findIdentity: vi.fn() }));
 vi.mock('../../src/models/loginCodeModel.js', () => ({ find: vi.fn(async () => null), save: vi.fn() }));
 vi.mock('../../src/services/catalogService.js', () => ({ clinicBranding: vi.fn(async () => ({})), clinicNameIn: () => 'BrightSmile' }));
 vi.mock('../../src/services/email/emailService.js', () => ({ sendEmailInBackground: vi.fn((mail) => sent.push(mail)) }));
-vi.mock('../../src/services/accountService.js', () => ({ ensurePatientAccount: vi.fn() }));
 vi.mock('../../src/services/personalCodeService.js', () => ({ findPatientByCode: vi.fn() }));
 
 const authService = await import('../../src/services/authService.js');
@@ -61,16 +60,12 @@ describe('the assistant’s sign-in tools', () => {
 
   it('report "not available" when the sign-in is refused', async () => {
     personalCodeService.findPatientByCode.mockResolvedValue({ id: 'pat-1', profile_id: 'p' });
-    const accountService = await import('../../src/services/accountService.js');
-    accountService.ensurePatientAccount.mockResolvedValue({ id: 'p', role: 'patient' });
 
     expect(await signInWithCode.run({ code: 'K7Q4-9M2X' }, chat(async () => null))).toMatchObject({ error: 'login_unavailable' });
   });
 
   it('tell the AI only the first name, never anything that signs in', async () => {
     personalCodeService.findPatientByCode.mockResolvedValue({ id: 'pat-1', profile_id: 'p' });
-    const accountService = await import('../../src/services/accountService.js');
-    accountService.ensurePatientAccount.mockResolvedValue({ id: 'p', role: 'patient' });
 
     const result = await signInWithCode.run({ code: 'K7Q4-9M2X' }, chat(async () => ({ fullName: 'Mariam Hassan' })));
 

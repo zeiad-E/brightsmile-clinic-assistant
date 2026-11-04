@@ -7,7 +7,7 @@ import * as waitlistModel from '../models/waitlistModel.js';
 import { dayInZone } from '../utils/clinicTime.js';
 import { logger } from '../utils/logger.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
-import { isPlaceholderEmail, sendEmail } from './email/emailService.js';
+import { sendEmail } from './email/emailService.js';
 
 /**
  * The waitlist: a patient for whom no time suits leaves a wish (service, one doctor or any
@@ -30,7 +30,7 @@ export const WAITLIST_LIMITS = Object.freeze({
  * the assistant reads the error and explains it kindly.
  */
 export async function join({ patient, serviceId, staffId = null, dateFrom, dateTo, conversationId = null }) {
-  if (!patient.email || isPlaceholderEmail(patient.email)) {
+  if (!patient.email) {
     return { error: 'no_email', message: 'The waitlist tells patients by email, and this patient has no email on file.' };
   }
   const db = requireAdmin();

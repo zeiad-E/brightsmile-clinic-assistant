@@ -2,7 +2,6 @@ import { adminAs, requireAdmin } from '../db/supabase.js';
 import * as patientModel from '../models/patientModel.js';
 import * as profileModel from '../models/profileModel.js';
 import { AppError } from '../utils/AppError.js';
-import * as accountService from './accountService.js';
 import * as authService from './authService.js';
 import * as personalCodeService from './personalCodeService.js';
 
@@ -33,7 +32,7 @@ async function intoSameEmail(patient, form, via) {
   if (!patient.phone && !(await patientModel.findByPhone(db, form.phone))) patch.phone = form.phone;
   if (!patient.date_of_birth) patch.date_of_birth = form.date_of_birth;
   if (Object.keys(patch).length) await patientModel.update(adminAs(null, via), patient.id, patch);
-  return accountService.ensurePatientAccount(patient);
+  return profileModel.findById(db, patient.profile_id);
 }
 
 async function intoSamePhone(patient, form, email, { via, visitor }) {
@@ -74,7 +73,7 @@ export async function finishRegistration({ email, code }, { via = 'dashboard', v
   else {
     const patient = await createPatient(form, email, via);
     personalCode = await personalCodeService.issueCode(patient.id);
-    profile = await accountService.ensurePatientAccount(patient);
+    profile = await profileModel.findById(db, patient.profile_id);
     await authService.sendCurrentCode(patient);
   }
 

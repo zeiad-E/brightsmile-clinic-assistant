@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderEmail } from '../../src/services/email/templates.js';
 import { createBrevoAdapter, parseAddress } from '../../src/services/email/adapters/brevo.js';
-import { isPlaceholderEmail, sendEmail, setEmailAdapter } from '../../src/services/email/emailService.js';
+import { sendEmail, setEmailAdapter } from '../../src/services/email/emailService.js';
 import { logger } from '../../src/utils/logger.js';
 
 const booking = {
@@ -44,12 +44,11 @@ describe('templates', () => {
 describe('emailService', () => {
   afterEach(() => setEmailAdapter(null));
 
-  it('never mails an internal placeholder address', async () => {
+  it('never mails a reserved test address', async () => {
     const send = vi.fn();
     setEmailAdapter({ send });
 
-    expect(isPlaceholderEmail('patient-1@patients.brightsmile.app')).toBe(true);
-    expect(await sendEmail({ template: 'login_code', to: 'patient-1@patients.brightsmile.app', data: {} })).toMatchObject({ skipped: true });
+    expect(await sendEmail({ template: 'login_code', to: 'patient-1@example.invalid', data: {} })).toMatchObject({ skipped: true });
     expect(send).not.toHaveBeenCalled();
   });
 

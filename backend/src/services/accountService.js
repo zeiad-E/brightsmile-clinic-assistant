@@ -2,30 +2,13 @@ import { hashPassword, temporaryPassword } from '../auth/passwords.js';
 import * as sessions from '../auth/sessions.js';
 import { adminAs, requireAdmin } from '../db/supabase.js';
 import * as auditModel from '../models/auditModel.js';
-import * as patientModel from '../models/patientModel.js';
 import * as profileModel from '../models/profileModel.js';
 
 /**
- * Accounts (rows in `profiles`). A patient's sign-in details live on their patient record; the
- * profile is what sessions, the audit log and chats point to. Team members sign in with the email
- * and password stored here.
+ * Team accounts (rows in `profiles`). Team members sign in with the email and password stored
+ * here. A patient's profile is made by the database with their patient record, and their sign-in
+ * details live on that record.
  */
-
-/**
- * Makes sure a patient has an account. Race-safe: if two requests do this for the same new
- * patient, only one link wins and the other uses the winner's account.
- */
-export async function ensurePatientAccount(patient) {
-  const db = requireAdmin();
-  if (patient.profile_id) return profileModel.findById(db, patient.profile_id);
-
-  const profile = await profileModel.createPatientProfile(db, patient);
-  if (await patientModel.linkProfile(db, patient.id, profile.id)) return profile;
-
-  await profileModel.remove(db, profile.id);
-  const fresh = await patientModel.findById(db, patient.id);
-  return profileModel.findById(db, fresh.profile_id);
-}
 
 // ----- clinic team -----
 

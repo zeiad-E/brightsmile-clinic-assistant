@@ -13,7 +13,7 @@ vi.mock('../../src/models/patientModel.js', () => ({
   unlockLogin: vi.fn(),
   findById: vi.fn(),
 }));
-vi.mock('../../src/models/profileModel.js', () => ({ findTeamLogin: vi.fn(), findLogin: vi.fn(), recordWrongPassword: vi.fn(), updateLogin: vi.fn(), findById: vi.fn() }));
+vi.mock('../../src/models/profileModel.js', () => ({ findById: vi.fn(async (_db, id) => ({ id, role: 'patient' })), findTeamLogin: vi.fn(), findLogin: vi.fn(), recordWrongPassword: vi.fn(), updateLogin: vi.fn(), findById: vi.fn() }));
 vi.mock('../../src/models/staffModel.js', () => ({ findById: vi.fn() }));
 vi.mock('../../src/models/loginCodeModel.js', () => ({
   find: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../../src/models/loginCodeModel.js', () => ({
   consume: vi.fn(async () => ({ id: 'row' })),
   remove: vi.fn(),
 }));
-vi.mock('../../src/services/accountService.js', () => ({ ensurePatientAccount: vi.fn(async (patient) => ({ id: patient.profile_id ?? 'profile-new', role: 'patient' })), setPassword: vi.fn() }));
+vi.mock('../../src/services/accountService.js', () => ({ setPassword: vi.fn() }));
 vi.mock('../../src/services/personalCodeService.js', () => ({ findPatientByCode: vi.fn(), currentOrNewCode: vi.fn(async () => ({ code: 'K7Q4-9M2X', replaced: false })) }));
 vi.mock('../../src/services/catalogService.js', () => ({ clinicBranding: vi.fn(async () => ({})), clinicNameIn: () => 'BrightSmile' }));
 vi.mock('../../src/services/email/emailService.js', () => ({ sendEmailInBackground: vi.fn((mail) => sent.push(mail)) }));
@@ -46,6 +46,7 @@ const inMinutes = (m) => new Date(Date.now() + m * 60_000).toISOString();
 beforeEach(() => {
   vi.clearAllMocks();
   sent.length = 0;
+  profileModel.findById.mockImplementation(async (_db, id) => ({ id, role: 'patient' }));
   loginCodeModel.find.mockResolvedValue(null);
   loginCodeModel.consume.mockResolvedValue({ id: 'row' });
   attempts.assertAllowed.mockImplementation(() => {});
@@ -213,12 +214,6 @@ describe('phone + full name + date of birth', () => {
     patientModel.findForPhoneLogin.mockResolvedValue({ ...mariam, full_name: 'أحمد إبراهيم' });
 
     expect(await login({ full_name: '  احمد   ابراهيم ' })).toMatchObject({ method: 'phone', profile: { role: 'patient' } });
-  });
-
-  it('makes an account for a patient who had none', async () => {
-    patientModel.findForPhoneLogin.mockResolvedValue({ ...mariam, profile_id: null });
-
-    expect((await login()).profile.id).toBe('profile-new');
   });
 
   it('clears earlier wrong tries on success', async () => {

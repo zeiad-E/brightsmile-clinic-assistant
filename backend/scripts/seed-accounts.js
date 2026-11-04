@@ -19,7 +19,6 @@ import { hashPassword, temporaryPassword } from '../src/auth/passwords.js';
 import { supabase } from '../src/db/supabase.js';
 import * as patientModel from '../src/models/patientModel.js';
 import * as profileModel from '../src/models/profileModel.js';
-import * as accountService from '../src/services/accountService.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outputFile = path.join(here, 'demo-accounts.local');
@@ -70,7 +69,6 @@ const staff = await ensureTeamAccount({ email: 'mona.reception@brightsmile.clini
 const viewer = await ensureTeamAccount({ email: 'demo@brightsmile.clinic', role: 'viewer', fullName: 'Demo Viewer' });
 
 const mariam = await patientModel.findByPhone(supabase, DEMO_PATIENT_PHONE);
-if (mariam) await accountService.ensurePatientAccount(mariam);
 
 // Keep passwords from earlier runs; add new ones.
 const previous = fs.existsSync(outputFile) ? fs.readFileSync(outputFile, 'utf8') : '';

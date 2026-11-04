@@ -4,7 +4,7 @@ import * as appointmentModel from '../models/appointmentModel.js';
 import * as maintenanceModel from '../models/maintenanceModel.js';
 import { logger } from '../utils/logger.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
-import { PLACEHOLDER_EMAIL_DOMAIN, sendEmail } from './email/emailService.js';
+import { sendEmail } from './email/emailService.js';
 
 /**
  * Appointment reminders, in two steps:
@@ -20,7 +20,7 @@ export const REMINDER_SWEEP_MINUTES = 15;
 
 /** Job "queue_reminders": finds the bookings due a reminder. */
 export async function queueDueReminders() {
-  const queued = await maintenanceModel.queueDueReminders(requireAdmin(), { skipEmailDomain: PLACEHOLDER_EMAIL_DOMAIN });
+  const queued = await maintenanceModel.queueDueReminders(requireAdmin());
   if (queued) logger.info(`Queued ${queued} appointment reminder(s)`);
   return queued;
 }

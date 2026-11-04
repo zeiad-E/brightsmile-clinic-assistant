@@ -79,10 +79,11 @@ export async function demoLogin() {
 
 // ----- patients: proven by what is on their patient record -----
 
-/** Signs in a patient we have already verified. A login is made for them if they had none. */
+/** Signs in a patient we have already verified. */
 async function signInPatient(patient, method) {
-  const profile = await accountService.ensurePatientAccount(patient);
-  await profileModel.updateLogin(requireAdmin(), profile.id, { last_sign_in_at: new Date().toISOString() });
+  const db = requireAdmin();
+  const profile = await profileModel.findById(db, patient.profile_id);
+  await profileModel.updateLogin(db, profile.id, { last_sign_in_at: new Date().toISOString() });
   return { profile, method };
 }
 

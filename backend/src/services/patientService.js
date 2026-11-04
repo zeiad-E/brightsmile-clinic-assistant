@@ -10,10 +10,9 @@ import { patientView, staffPatientView } from '../views/patientView.js';
 import { staffAppointmentView } from '../views/appointmentView.js';
 import { listView } from '../views/listView.js';
 import { logger } from '../utils/logger.js';
-import * as accountService from './accountService.js';
 import { sendCurrentCode } from './authService.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
-import { isPlaceholderEmail, sendEmailInBackground } from './email/emailService.js';
+import { sendEmailInBackground } from './email/emailService.js';
 import * as personalCodeService from './personalCodeService.js';
 
 /** Patient records: the patient's own profile, and the staff patient screens. */
@@ -76,8 +75,6 @@ export async function create({ user }, { send_code: sendCode, ...body }) {
 
   const view = staffPatientView(patient);
   try {
-    await accountService.ensurePatientAccount(patient);
-    view.has_login = true;
     view.personal_code = await personalCodeService.issueCode(patient.id);
     await personalCodeService.auditCode(user, 'personal_code.viewed', patient.id);
     if (sendCode && patient.email) await sendCurrentCode(patient);
@@ -146,7 +143,7 @@ export async function startContactChange({ user }, { field, value }) {
   const login = field === 'email' ? await profileModel.findByEmail(admin, value) : null;
   if (login && login.id !== patient.profile_id) throw AppError.conflict('contact_in_use', 'This email already belongs to another account.');
 
-  const sendTo = field === 'email' ? value : patient.email && !isPlaceholderEmail(patient.email) ? patient.email : null;
+  const sendTo = field === 'email' ? value : patient.email;
   if (!sendTo) {
     throw AppError.conflict('no_email', 'We confirm a new phone number by email, and there is no email on your record. Please add an email first, or call the clinic.');
   }

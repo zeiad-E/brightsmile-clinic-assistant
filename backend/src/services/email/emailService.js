@@ -16,9 +16,6 @@ import { createBrevoAdapter } from './adapters/brevo.js';
  * can see what was sent and what failed.
  */
 
-// Phone-only patients get an internal login address that must never receive mail.
-export const PLACEHOLDER_EMAIL_DOMAIN = 'patients.brightsmile.app';
-export const isPlaceholderEmail = (address) => String(address).toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
 
 // ".invalid" can never be a real domain (RFC 2606): the agent evals use it for their test patients.
 const isReservedInvalid = (address) => String(address).toLowerCase().endsWith('.invalid');
@@ -43,7 +40,7 @@ export function setEmailAdapter(fake) {
  * throws, because an email problem must not undo a booking that already happened.
  */
 export async function sendEmail({ template, to, language = 'en', data, patientId = null, appointmentId = null }) {
-  if (!to || isPlaceholderEmail(to) || isReservedInvalid(to)) return { sent: false, skipped: true };
+  if (!to || isReservedInvalid(to)) return { sent: false, skipped: true };
 
   let notificationId = null;
   try {
