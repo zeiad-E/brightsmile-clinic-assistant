@@ -159,6 +159,71 @@ describe('personal code sign-in', () => {
   });
 });
 
+describe('creating an account on the website', () => {
+  const email = emailFor('signup');
+  const details = { full_name: nameFor('Sign Up'), date_of_birth: '1992-02-02', email, preferred_language: 'en' };
+  const sixDigits = (mail) => /\b(\d{6})\b/.exec(mail.text)?.[1];
+  const browser = newBrowser();
+  let phone;
+  let session;
+  let personalCode;
+
+  it('needs the emailed code: nothing exists before that', async () => {
+    phone = phoneFor();
+    expect((await api('post', '/auth/register/start', { body: { ...details, phone } })).body).toEqual({ sent: true });
+    const { data } = await admin.from('patients').select('id').eq('email', email).maybeSingle();
+    expect(data).toBeNull();
+
+    const wrong = await api('post', '/auth/register/verify', { body: { email, code: '000000' } });
+    expect(wrong.status).toBe(401);
+  });
+
+  it('the right code makes the account, signs them in and hands over a personal code', async () => {
+    const code = sixDigits(await waitForMail(email, 'sign-in code'));
+    const res = await api('post', '/auth/register/verify', { body: { email, code }, agent: browser });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.user.role).toBe('patient');
+    expect(res.headers['set-cookie'].join()).toContain('HttpOnly');
+    session = res.body;
+    personalCode = res.body.personal_code;
+    expect(personalCode).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    expect((await api('post', '/auth/code', { body: { code: personalCode } })).status).toBe(200);
+  });
+
+  it('shows them their code, and the audit log records the look without the code', async () => {
+    const res = await api('get', '/me/personal-code', { token: session.access_token });
+
+    expect(res.body).toMatchObject({ code: personalCode, legacy: false });
+    const { data: entries } = await admin.from('audit_log').select('action, before, after').eq('actor_id', session.user.id).eq('action', 'personal_code.viewed');
+    expect(entries).toHaveLength(1);
+    expect(JSON.stringify(entries)).not.toContain(personalCode);
+  });
+
+  it('a new code replaces the old one and signs out their other devices', async () => {
+    const other = await api('post', '/auth/code', { body: { code: personalCode } });
+
+    const res = await api('post', '/me/personal-code', { token: session.access_token });
+
+    expect(res.status).toBe(200);
+    expect((await api('post', '/auth/code', { body: { code: personalCode } })).status).toBe(401);
+    expect((await api('get', '/auth/me', { token: other.body.access_token })).status).toBe(401);
+    expect((await api('get', '/auth/me', { token: session.access_token })).status).toBe(200);
+    expect((await api('post', '/auth/code', { body: { code: res.body.code } })).status).toBe(200);
+  });
+
+  it('someone else cannot register with a phone that is already taken', async () => {
+    const stranger = emailFor('stranger');
+    await api('post', '/auth/register/start', { body: { ...details, full_name: nameFor('Stranger'), email: stranger, phone } });
+    const code = sixDigits(await waitForMail(stranger, 'sign-in code'));
+
+    const res = await api('post', '/auth/register/verify', { body: { email: stranger, code } });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('phone_in_use');
+  });
+});
+
 describe('patient self-service', () => {
   it('lists own upcoming bookings', async () => {
     const res = await api('get', '/me/appointments?scope=upcoming', { token: state.mona.access_token });

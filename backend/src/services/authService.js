@@ -100,8 +100,12 @@ export async function sendEmailCode({ purpose, email, language, payload = null }
   const existing = await loginCodeModel.find(db, purpose, email);
 
   const windowOpen = existing && now - new Date(existing.window_started_at).getTime() < 3_600_000;
-  if (existing && now - new Date(existing.created_at).getTime() < EMAIL_CODE.resendCooldownSeconds * 1000) return;
-  if (windowOpen && existing.send_count >= EMAIL_CODE.maxSendsPerHour) return;
+  const tooSoon = existing && now - new Date(existing.created_at).getTime() < EMAIL_CODE.resendCooldownSeconds * 1000;
+  if (tooSoon || (windowOpen && existing.send_count >= EMAIL_CODE.maxSendsPerHour)) {
+    // The code already sent still works, so someone correcting a typo in the form isn't stuck.
+    if (payload) await loginCodeModel.savePayload(db, existing.id, payload);
+    return;
+  }
 
   const code = sixDigitCode();
   await loginCodeModel.save(db, {

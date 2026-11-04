@@ -7,6 +7,7 @@ import { useSession } from '@/components/providers/SessionProvider';
 import DecodeText from '@/components/fx/DecodeText';
 import { intlLocale } from '@/i18n/config';
 import { formatPrice } from '@/lib/format';
+import CodeReveal from '@/components/card/CodeReveal';
 import styles from './Chat.module.css';
 
 /**
@@ -58,7 +59,9 @@ export default function Chat({ t, locale, variant = 'page' }) {
   useEffect(() => {
     if (busy) return;
     try {
-      sessionStorage.setItem(STORE, JSON.stringify({ conversationId: conversationId.current, messages: messages.slice(-40) }));
+      // A personal code stays on the screen only: what is saved here must never hold it.
+      const kept = messages.slice(-40).map((m) => (m.cards ? { ...m, cards: m.cards.filter((card) => card.type !== 'personal_code') } : m));
+      sessionStorage.setItem(STORE, JSON.stringify({ conversationId: conversationId.current, messages: kept }));
     } catch {
       // storage full or blocked: the chat still works, it just isn't kept
     }
@@ -201,7 +204,7 @@ export default function Chat({ t, locale, variant = 'page' }) {
               </Bubble>
             )}
             {m.cards?.map((card, i) => (
-              <Card key={i} card={card} t={t} locale={locale} active={m.id === lastId && !busy} onSend={send} />
+              <Card key={i} card={card} t={t} locale={locale} name={user?.full_name} active={m.id === lastId && !busy} onSend={send} />
             ))}
           </div>
         ))}
@@ -279,7 +282,7 @@ const timeLabel = (time, locale) => {
 };
 
 /** The cards the assistant attaches to a reply. Buttons only work on the latest reply. */
-function Card({ card, t, locale, active, onSend }) {
+function Card({ card, t, locale, name, active, onSend }) {
   const ar = locale === 'ar';
   if (card.type === 'slots') {
     const doctors = card.doctors.filter((d) => d.days.length);
@@ -381,6 +384,8 @@ function Card({ card, t, locale, active, onSend }) {
       </div>
     );
   }
+
+  if (card.type === 'personal_code') return <CodeReveal code={card.code} name={name} locale={locale} />;
 
   if (card.type === 'appointments') {
     return (

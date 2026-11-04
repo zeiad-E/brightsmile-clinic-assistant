@@ -22,6 +22,10 @@ vi.mock('../../src/services/authService.js', () =>
     { profile: { id: 'p', role: 'patient' }, method: 'phone' },
   ),
 );
+vi.mock('../../src/services/registrationService.js', () =>
+  stubModule(['startRegistration', 'finishRegistration'], { profile: { id: 'p', role: 'patient' }, method: 'sign_up' }),
+);
+vi.mock('../../src/services/personalCodeService.js', () => stubModule(['showMine', 'replaceMine']));
 vi.mock('../../src/services/catalogService.js', () => stubModule(['clinicInfo', 'listServices', 'getService', 'listDoctors', 'getDoctor']));
 vi.mock('../../src/services/availabilityService.js', () => stubModule(['forDay', 'forRange']));
 vi.mock('../../src/services/bookingService.js', () => ({
@@ -100,6 +104,8 @@ const MATRIX = [
   ['get', `/api/availability/range?service_id=${SERVICE}`, null, ALL],
 
   ['post', '/api/auth/staff/login', { email: 'a@b.co', password: 'x' }, ALL],
+  ['post', '/api/auth/register/start', { full_name: 'Ahmed Ali', date_of_birth: '1990-01-01', phone: '+201001234567', email: 'a@b.co' }, ALL],
+  ['post', '/api/auth/register/verify', { email: 'a@b.co', code: '123456' }, ALL],
   ['post', '/api/auth/email/start', { email: 'a@b.co' }, ALL],
   ['post', '/api/auth/email/verify', { email: 'a@b.co', code: '123456' }, ALL],
   ['post', '/api/auth/code/resend', { email: 'a@b.co' }, ALL],
@@ -120,6 +126,8 @@ const MATRIX = [
 
   ['get', '/api/me', null, ['patient']],
   ['patch', '/api/me', { preferred_language: 'ar' }, ['patient']],
+  ['get', '/api/me/personal-code', null, ['patient']],
+  ['post', '/api/me/personal-code', null, ['patient']],
   ['get', '/api/me/appointments', null, ['patient']],
   ['get', `/api/me/appointments/${ID}`, null, ['patient']],
   ['post', `/api/me/appointments/${ID}/cancel`, {}, ['patient']],

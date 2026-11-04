@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { Email, Language, Phone } from './common.js';
 
+export const PersonalCodeQuery = z.object({ for: z.enum(['print']).optional() });
+
 export const UpdateMeBody = z.object({ preferred_language: Language });
 
 /** Step 1: the new email or phone. A code goes to the new email (or, for a phone, to the email on file). */

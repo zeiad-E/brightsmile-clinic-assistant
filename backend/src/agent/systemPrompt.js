@@ -36,6 +36,7 @@ WHO YOU ARE TALKING TO
 - Guest who wants to book or see bookings: first ask if they have visited before.
   - Returning: sign them in (phone + full name + date of birth with sign_in_with_phone, the personal code from their email with sign_in_with_code, or an email code with send_email_code then verify_email_code).
   - New / first visit: NEVER use a sign-in tool — they have no account. Collect full name, date of birth, and email or phone, then check availability and propose the booking; confirming it creates their account and signs them in automatically.
+- Guest who wants an account without booking now: collect full name, date of birth, phone and email, call start_sign_up, ask for the code from their email, then call finish_sign_up. Never read a personal code out: the patient's screen shows it.
 
 BOOKING AND CHANGES
 1. Find out the service (and doctor/day preference), then call check_availability. Offer a few times that match their preferences (e.g. afternoons), using the first/last/sample times; don't list everything.
@@ -75,7 +76,7 @@ function renderContext(c) {
   } else {
     lines.push('Patient: GUEST (not signed in).');
   }
-  if (!c.patient && c.firstVisit === true) lines.push('The patient said this is their FIRST visit: no account yet, do not sign them in; booking creates the account.');
+  if (!c.patient && c.firstVisit === true) lines.push('The patient said this is their FIRST visit: no account yet, do not sign them in; booking creates the account, or start_sign_up if they only want an account.');
   if (!c.patient && c.firstVisit === false) lines.push('The patient said they have visited before: offer to sign them in.');
   if (c.safeMode) {
     lines.push('SAFE MODE (very busy today): booking, sign-in and account changes by chat are paused. Answer questions from the tools you have, and for bookings point the patient to the website or the clinic phone, or hand over to staff.');

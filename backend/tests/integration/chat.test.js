@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { admin, api, app, cleanup, emailFor, freeSlots, nameFor, newBrowser, RUN, tracked, waitForMail } from './helpers.js';
+import { admin, api, app, cleanup, emailFor, freeSlots, nameFor, newBrowser, phoneFor, RUN, tracked, waitForMail } from './helpers.js';
 import { dayInZone, timeInZone } from '../../src/utils/clinicTime.js';
 
 /**
@@ -30,6 +30,9 @@ const CHECK_UP = '5eed0000-0000-4000-a000-000000000201'; // seed: check-up, Dr. 
 const CLEANING = '5eed0000-0000-4000-a000-000000000202'; // seed: teeth cleaning, hygienist Nadia
 const SARAH = '5eed0000-0000-4000-a000-000000000101';
 
+const { llmClient } = await import('../../src/llm/LlmClient.js');
+const chatCalls = () => llmClient.chat.mock.calls;
+
 const say = (message, { conversationId, token } = {}) => api('post', '/chat', { token, body: { message, conversation_id: conversationId } });
 const state = {};
 let slot;
@@ -40,6 +43,37 @@ beforeAll(async () => {
 
 afterAll(async () => {
   console.log(`cleanup (run ${RUN}):`, await cleanup());
+});
+
+describe('creating an account through the chat', () => {
+  const email = emailFor('chatsignup');
+  const name = nameFor('Chat Signup');
+  const sixDigits = (mail) => /\b(\d{6})\b/.exec(mail.text)?.[1];
+
+  it('emails a code, then makes the account, shows the code on screen and keeps it from the AI', async () => {
+    const phone = phoneFor();
+    ai.script.push({ tool: 'start_sign_up', args: { full_name: name, date_of_birth: '[DOB_1]', phone: '[PHONE_1]', email: '[EMAIL_1]' } }, { text: 'Please type the code from your email.' });
+    const first = await say(`First visit, I only want an account. I'm ${name}, born 1991-05-05, phone ${phone}, email ${email}.`);
+    expect(first.status).toBe(200);
+    tracked.conversations.push(first.body.conversation_id);
+    const { data: before } = await admin.from('patients').select('id').eq('email', email).maybeSingle();
+    expect(before).toBeNull(); // nothing is created until the code is right
+
+    const code = sixDigits(await waitForMail(email, 'sign-in code'));
+    const seen = chatCalls().length;
+    ai.script.push({ tool: 'finish_sign_up', args: { code: '[CODE_1]' } }, { text: 'Your account is ready!' });
+    const second = await say(`The code is ${code}`, { conversationId: first.body.conversation_id });
+
+    expect(second.status).toBe(200);
+    expect(second.body.sign_in_ticket).toBeTruthy();
+    const card = second.body.cards.find((c) => c.type === 'personal_code');
+    expect(card.code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    expect(JSON.stringify(chatCalls().slice(seen))).not.toContain(card.code);
+
+    const swapped = await api('post', '/auth/ticket', { body: { ticket: second.body.sign_in_ticket }, agent: newBrowser() });
+    expect(swapped.status).toBe(200);
+    expect(swapped.body.user.role).toBe('patient');
+  });
 });
 
 describe('booking through the chat', () => {

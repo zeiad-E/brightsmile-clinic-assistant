@@ -20,6 +20,14 @@ export const PhoneLoginBody = z.object({
   date_of_birth: DateOfBirth,
 });
 
+export const RegisterStartBody = z.object({
+  full_name: PersonName,
+  date_of_birth: DateOfBirth,
+  phone: Phone,
+  email: Email,
+  preferred_language: Language.optional(),
+});
+
 export const CodeLoginBody = z.object({
   code: z.string().trim().min(8, 'Enter your 8-character code.').max(20),
 });

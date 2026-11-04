@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { apiRequest, ApiError } from '@/lib/api/client';
 import { localePath } from '@/i18n/config';
 import { useSession } from '@/components/providers/SessionProvider';
 import Magnetic from '@/components/fx/Magnetic';
 import DecodeText from '@/components/fx/DecodeText';
+import CodeReveal from '@/components/card/CodeReveal';
+import LoginForms from '@/components/login/LoginForms';
 import styles from './Book.module.css';
 
 const CLINIC_TZ = 'Africa/Cairo';
@@ -19,7 +22,7 @@ const ANYONE = 'any';
  * number), so a double click can never book twice. If someone takes the time a second earlier, we
  * go back to the times and show fresh ones.
  */
-export default function BookWizard({ services, doctors, t, locale }) {
+export default function BookWizard({ services, doctors, t, loginText, locale }) {
   const { status, user, signIn, getToken } = useSession();
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -32,6 +35,7 @@ export default function BookWizard({ services, doctors, t, locale }) {
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null);
+  const [signingIn, setSigningIn] = useState(false); // "I have an account": sign in here, keeping the choices so far
   const [reload, setReload] = useState(0); // bump to fetch the free times again
   const wanted = useRef({ doctor: null, start: null });
   const receipt = useRef(null);
@@ -128,7 +132,8 @@ export default function BookWizard({ services, doctors, t, locale }) {
       const result = await apiRequest('/appointments', { method: 'POST', body, token, headers: { 'Idempotency-Key': receipt.current } });
       receipt.current = null;
       if (result.session?.access_token) signIn(result.session);
-      setDone({ isNew: result.is_new_patient });
+      // A guest whose details match an existing patient gets the booking, but only signing in opens the account.
+      setDone({ isNew: result.is_new_patient, code: result.personal_code, name: details.full_name || user?.full_name, matched: !isPatient && !result.is_new_patient });
     } catch (err) {
       if (err instanceof ApiError && err.code === 'slot_taken') {
         receipt.current = null;
@@ -170,6 +175,12 @@ export default function BookWizard({ services, doctors, t, locale }) {
         </p>
         <p className={styles.muted}>{t.doneText}</p>
         {done.isNew && <p className={styles.notice}>{t.newPatient}</p>}
+        {done.code && <CodeReveal code={done.code} name={done.name} locale={locale} />}
+        {done.matched && (
+          <p className={styles.notice}>
+            {t.matched} <Link href={localePath(locale, '/login')}>{t.signIn}</Link>
+          </p>
+        )}
         <div className={styles.actions}>
           <Magnetic href={localePath(locale)}>{t.home}</Magnetic>
           <button type="button" className={styles.linkButton} onClick={() => window.location.assign(localePath(locale, '/book'))}>
@@ -273,7 +284,16 @@ export default function BookWizard({ services, doctors, t, locale }) {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 3 && signingIn && !isPatient && (
+          <div>
+            <LoginForms t={loginText} locale={locale} patientOnly onSignedIn={() => setSigningIn(false)} />
+            <button type="button" className={styles.linkButton} onClick={() => setSigningIn(false)}>
+              <span className="flip-rtl" aria-hidden="true">←</span> {t.signInBack}
+            </button>
+          </div>
+        )}
+
+        {step === 3 && (!signingIn || isPatient) && (
           <form
             className={styles.form}
             onSubmit={(e) => {
@@ -286,6 +306,12 @@ export default function BookWizard({ services, doctors, t, locale }) {
               <p className={styles.notice}>{t.bookingAs.replace('{name}', user.full_name ?? '')}</p>
             ) : (
               <>
+                <p className={styles.muted}>
+                  {t.haveAccount}{' '}
+                  <button type="button" className={styles.inlineLink} onClick={() => setSigningIn(true)}>
+                    {t.signIn}
+                  </button>
+                </p>
                 <Field label={t.fullName} required autoComplete="name" value={details.full_name} onChange={(v) => setDetails((d) => ({ ...d, full_name: v }))} />
                 <Field label={t.dob} type="date" required autoComplete="bday" value={details.date_of_birth} onChange={(v) => setDetails((d) => ({ ...d, date_of_birth: v }))} />
                 <div className={styles.pair}>

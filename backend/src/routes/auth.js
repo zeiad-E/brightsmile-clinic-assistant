@@ -10,6 +10,7 @@ import {
   EmailVerifyBody,
   PasswordBody,
   PhoneLoginBody,
+  RegisterStartBody,
   StaffLoginBody,
   TeamProfilePatch,
   TicketBody,
@@ -28,6 +29,8 @@ export function authRouter(limits) {
   router.use(csrfGuard());
 
   router.post('/staff/login', limits.auth, validate({ body: StaffLoginBody }), auth.staffLogin);
+  router.post('/register/start', limits.auth, validate({ body: RegisterStartBody }), auth.registerStart);
+  router.post('/register/verify', limits.code, validate({ body: EmailVerifyBody }), auth.registerVerify);
   router.post('/email/start', limits.auth, validate({ body: EmailStartBody }), auth.emailStart);
   router.post('/email/verify', limits.code, validate({ body: EmailVerifyBody }), auth.emailVerify);
   router.post('/phone', limits.auth, validate({ body: PhoneLoginBody }), auth.phone);

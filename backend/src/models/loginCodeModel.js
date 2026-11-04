@@ -11,6 +11,11 @@ export function save(db, row) {
   return unwrap(db.from('login_codes').upsert({ ...row, attempts: 0 }, { onConflict: 'purpose,email' }));
 }
 
+/** The form that waits with a sign-up code. */
+export function savePayload(db, id, payload) {
+  return unwrap(db.from('login_codes').update({ payload }).eq('id', id));
+}
+
 /** Counts a wrong try, only from the number we read, so two guesses at once can't share one. */
 export function countWrongTry(db, row) {
   return unwrap(

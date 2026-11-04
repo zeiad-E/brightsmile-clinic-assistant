@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import * as authService from '../../services/authService.js';
+import * as registrationService from '../../services/registrationService.js';
 import { AppError } from '../../utils/AppError.js';
-import { DateOfBirth, Email, Phone } from '../../validators/common.js';
+import { DateOfBirth, Email, PersonName, Phone } from '../../validators/common.js';
 import { LIMITS } from '../guardrails.js';
 import { defineTool, toolError } from './define.js';
 
@@ -104,6 +105,71 @@ export const verifyEmailCode = defineTool({
     try {
       return await finish(ctx, await authService.verifyEmailCode({ email: target.data, code: String(code).replace(/\s/g, '') }));
     } catch (err) {
+      return signInFailure(ctx, err);
+    }
+  },
+});
+
+/** Creating an account is for new patients, so "first visit" doesn't block it. */
+function signUpGuard(ctx) {
+  if (ctx.isPatient) return { already_signed_in: true };
+  if ((ctx.state.signInAttempts ?? 0) >= LIMITS.maxSignInAttempts) {
+    return toolError('too_many_attempts', 'Too many tries in this chat. Offer to connect them with staff, or to try again later.');
+  }
+  return null;
+}
+
+export const startSignUp = defineTool({
+  name: 'start_sign_up',
+  description: 'NEW patients who want an account now, without booking yet. Needs full name, date of birth, phone and email (pass the placeholders exactly as written). Emails a 6-digit code; then ask them to type it here and call finish_sign_up.',
+  schema: z.object({ full_name: z.string().min(2).max(120), date_of_birth: z.string().max(40), phone: z.string().max(40), email: z.string().max(254) }),
+  run: async ({ full_name: fullName, date_of_birth: dob, phone, email }, ctx) => {
+    const blocked = signUpGuard(ctx);
+    if (blocked) return blocked;
+    const name = PersonName.safeParse(fullName);
+    const parsedDob = DateOfBirth.safeParse(dob);
+    const parsedPhone = Phone.safeParse(phone);
+    const parsedEmail = Email.safeParse(email);
+    if (!name.success) return toolError('invalid_name', 'Ask for their full name.');
+    if (!parsedDob.success) return toolError('invalid_date_of_birth', 'Ask for the date of birth as day, month and year.');
+    if (!parsedPhone.success) return toolError('invalid_phone', 'Ask for the phone number with country code.');
+    if (!parsedEmail.success) return toolError('invalid_email', 'That email address looks wrong; ask again.');
+    await registrationService.startRegistration({
+      full_name: name.data,
+      date_of_birth: parsedDob.data,
+      phone: parsedPhone.data,
+      email: parsedEmail.data,
+      preferred_language: ctx.language,
+    });
+    ctx.state.emailForSignUp = parsedEmail.data;
+    return { sent: true, note: 'A code was sent to their email. Ask the patient to type it here.' };
+  },
+});
+
+export const finishSignUp = defineTool({
+  name: 'finish_sign_up',
+  description: 'Second step of start_sign_up: check the code the patient received by email (pass the code placeholder exactly as written). Creates the account and signs them in.',
+  schema: z.object({ code: z.string().min(4).max(30) }),
+  run: async ({ code }, ctx) => {
+    const blocked = signUpGuard(ctx);
+    if (blocked) return blocked;
+    if (!ctx.state.emailForSignUp) return toolError('sign_up_not_started', 'Collect their details and call start_sign_up first.');
+    try {
+      const { personalCode, ...verified } = await registrationService.finishRegistration(
+        { email: ctx.state.emailForSignUp, code: String(code).replace(/\s/g, '') },
+        { via: 'patient_assistant', visitor: ctx.visitor },
+      );
+      const result = await finish(ctx, verified);
+      if (result.error) return result;
+      delete ctx.state.emailForSignUp;
+      // The patient's screen shows their code; it never goes into the AI's result.
+      if (personalCode) ctx.emit({ type: 'personal_code', code: personalCode });
+      return { ...result, note: personalCode ? 'Their account is ready. Their personal code is shown on their screen and emailed: never repeat it.' : 'They already had an account, and are now signed in to it.' };
+    } catch (err) {
+      if (err instanceof AppError && err.code === 'phone_in_use') {
+        delete ctx.state.emailForSignUp;
+        return toolError('phone_in_use', 'This phone number is already on another account. Offer to sign them in with it, or to connect them with staff.');
+      }
       return signInFailure(ctx, err);
     }
   },

@@ -8,7 +8,7 @@ import {
   proposeCancel,
   proposeReschedule,
 } from './bookingTools.js';
-import { sendEmailCode, signInWithCode, signInWithPhone, verifyEmailCode } from './accountTools.js';
+import { finishSignUp, sendEmailCode, signInWithCode, signInWithPhone, startSignUp, verifyEmailCode } from './accountTools.js';
 import { declineRequest, escalateToHuman } from './supportTools.js';
 import { proposeForgetMe, recallPastConversations, remember, updateIntake } from './memoryTools.js';
 import { toOpenAiDefinition } from './define.js';
@@ -33,6 +33,8 @@ export const patientTools = [
   signInWithCode,
   sendEmailCode,
   verifyEmailCode,
+  startSignUp,
+  finishSignUp,
   remember,
   recallPastConversations,
   updateIntake,

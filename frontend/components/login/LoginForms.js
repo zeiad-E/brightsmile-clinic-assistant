@@ -17,14 +17,18 @@ const DEMO_VIEWER = process.env.NEXT_PUBLIC_DEMO_VIEWER === '1';
 /**
  * Sign in: patients by email code, by phone + name + date of birth, or by personal code;
  * team members by email + password. Every way ends with a session from the API → signIn().
+ *
+ * The booking wizard shows this mid-booking: `patientOnly` drops the team tab and the demo, and
+ * `onSignedIn` keeps the visitor where they are instead of moving them to another page.
  */
-export default function LoginForms({ t, locale }) {
+export default function LoginForms({ t, locale, patientOnly = false, onSignedIn }) {
   const router = useRouter();
   const { status, user, signIn, signOut } = useSession();
   const [tab, setTab] = useState('patient');
   const [method, setMethod] = useState('email');
   const [form, setForm] = useState({ email: '', code: '', phone: '', full_name: '', date_of_birth: '', personal: '', password: '' });
   const [codeSentTo, setCodeSentTo] = useState(null);
+  const [forgot, setForgot] = useState(false); // "I forgot my personal code": asks for the email instead
   const [message, setMessage] = useState(null); // { kind: 'error' | 'info', text }
   const [working, setWorking] = useState(false);
 
@@ -37,6 +41,7 @@ export default function LoginForms({ t, locale }) {
       const result = await request();
       if (result?.access_token) {
         await signIn(result);
+        if (onSignedIn) return onSignedIn();
         const next = new URLSearchParams(window.location.search).get('next');
         router.push(next?.startsWith('/') ? next : homeFor(result.user?.role, locale));
       }
@@ -51,6 +56,13 @@ export default function LoginForms({ t, locale }) {
     e.preventDefault();
     if (tab === 'team') {
       return run(() => apiRequest('/auth/staff/login', { method: 'POST', body: { email: form.email, password: form.password } }));
+    }
+    if (method === 'code' && forgot) {
+      return run(async () => {
+        await apiRequest('/auth/code/resend', { method: 'POST', body: { email: form.email } });
+        setForgot(false);
+        setMessage({ kind: 'info', text: t.forgotSent });
+      });
     }
     if (method === 'email' && !codeSentTo) {
       return run(async () => {
@@ -98,26 +110,28 @@ export default function LoginForms({ t, locale }) {
 
   return (
     <GlassCard className={styles.card}>
-      <div className={styles.tabs} role="tablist">
-        {tabs.map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => (setTab(id), setMessage(null))}>
-            {label}
-          </button>
-        ))}
-        <span className={styles.tabPill} style={{ '--i': tab === 'team' ? 1 : 0 }} aria-hidden="true" />
-      </div>
+      {!patientOnly && (
+        <div className={styles.tabs} role="tablist">
+          {tabs.map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => (setTab(id), setMessage(null))}>
+              {label}
+            </button>
+          ))}
+          <span className={styles.tabPill} style={{ '--i': tab === 'team' ? 1 : 0 }} aria-hidden="true" />
+        </div>
+      )}
 
       {tab === 'patient' && (
         <div className={styles.methods}>
           {methods.map(([id, label]) => (
-            <button key={id} type="button" aria-pressed={method === id} onClick={() => (setMethod(id), setMessage(null))}>
+            <button key={id} type="button" aria-pressed={method === id} onClick={() => (setMethod(id), setForgot(false), setMessage(null))}>
               {label}
             </button>
           ))}
         </div>
       )}
 
-      <form className={styles.form} onSubmit={submit} key={`${tab}-${method}-${Boolean(codeSentTo)}`}>
+      <form className={styles.form} onSubmit={submit} key={`${tab}-${method}-${Boolean(codeSentTo)}-${forgot}`}>
         {tab === 'team' && (
           <>
             <Field label={t.email} type="email" autoComplete="username" required {...field('email')} />
@@ -141,8 +155,21 @@ export default function LoginForms({ t, locale }) {
             <Field label={t.dob} type="date" autoComplete="bday" required {...field('date_of_birth')} />
           </>
         )}
-        {tab === 'patient' && method === 'code' && (
-          <Field label={t.personalCode} hint={t.personalCodeHint} autoComplete="one-time-code" dir="ltr" required {...field('personal')} />
+        {tab === 'patient' && method === 'code' && !forgot && (
+          <>
+            <Field label={t.personalCode} hint={t.personalCodeHint} autoComplete="one-time-code" dir="ltr" required {...field('personal')} />
+            <button type="button" className={styles.link} onClick={() => (setForgot(true), setMessage(null))}>
+              {t.forgotCode}
+            </button>
+          </>
+        )}
+        {tab === 'patient' && method === 'code' && forgot && (
+          <>
+            <Field label={t.email} hint={t.forgotHint} type="email" autoComplete="email" required {...field('email')} />
+            <button type="button" className={styles.link} onClick={() => setForgot(false)}>
+              {t.forgotBack}
+            </button>
+          </>
         )}
 
         {message && (
@@ -151,33 +178,35 @@ export default function LoginForms({ t, locale }) {
           </p>
         )}
         <button type="submit" className={styles.submit} disabled={working}>
-          {working ? t.working : tab === 'patient' && method === 'email' && !codeSentTo ? t.sendCode : t.signIn}
+          {working ? t.working : tab === 'patient' && method === 'code' && forgot ? t.forgotSend : tab === 'patient' && method === 'email' && !codeSentTo ? t.sendCode : t.signIn}
         </button>
       </form>
 
-      <div className={styles.demo}>
-        <p>
-          <strong>{t.demoTitle}</strong> {t.demoText}
-        </p>
-        <div className={styles.row}>
-          <button
-            type="button"
-            onClick={() => {
-              setTab('patient');
-              setMethod('phone');
-              setForm((f) => ({ ...f, ...DEMO_PATIENT }));
-              setMessage({ kind: 'info', text: t.demoFilled });
-            }}
-          >
-            {t.demoPatient}
-          </button>
-          {DEMO_VIEWER && (
-            <button type="button" disabled={working} onClick={() => run(() => apiRequest('/auth/demo', { method: 'POST' }))}>
-              {t.demoViewer}
+      {!patientOnly && (
+        <div className={styles.demo}>
+          <p>
+            <strong>{t.demoTitle}</strong> {t.demoText}
+          </p>
+          <div className={styles.row}>
+            <button
+              type="button"
+              onClick={() => {
+                setTab('patient');
+                setMethod('phone');
+                setForm((f) => ({ ...f, ...DEMO_PATIENT }));
+                setMessage({ kind: 'info', text: t.demoFilled });
+              }}
+            >
+              {t.demoPatient}
             </button>
-          )}
+            {DEMO_VIEWER && (
+              <button type="button" disabled={working} onClick={() => run(() => apiRequest('/auth/demo', { method: 'POST' }))}>
+                {t.demoViewer}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </GlassCard>
   );
 }

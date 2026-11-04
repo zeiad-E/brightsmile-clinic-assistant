@@ -1,6 +1,8 @@
 import { config } from '../config/index.js';
 import { decryptPersonalCode, encryptPersonalCode, generatePersonalCode, hmacPersonalCode } from '../auth/personalCodes.js';
+import * as sessions from '../auth/sessions.js';
 import { requireAdmin } from '../db/supabase.js';
+import * as auditModel from '../models/auditModel.js';
 import * as patientModel from '../models/patientModel.js';
 
 /**
@@ -53,6 +55,25 @@ export async function readCode(patientId) {
 export async function currentOrNewCode(patientId) {
   const { code, legacy } = await readCode(patientId);
   return code ? { code, replaced: false } : { code: await issueCode(patientId), replaced: legacy };
+}
+
+/** The audit log says who saw or changed a code, and never holds the code itself. */
+const audit = ({ user }, action) =>
+  auditModel.record(requireAdmin(), { actorId: user.id, via: 'dashboard', action, entity: 'patients', entityId: user.patientId });
+
+/** The signed-in patient looks at their own code, on screen or to print it. */
+export async function showMine(ctx, { forPrint = false } = {}) {
+  const { code, legacy, issuedAt } = await readCode(ctx.user.patientId);
+  if (code) await audit(ctx, forPrint ? 'personal_code.printed' : 'personal_code.viewed');
+  return { code, legacy, issued_at: issuedAt };
+}
+
+/** A new code. The old one stops working, and this also signs out their other devices. */
+export async function replaceMine(ctx) {
+  const code = await issueCode(ctx.user.patientId);
+  await sessions.revokeAllFor(ctx.user.id, 'code_changed', { exceptId: ctx.user.sessionId });
+  await audit(ctx, 'personal_code.regenerated');
+  return { code };
 }
 
 /** The patient a typed code belongs to, or null. */

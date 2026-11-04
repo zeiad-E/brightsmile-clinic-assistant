@@ -1,6 +1,7 @@
 import * as appointmentService from '../services/appointmentService.js';
 import * as patientService from '../services/patientService.js';
 import * as memoryService from '../services/memoryService.js';
+import * as personalCodeService from '../services/personalCodeService.js';
 import { ctxOf } from './context.js';
 
 /** The signed-in patient's own profile and bookings (/api/me). */
@@ -32,6 +33,14 @@ export async function forgetMe(req, res) {
 
 export async function reschedule(req, res) {
   res.json(await appointmentService.reschedule(ctxOf(req), req.valid.params.id, req.valid.body));
+}
+
+export async function personalCode(req, res) {
+  res.json(await personalCodeService.showMine(ctxOf(req), { forPrint: req.valid.query.for === 'print' }));
+}
+
+export async function newPersonalCode(req, res) {
+  res.json(await personalCodeService.replaceMine(ctxOf(req)));
 }
 
 export async function startContactChange(req, res) {

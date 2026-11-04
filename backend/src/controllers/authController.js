@@ -2,6 +2,7 @@ import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../auth
 import * as sessions from '../auth/sessions.js';
 import { signAccessToken } from '../auth/tokens.js';
 import * as authService from '../services/authService.js';
+import * as registrationService from '../services/registrationService.js';
 import { sessionView } from '../views/sessionView.js';
 import { ctxOf } from './context.js';
 
@@ -30,6 +31,16 @@ export const demo = (req, res) => signedIn(req, res, authService.demoLogin());
 export const emailVerify = (req, res) => signedIn(req, res, authService.verifyEmailCode(req.valid.body));
 export const phone = (req, res) => signedIn(req, res, authService.phoneLogin(req.valid.body, { visitor: visitorOf(req) }));
 export const code = (req, res) => signedIn(req, res, authService.codeLogin(req.valid.body, { visitor: visitorOf(req) }));
+
+export async function registerStart(req, res) {
+  res.json(await registrationService.startRegistration(req.valid.body));
+}
+
+/** A new account's personal code is shown once here, and it stays in their profile. */
+export async function registerVerify(req, res) {
+  const { personalCode, ...verified } = await registrationService.finishRegistration(req.valid.body, { visitor: visitorOf(req) });
+  res.json({ ...(await startSession(req, res, verified)), personal_code: personalCode });
+}
 
 export async function emailStart(req, res) {
   res.json(await authService.startEmailCode(req.valid.body));

@@ -23,7 +23,7 @@ export default async function LoginPage() {
           <h1 className="fade-up [animation-delay:120ms]">{t.heading}</h1>
           <p className={`${styles.lead} fade-up [animation-delay:240ms]`}>{t.lead}</p>
           <p className={`${styles.noAccount} fade-up [animation-delay:320ms]`}>
-            {t.noAccount} <Link href={localePath(locale, '/book')}>{t.book}</Link>
+            {t.noAccount} <Link href={localePath(locale, '/register')}>{t.register}</Link>
           </p>
         </div>
         <div className="fade-up [animation-delay:200ms]">

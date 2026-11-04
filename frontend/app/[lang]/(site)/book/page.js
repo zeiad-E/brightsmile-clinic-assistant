@@ -16,7 +16,7 @@ export async function generateMetadata() {
 
 export default async function BookPage() {
   const locale = await getLocale();
-  const { bookPage: t, aboutPage } = await getDictionary();
+  const { bookPage: t, loginPage, aboutPage } = await getDictionary();
   const [services, doctors] = await Promise.all([getServices(), getDoctors()]);
   const name = (record, field) => record[`${field}_${locale}`];
   const digits = locale === 'ar' ? 'ar-EG' : 'en-US';
@@ -52,7 +52,7 @@ export default async function BookPage() {
           <h1 className="fade-up [animation-delay:120ms]">{t.heading}</h1>
         </div>
         <div className="fade-up [animation-delay:200ms]">
-          <BookWizard services={serviceCards} doctors={doctorCards} t={t} locale={locale} />
+          <BookWizard services={serviceCards} doctors={doctorCards} t={t} loginText={loginPage} locale={locale} />
         </div>
       </div>
     </div>

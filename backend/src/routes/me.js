@@ -6,7 +6,7 @@ import { validate } from '../middlewares/validate.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { IdParams } from '../validators/common.js';
 import { CancelBody, MyAppointmentsQuery, RescheduleBody } from '../validators/appointments.js';
-import { ContactStartBody, ContactVerifyBody, UpdateMeBody } from '../validators/me.js';
+import { ContactStartBody, ContactVerifyBody, PersonalCodeQuery, UpdateMeBody } from '../validators/me.js';
 
 /** /api/me — the signed-in patient's own profile and bookings. */
 export function meRouter(limits) {
@@ -14,6 +14,7 @@ export function meRouter(limits) {
   const profile = requirePermission('self.profile');
   const bookings = requirePermission('self.appointments');
   const contact = requirePermission('self.contact');
+  const code = requirePermission('self.personal_code');
 
   router.get('/', profile, me.profile);
   router.patch('/', profile, validate({ body: UpdateMeBody }), me.updateProfile);
@@ -23,6 +24,9 @@ export function meRouter(limits) {
   router.post('/appointments/:id/reschedule', bookings, validate({ params: IdParams, body: RescheduleBody }), me.reschedule);
   router.get('/conversations', requirePermission('self.conversations'), validate({ query: ConversationListQuery }), chat.mine);
   router.delete('/memory', requirePermission('self.memory'), me.forgetMe);
+
+  router.get('/personal-code', code, validate({ query: PersonalCodeQuery }), me.personalCode);
+  router.post('/personal-code', code, limits.auth, me.newPersonalCode);
 
   // New email / phone, confirmed with a code (G10).
   router.post('/contact', contact, limits.auth, validate({ body: ContactStartBody }), me.startContactChange);

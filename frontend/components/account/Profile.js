@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { localePath } from '@/i18n/config';
-import { apiRequest } from '@/lib/api/client';
 import { useSession } from '@/components/providers/SessionProvider';
+import PersonalCode from './PersonalCode';
 import styles from './Account.module.css';
 
 /**
- * Profile & privacy: the patient's details, their language, a fresh personal code, and "forget me".
+ * Profile & privacy: the patient's details, their language, their personal code, and "forget me".
  * Email and phone can be changed here, confirmed with a 6-digit code (a new email confirms itself;
  * a new phone is confirmed from the email already on file). Name and date of birth stay with the
  * clinic: with the phone, they are how phone sign-in recognises the patient.
@@ -117,23 +117,7 @@ export default function Profile({ t, locale }) {
         {note('language')}
       </section>
 
-      <section className={styles.box}>
-        <h2>{t.codeTitle}</h2>
-        <p className={styles.muted}>{t.codeText}</p>
-        {me?.email ? (
-          <button
-            type="button"
-            className={styles.primary}
-            disabled={working === 'code'}
-            onClick={() => run('code', () => apiRequest('/auth/code/resend', { method: 'POST', body: { email: me.email } }), t.codeSent)}
-          >
-            {t.codeButton}
-          </button>
-        ) : (
-          me && <p className={styles.notice}>{t.codeNoEmail}</p>
-        )}
-        {note('code')}
-      </section>
+      <PersonalCode t={t} me={me} />
 
       <section className={`${styles.box} ${styles.dangerBox}`}>
         <h2>{t.forgetTitle}</h2>

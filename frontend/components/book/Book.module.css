@@ -69,6 +69,8 @@
 .linkButton { display: inline-flex; gap: 6px; margin-top: 18px; font-weight: 650; color: var(--color-ink-2); }
 .actions .linkButton { margin-top: 0; }
 .linkButton:hover { color: var(--color-ink); }
+.inlineLink { font-weight: 650; color: var(--color-mint-deep); text-decoration: underline; text-underline-offset: 3px; }
+.notice a { text-decoration: underline; text-underline-offset: 3px; }
 .muted { margin: 0; color: var(--color-ink-2); font-size: 14px; line-height: 1.6; }
 .notice { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--color-mint-soft); color: var(--color-mint-deep); font-weight: 600; }
 .error { margin: 0 0 14px; padding: 12px 14px; border-radius: 14px; background: #fff1f1; color: #b42318; }

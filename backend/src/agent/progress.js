@@ -16,6 +16,8 @@ const TOOL_STATUS = {
   sign_in_with_code: ['Checking your details…', 'أتحقق من بياناتك…'],
   send_email_code: ['Sending your code…', 'أرسل الرمز…'],
   verify_email_code: ['Checking your code…', 'أتحقق من الرمز…'],
+  start_sign_up: ['Sending your code…', 'أرسل الرمز…'],
+  finish_sign_up: ['Creating your account…', 'أجهّز حسابك…'],
   join_waitlist: ['Adding you to the waitlist…', 'أضيفك إلى قائمة الانتظار…'],
   escalate_to_human: ['Passing this to our team…', 'أحوّل طلبك لفريق العيادة…'],
 };
