@@ -1,35 +1,40 @@
 /**
- * Keeps the sign-in session in the browser's localStorage, so a reload doesn't sign you out.
- * Browser-only (localStorage doesn't exist on the server).
+ * What the browser remembers about signing in: only a "signed in" flag.
  *
- * A session (from the API) = { access_token, refresh_token, expires_at, user }:
- *   access_token  → sent as "Authorization: Bearer …" on every request; lasts ~1 hour
- *   refresh_token → swapped for a fresh session when the access token is about to expire
+ * The real sign-in lives in two places, neither of them here:
+ *   - the access token stays in memory (SessionProvider), so it's gone when the tab closes;
+ *   - the refresh token sits in an httpOnly cookie that JavaScript can't read at all, so a script
+ *     injected into a page can't steal it.
+ *
+ * The flag only saves a pointless refresh call for visitors who were never signed in, and tells
+ * other tabs when someone signs in or out. It proves nothing and opens nothing.
+ * Browser-only (localStorage doesn't exist on the server).
  */
-const KEY = 'brightsmile.session';
+const FLAG = 'brightsmile.signedIn';
+const OLD_SESSION = 'brightsmile.session'; // from before sign-in moved to the backend; held tokens
 
-export function readSession() {
+export function dropOldSession() {
   try {
-    const session = JSON.parse(localStorage.getItem(KEY));
-    return session?.access_token && session?.refresh_token ? session : null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeSession(session) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(session));
-  } catch {
-    // Private mode or storage full: the session still works until the tab closes.
-  }
-}
-
-export function clearSession() {
-  try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(OLD_SESSION);
   } catch {
     // nothing to clear
+  }
+}
+
+export function wasSignedIn() {
+  try {
+    return localStorage.getItem(FLAG) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function rememberSignedIn(signedIn) {
+  try {
+    if (signedIn) localStorage.setItem(FLAG, '1');
+    else localStorage.removeItem(FLAG);
+  } catch {
+    // Private mode or storage full: this tab still works.
   }
 }
 
@@ -39,10 +44,10 @@ export function isExpiring(session, marginSeconds = 60) {
   return session.expires_at * 1000 - Date.now() < marginSeconds * 1000;
 }
 
-/** Fires `onChange` when another tab signs in or out. Returns a function that stops listening. */
+/** Fires `onChange(signedIn)` when another tab signs in or out. Returns a function that stops listening. */
 export function watchOtherTabs(onChange) {
   const listener = (event) => {
-    if (event.key === KEY) onChange(readSession());
+    if (event.key === FLAG) onChange(event.newValue === '1');
   };
   window.addEventListener('storage', listener);
   return () => window.removeEventListener('storage', listener);

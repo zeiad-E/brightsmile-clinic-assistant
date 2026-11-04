@@ -480,11 +480,7 @@
     "signOut": "Sign out",
     "noAccount": "No account yet? Booking a visit creates one for you.",
     "book": "Book a visit",
-    "patientAccount": "This is the team sign-in. If you're a patient, please use the Patient tab. We'd love to see you there.",
-    "usePatientTab": "Go to the patient sign-in",
-    "goDashboard": "Open the dashboard",
-    "teamAccount": "This email belongs to a clinic team account. Team members sign in on the Team tab with their password.",
-    "useTeamTab": "Go to the team sign-in"
+    "goDashboard": "Open the dashboard"
   },
   "bookPage": {
     "title": "Book a visit",

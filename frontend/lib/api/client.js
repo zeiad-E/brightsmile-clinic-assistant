@@ -25,7 +25,8 @@ export class ApiError extends Error {
  */
 export const http = axios.create({
   baseURL: typeof window === 'undefined' ? `${API_URL}/api` : '/api',
-  headers: { Accept: 'application/json' },
+  // The API refuses cookie requests without this header: another website can't send it.
+  headers: { Accept: 'application/json', 'X-BrightSmile-Client': 'web' },
   timeout: 30_000,
 });
 

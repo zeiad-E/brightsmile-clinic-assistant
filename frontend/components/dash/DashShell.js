@@ -10,6 +10,7 @@ import Logo from '@/components/brand/Logo';
 import DashProvider, { useApi, useDash, useDebounced, usePolling } from './DashProvider';
 import { Avatar, Badge, Icon } from './kit';
 import st from './Shell.module.css';
+import { PasswordForm } from './screens/MyProfile';
 
 /**
  * The frame around every team page: the door check, the sidebar, the top bar and the phone menu.
@@ -45,7 +46,7 @@ export default function DashShell({ words, locale, children }) {
 }
 
 function Door({ locale, children }) {
-  const { status, user } = useSession();
+  const { status, user, refreshUser } = useSession();
   const { w } = useDash();
   const pathname = usePathname();
   const router = useRouter();
@@ -67,6 +68,15 @@ function Door({ locale, children }) {
       <Gate text={w.shell.patientNotice}>
         <Link href={localePath(locale, '/account')}>{w.shell.patientLink}</Link>
       </Gate>
+    );
+  }
+  if (user.must_change_password) {
+    return (
+      <div className={st.splash}>
+        <Logo />
+        <p>{w.shell.choosePassword}</p>
+        <PasswordForm onChanged={refreshUser} />
+      </div>
     );
   }
   const ownerPage = pathname.startsWith(`/${locale}/owner`);

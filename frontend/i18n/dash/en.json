@@ -114,6 +114,7 @@
     "language": "العربية",
     "languageLabel": "Switch to Arabic",
     "viewerBanner": "Demo view: look around freely. Nothing can be changed, and personal details are hidden.",
+    "choosePassword": "Welcome! Please replace your temporary password to continue.",
     "guardLoading": "Opening the dashboard…",
     "patientNotice": "This area is for the clinic team. Your visits and chats are in your account.",
     "patientLink": "Go to my account",

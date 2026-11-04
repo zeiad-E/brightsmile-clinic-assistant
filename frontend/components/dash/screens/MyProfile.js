@@ -137,7 +137,8 @@ function strength(password) {
   return Math.min(4, score);
 }
 
-function PasswordForm() {
+/** Also the whole screen when a temporary password must be replaced (see DashShell). `onChanged` runs after. */
+export function PasswordForm({ onChanged }) {
   const { w, api, toast } = useDash();
   const t = w.myProfile;
   const [form, setForm] = useState({ current: '', next: '', again: '' });
@@ -154,6 +155,7 @@ function PasswordForm() {
       await api('/auth/password', { method: 'POST', body: { current_password: form.current, new_password: form.next } });
       toast(t.passwordChanged);
       setForm({ current: '', next: '', again: '' });
+      onChanged?.();
     } catch (err) {
       setError(err.message);
     } finally {

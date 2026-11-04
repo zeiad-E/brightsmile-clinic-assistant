@@ -16,7 +16,7 @@ import styles from './Chat.module.css';
  *   assistant works ("Checking free times…").
  * - The assistant can attach cards: free times (tap one to ask for it), a booking summary (confirm
  *   or change), a confirmation, or your appointments.
- * - If the assistant signs you in during the chat, the whole site learns it (useSession().signIn).
+ * - If the assistant signs you in during the chat, the whole site learns it (useSession().signInWithTicket).
  * - The conversation is kept in sessionStorage, so the bubble and the full page share it while the
  *   tab is open.
  * - A clinic team member can join the chat from the dashboard ("take over"). The page checks for
@@ -44,7 +44,7 @@ export default function Chat({ t, locale, variant = 'page' }) {
   const conversationId = useRef(null);
   const listRef = useRef(null);
   const inputRef = useRef(null);
-  const { getToken, signIn, user } = useSession();
+  const { getToken, signInWithTicket, user } = useSession();
 
   // restore the conversation of this tab
   useEffect(() => {
@@ -94,8 +94,8 @@ export default function Chat({ t, locale, variant = 'page' }) {
             updateLast((m) => ({ content: m.content + piece }));
           },
           onDone: (result) => {
-            // only a patient can be signed in from the chat (the API enforces it too)
-            if (result.session?.access_token && result.session.user?.role === 'patient') signIn(result.session);
+            // the assistant signed the patient in: swap the one-time ticket for a real session
+            if (result.sign_in_ticket) signInWithTicket(result.sign_in_ticket).catch(() => {});
             if (result.status === 'with_team') {
               // a team member has the chat: no assistant reply, their answer arrives by polling
               setTeam(result.team_member ?? t.someone);
@@ -113,7 +113,7 @@ export default function Chat({ t, locale, variant = 'page' }) {
       setBusy(false);
       inputRef.current?.focus({ preventScroll: true });
     },
-    [busy, getToken, locale, signIn, t, team],
+    [busy, getToken, locale, signInWithTicket, t, team],
   );
 
   // Team messages: anything a team member wrote that this tab hasn't shown yet is added at the end.

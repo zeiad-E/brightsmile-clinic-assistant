@@ -11,10 +11,8 @@ import styles from './Login.module.css';
 
 // The demo patient from supabase/seed.sql (phone sign-in; not a secret).
 const DEMO_PATIENT = { phone: '+201000000001', full_name: 'Mariam Hassan', date_of_birth: '1992-04-15' };
-// The read-only team login is only offered when it is configured for this deployment.
-const DEMO_VIEWER = process.env.NEXT_PUBLIC_DEMO_VIEWER_EMAIL
-  ? { email: process.env.NEXT_PUBLIC_DEMO_VIEWER_EMAIL, password: process.env.NEXT_PUBLIC_DEMO_VIEWER_PASSWORD ?? '' }
-  : null;
+// The read-only demo button is only offered when this deployment has a demo account.
+const DEMO_VIEWER = process.env.NEXT_PUBLIC_DEMO_VIEWER === '1';
 
 /**
  * Sign in: patients by email code, by phone + name + date of birth, or by personal code;
@@ -27,34 +25,23 @@ export default function LoginForms({ t, locale }) {
   const [method, setMethod] = useState('email');
   const [form, setForm] = useState({ email: '', code: '', phone: '', full_name: '', date_of_birth: '', personal: '', password: '' });
   const [codeSentTo, setCodeSentTo] = useState(null);
-  const [message, setMessage] = useState(null); // { kind: 'error' | 'info', text, switchTo?: 'patient' | 'team' }
+  const [message, setMessage] = useState(null); // { kind: 'error' | 'info', text }
   const [working, setWorking] = useState(false);
 
   const field = (name) => ({ value: form[name], onChange: (e) => setForm((f) => ({ ...f, [name]: e.target.value })) });
 
-  /** `role`: which kind of login this form may accept ('patient' on the Patient tab, 'team' on the Team tab). */
-  async function run(request, role) {
+  async function run(request) {
     setWorking(true);
     setMessage(null);
     try {
       const result = await request();
       if (result?.access_token) {
-        // Second lock (the API is the first): the Patient tab never keeps a team login.
-        // If one ever comes back, it is signed out again at once and never stored.
-        if (role === 'patient' && result.user?.role !== 'patient') {
-          await apiRequest('/auth/logout', { method: 'POST', token: result.access_token }).catch(() => {});
-          setMessage({ kind: 'info', text: t.teamAccount, switchTo: 'team' });
-          return;
-        }
         await signIn(result);
         const next = new URLSearchParams(window.location.search).get('next');
         router.push(next?.startsWith('/') ? next : homeFor(result.user?.role, locale));
       }
     } catch (err) {
-      // A patient who used the Team tab: a kind note and a button to the patient sign-in.
-      if (err.code === 'patient_account') setMessage({ kind: 'info', text: t.patientAccount, switchTo: 'patient' });
-      else if (err.code === 'team_account') setMessage({ kind: 'info', text: t.teamAccount, switchTo: 'team' });
-      else setMessage({ kind: 'error', text: err.message });
+      setMessage({ kind: 'error', text: err.message });
     } finally {
       setWorking(false);
     }
@@ -63,7 +50,7 @@ export default function LoginForms({ t, locale }) {
   const submit = (e) => {
     e.preventDefault();
     if (tab === 'team') {
-      return run(() => apiRequest('/auth/staff/login', { method: 'POST', body: { email: form.email, password: form.password } }), 'team');
+      return run(() => apiRequest('/auth/staff/login', { method: 'POST', body: { email: form.email, password: form.password } }));
     }
     if (method === 'email' && !codeSentTo) {
       return run(async () => {
@@ -72,13 +59,13 @@ export default function LoginForms({ t, locale }) {
       });
     }
     if (method === 'email') {
-      return run(() => apiRequest('/auth/email/verify', { method: 'POST', body: { email: codeSentTo, code: form.code } }), 'patient');
+      return run(() => apiRequest('/auth/email/verify', { method: 'POST', body: { email: codeSentTo, code: form.code } }));
     }
     if (method === 'phone') {
       const { phone, full_name, date_of_birth } = form;
-      return run(() => apiRequest('/auth/phone', { method: 'POST', body: { phone, full_name, date_of_birth } }), 'patient');
+      return run(() => apiRequest('/auth/phone', { method: 'POST', body: { phone, full_name, date_of_birth } }));
     }
-    return run(() => apiRequest('/auth/code', { method: 'POST', body: { code: form.personal } }), 'patient');
+    return run(() => apiRequest('/auth/code', { method: 'POST', body: { code: form.personal } }));
   };
 
   if (status === 'signed-in') {
@@ -161,11 +148,6 @@ export default function LoginForms({ t, locale }) {
         {message && (
           <p className={message.kind === 'error' ? styles.error : styles.info} role="alert">
             {message.text}
-            {message.switchTo && (
-              <button type="button" className={styles.link} onClick={() => (setTab(message.switchTo), setMessage(null))}>
-                {message.switchTo === 'patient' ? t.usePatientTab : t.useTeamTab}
-              </button>
-            )}
           </p>
         )}
         <button type="submit" className={styles.submit} disabled={working}>
@@ -190,14 +172,7 @@ export default function LoginForms({ t, locale }) {
             {t.demoPatient}
           </button>
           {DEMO_VIEWER && (
-            <button
-              type="button"
-              onClick={() => {
-                setTab('team');
-                setForm((f) => ({ ...f, email: DEMO_VIEWER.email, password: DEMO_VIEWER.password }));
-                setMessage({ kind: 'info', text: t.demoFilled });
-              }}
-            >
+            <button type="button" disabled={working} onClick={() => run(() => apiRequest('/auth/demo', { method: 'POST' }))}>
               {t.demoViewer}
             </button>
           )}
