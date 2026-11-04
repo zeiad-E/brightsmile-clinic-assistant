@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { fakeIdentity, fakeUserClientModule, ROLE_IDS, tokenFor } from './helpers/fakeAuth.js';
+import { fakeIdentity, fakeSupabaseModule, fakeUserClientModule, ROLE_IDS, tokenFor } from './helpers/fakeAuth.js';
 
 /**
  * The permission matrix: every endpoint × every role → let in, or turned away?
@@ -9,6 +9,7 @@ import { fakeIdentity, fakeUserClientModule, ROLE_IDS, tokenFor } from './helper
  * requireRole + validation order), not the business logic. "Let in" = anything except
  * 401/403. The database's own security rules are tested separately (SQL tests).
  */
+vi.mock('../../src/db/supabase.js', () => fakeSupabaseModule());
 vi.mock('../../src/db/userClient.js', () => fakeUserClientModule());
 vi.mock('../../src/models/profileModel.js', async () => {
   const { fakeIdentity: identity, ROLE_IDS: ids } = await import('./helpers/fakeAuth.js');

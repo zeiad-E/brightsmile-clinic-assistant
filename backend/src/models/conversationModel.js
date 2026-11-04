@@ -27,13 +27,14 @@ export function update(db, id, patch) {
   return unwrap(db.from('conversations').update(patch).eq('id', id).select(FULL_COLUMNS).single());
 }
 
-/** The signed-in patient's own chats (Row Level Security limits it to their login). */
-export function listMine(db, { limit, offset }) {
+/** The signed-in patient's own chats. */
+export function listMine(db, profileId, { limit, offset }) {
   return unwrapPage(
     db
       .from('conversations')
       .select('id, status, title, language, last_message_at, created_at', { count: 'exact' })
       .eq('assistant', 'patient')
+      .eq('profile_id', profileId)
       .order('last_message_at', { ascending: false })
       .range(...pageRange({ limit, offset })),
   );

@@ -24,9 +24,17 @@ export function fakeIdentity(role) {
   };
 }
 
-/** Use inside vi.mock factories for the two modules authenticate() depends on. */
+/** Use inside vi.mock factories for the modules authenticate() depends on. */
+export const fakeSupabaseModule = () => ({
+  supabaseAdmin: null,
+  serverClientOptions: {},
+  requireAdmin: () => ({ fakeDbFor: 'admin' }),
+  adminAs: () => ({ fakeDbFor: 'admin' }),
+  dbFor: (user) => ({ fakeDbFor: user.role }),
+  publicDb: () => ({ fakeDbFor: 'visitor' }),
+});
+
 export const fakeUserClientModule = () => ({
-  createUserClient: (token) => ({ fakeDbFor: token }),
   createAuthClient: () => ({}),
   anonClient: () => ({
     fakeDbFor: 'anon',

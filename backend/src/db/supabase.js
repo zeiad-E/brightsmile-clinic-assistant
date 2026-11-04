@@ -6,9 +6,13 @@ import { AppError } from '../utils/AppError.js';
 /**
  * Server-side Supabase clients that use the service role key.
  *
- * The service role SKIPS Row Level Security, so these clients are only for privileged
- * work the user's own token cannot do (booking RPC, sign-in checks, Auth admin API,
- * writing notifications). Every route that reaches them is guarded by requireRole.
+ * The database stores data; it doesn't know who is asking. So the service role skips Row Level
+ * Security, and who may do what is decided here in the backend: route guards, ownership checks
+ * in the services, and the personal-data switch below.
+ *
+ * `db.piiAccess`: may this client read personal data? Only a client marked `true` gets the plain
+ * views; any other gets the masked twins (see `viewName` in models/query.js). System work is
+ * marked true; each request's client depends on the caller.
  *
  * The container runs Node 20 (shared with the LLM engine), which has no built-in
  * WebSocket; supabase-js requires one for its realtime client, so pass `ws` explicitly.
@@ -21,6 +25,7 @@ export const serverClientOptions = {
 export const supabaseAdmin = config.supabase.url
   ? createClient(config.supabase.url, config.supabase.serviceRoleKey, serverClientOptions)
   : null;
+if (supabaseAdmin) supabaseAdmin.piiAccess = true;
 
 // Old name, still imported by the chatbot code (agent/, rag/) until Part 2 rewires it.
 export const supabase = supabaseAdmin;
@@ -46,4 +51,22 @@ export function adminAs(actorId, via = 'dashboard') {
     ...serverClientOptions,
     global: { headers },
   });
+}
+
+const SEES_PERSONAL_DATA = new Set(['staff', 'owner']);
+
+/** The database client for one signed-in caller: writes are audited as them. */
+export function dbFor(user, via = 'dashboard') {
+  const db = adminAs(user.id, via);
+  db.piiAccess = SEES_PERSONAL_DATA.has(user.role);
+  return db;
+}
+
+let visitorClient = null;
+
+/** For visitors who aren't signed in: public reads only, and never personal data. */
+export function publicDb() {
+  requireAdmin();
+  visitorClient ??= createClient(config.supabase.url, config.supabase.serviceRoleKey, serverClientOptions);
+  return visitorClient;
 }

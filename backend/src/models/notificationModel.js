@@ -1,4 +1,4 @@
-import { pageRange, unwrap, unwrapPage } from './query.js';
+import { pageRange, unwrap, unwrapPage, viewName } from './query.js';
 
 /** A log row for every email the system sends: queued → sent | failed. */
 
@@ -20,10 +20,10 @@ export function markFailed(db, id, error) {
   return unwrap(db.from('notifications').update({ status: 'failed', error: String(error).slice(0, 500) }).eq('id', id));
 }
 
-/** Owner/viewer list (address masked for the viewer by the view). */
+/** Owner/viewer list (the viewer reads the masked view). */
 export function list(db, { status, template, limit, offset }) {
   let query = db
-    .from('v_notifications')
+    .from(viewName(db, 'v_notifications'))
     .select('id, patient_id, appointment_id, channel, template, to_address, status, error, sent_at, created_at', {
       count: 'exact',
     })

@@ -18,6 +18,13 @@ export async function unwrapPage(promise) {
   return { rows: data ?? [], total: count ?? 0 };
 }
 
+/**
+ * Which view to read for this client: the masked twin, unless the client is marked as allowed to
+ * see personal data. Masked is the default on purpose, so a forgotten flag hides data instead of
+ * leaking it. See db/supabase.js.
+ */
+export const viewName = (db, view) => (db?.piiAccess === true ? view : `${view}_masked`);
+
 /** limit/offset → the inclusive row range Supabase expects. */
 export function pageRange({ limit = 50, offset = 0 } = {}) {
   return [offset, offset + limit - 1];

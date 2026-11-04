@@ -1,6 +1,5 @@
 import { config } from '../config/index.js';
-import { requireAdmin } from '../db/supabase.js';
-import { anonClient, createUserClient } from '../db/userClient.js';
+import { dbFor, publicDb, requireAdmin } from '../db/supabase.js';
 import { adminAs } from '../db/supabase.js';
 import * as clinicModel from '../models/clinicModel.js';
 import * as conversationModel from '../models/conversationModel.js';
@@ -55,7 +54,7 @@ const isPatient = (user) => user?.role === 'patient' && Boolean(user.patientId);
  * turn runs: 'status' (place in line, what the assistant is doing) and 'card' (free times,
  * booking summary…). The JSON endpoint leaves it out and just waits for the result.
  */
-export async function sendMessage({ user, db, ip, evalCase, onEvent }, { conversationId, message, language }) {
+export async function sendMessage({ user, ip, evalCase, onEvent }, { conversationId, message, language }) {
   const admin = requireAdmin();
   const settings = await clinicModel.getSettings(admin);
   const lang = language ?? detectLanguage(message, user?.preferredLanguage ?? 'en');
@@ -76,11 +75,11 @@ export async function sendMessage({ user, db, ip, evalCase, onEvent }, { convers
   const notify = onEvent ?? (() => {});
   notify('conversation', { conversation_id: conversation.id });
   return withConversationLock(conversation.id, () =>
-    runTurn({ admin, settings, user, db, lang, conversationId: conversation.id, message, keys, notify }),
+    runTurn({ admin, settings, user, lang, conversationId: conversation.id, message, keys, notify }),
   );
 }
 
-async function runTurn({ admin, settings, user, db, lang, conversationId, message, keys, notify = () => {} }) {
+async function runTurn({ admin, settings, user, lang, conversationId, message, keys, notify = () => {} }) {
   const startedAt = Date.now();
   const conversation = await conversationModel.findById(admin, conversationId); // fresh, inside the lock
   const patch = { last_message_at: new Date().toISOString(), language: lang };
@@ -113,7 +112,7 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     timeZone: settings.timezone,
     user: isPatient(user) ? user : null,
     isPatient: isPatient(user),
-    db: isPatient(user) ? db : anonClient(),
+    db: isPatient(user) ? dbFor(user, 'patient_assistant') : publicDb(),
     events: {},
     cards: [],
     toolLog: [],
@@ -127,14 +126,13 @@ async function runTurn({ admin, settings, user, db, lang, conversationId, messag
     // Called by sign-in and booking tools: the conversation now belongs to this patient.
     // Only a patient is ever signed in here; any other login is closed again at once.
     signedIn: async (session) => {
-      const userDb = createUserClient(session.access_token);
-      const identity = await findIdentity(userDb, session.user.id);
+      const identity = await findIdentity(admin, session.user.id);
       if (!isPatient(identity)) {
         await revokeSession(session.access_token).catch(() => {});
         return null;
       }
       if (identity) {
-        Object.assign(ctx, { user: identity, isPatient: isPatient(identity), db: userDb, session });
+        Object.assign(ctx, { user: identity, isPatient: isPatient(identity), db: dbFor(identity, 'patient_assistant'), session });
         Object.assign(patch, { profile_id: identity.id, patient_id: identity.patientId });
       }
       return identity;
@@ -345,8 +343,8 @@ export async function getConversation({ user }, id) {
   };
 }
 
-export async function listMine({ db }, page) {
-  return listView(await conversationModel.listMine(db, page), page);
+export async function listMine({ user, db }, page) {
+  return listView(await conversationModel.listMine(db, user.id, page), page);
 }
 
 // ----- staff screens (Row Level Security: staff/owner/viewer; viewer masked) -----
@@ -357,7 +355,7 @@ export async function listForStaff({ db }, filters) {
   const page = await conversationModel.listForStaff(db, filters);
   const [patients, team] = await Promise.all([
     patientModel.namesByIds(db, page.rows.map((row) => row.patient_id)),
-    profileModel.namesByIds(db, page.rows.map((row) => row.taken_over_by), { from: 'v_profiles' }),
+    profileModel.namesByIds(db, page.rows.map((row) => row.taken_over_by), { masked: true }),
   ]);
   return listView(page, filters, (row) => ({
     ...row,
@@ -380,7 +378,7 @@ export async function getForStaff({ db }, id) {
   const team = await profileModel.namesByIds(
     db,
     [conversation.taken_over_by, conversation.reviewed_by, ...messages.map((m) => m.author_id), ...reports.map((r) => r.reported_by)],
-    { from: 'v_profiles' },
+    { masked: true },
   );
   return {
     ...rest,

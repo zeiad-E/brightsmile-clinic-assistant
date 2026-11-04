@@ -1,4 +1,4 @@
-import { pageRange, unwrap, unwrapPage } from './query.js';
+import { pageRange, unwrap, unwrapPage, viewName } from './query.js';
 
 /**
  * Bookings. Creating, cancelling and moving a booking go through database functions,
@@ -34,7 +34,7 @@ export function book(db, input) {
   );
 }
 
-/** cancel_appointment → { ok, error?, window_hours? }. The database applies the role rules. */
+/** cancel_appointment → { ok, error? }. Who may cancel is checked in appointmentService. */
 export function cancel(db, { id, reason = null }) {
   return unwrap(db.rpc('cancel_appointment', { p_appointment_id: id, p_reason: reason }));
 }
@@ -72,9 +72,9 @@ export function listForPatient(db, patientId, { scope = 'upcoming', limit, offse
   return unwrapPage(query.range(...pageRange({ limit, offset })));
 }
 
-/** Staff dashboard list (masked for the viewer by the v_appointments view). */
+/** Staff dashboard list (the viewer reads the masked view). */
 export function listForStaff(db, { from, to, staffId, status, patientId, limit, offset }) {
-  let query = db.from('v_appointments').select(STAFF_VIEW_COLUMNS, { count: 'exact' }).order('starts_at');
+  let query = db.from(viewName(db, 'v_appointments')).select(STAFF_VIEW_COLUMNS, { count: 'exact' }).order('starts_at');
   if (from) query = query.gte('starts_at', from);
   if (to) query = query.lt('starts_at', to);
   if (staffId) query = query.eq('staff_id', staffId);
@@ -84,13 +84,13 @@ export function listForStaff(db, { from, to, staffId, status, patientId, limit, 
 }
 
 export function findForStaff(db, id) {
-  return unwrap(db.from('v_appointments').select(STAFF_VIEW_COLUMNS).eq('id', id).maybeSingle());
+  return unwrap(db.from(viewName(db, 'v_appointments')).select(STAFF_VIEW_COLUMNS).eq('id', id).maybeSingle());
 }
 
 /** Count bookings that clash with a period (used to warn when adding time off). */
 export async function countBookedBetween(db, { from, to, staffId }) {
   let query = db
-    .from('v_appointments')
+    .from(viewName(db, 'v_appointments'))
     .select('id', { count: 'exact', head: true })
     .eq('status', 'booked')
     .lt('starts_at', to)

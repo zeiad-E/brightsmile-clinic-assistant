@@ -77,13 +77,13 @@ describe('confirm_pending_action', () => {
     expect(ctx.state.pending).toBeUndefined();
   });
 
-  it('cancels through the patient’s own database client', async () => {
+  it('cancels as the signed-in patient, so the booking rules apply to them', async () => {
     appointmentService.cancel.mockResolvedValue({});
     const ctx = ctxWith({ type: 'cancel', proposedAtTurn: 1, input: { id: 'appt-9', reason: 'busy' }, summary: {} }, 2);
     const result = await confirmPendingAction.run({}, ctx);
 
     expect(result.cancelled).toBe(true);
-    expect(appointmentService.cancel).toHaveBeenCalledWith({ db: ctx.db }, 'appt-9', 'busy');
+    expect(appointmentService.cancel).toHaveBeenCalledWith({ user: ctx.user, db: ctx.db }, 'appt-9', 'busy');
   });
 
   it('says so when there is nothing to confirm', async () => {

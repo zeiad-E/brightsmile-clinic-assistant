@@ -1,4 +1,4 @@
-import { unwrap } from './query.js';
+import { unwrap, viewName } from './query.js';
 
 /**
  * Messages of a conversation. Text is stored already masked ([PHONE_1], [CODE_1]…);
@@ -51,11 +51,11 @@ export function listForConversation(db, conversationId, { includeTools = false }
   return unwrap(query);
 }
 
-/** Staff view (masked for the viewer by the v_messages view). */
+/** Staff view (the viewer reads the masked view). */
 export function listForStaff(db, conversationId) {
   return unwrap(
     db
-      .from('v_messages')
+      .from(viewName(db, 'v_messages'))
       .select('id, role, content, tool_name, tool_payload, author_id, created_at')
       .eq('conversation_id', conversationId)
       .order('id'),

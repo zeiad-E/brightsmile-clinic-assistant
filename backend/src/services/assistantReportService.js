@@ -27,7 +27,7 @@ export async function list({ user, db }, filters) {
   const viewer = user.role === 'viewer';
   const [patients, team] = await Promise.all([
     patientModel.namesByIds(db, conversations.filter(Boolean).map((c) => c.patient_id)),
-    profileModel.namesByIds(db, page.rows.flatMap((r) => [r.reported_by, r.resolved_by]), { from: 'v_profiles' }),
+    profileModel.namesByIds(db, page.rows.flatMap((r) => [r.reported_by, r.resolved_by]), { masked: true }),
   ]);
   return listView(page, filters, (r) => {
     const conversation = byId.get(r.conversation_id);

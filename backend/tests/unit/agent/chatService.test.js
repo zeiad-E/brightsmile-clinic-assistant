@@ -4,8 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const conversations = new Map();
 const saved = { messages: [], runs: [], escalations: [] };
 
-vi.mock('../../../src/db/supabase.js', () => ({ requireAdmin: () => ({ admin: true }) }));
-vi.mock('../../../src/db/userClient.js', () => ({ anonClient: () => ({ anon: true }), createUserClient: () => ({ user: true }) }));
+vi.mock('../../../src/db/supabase.js', () => ({ requireAdmin: () => ({ admin: true }), dbFor: () => ({ user: true }), publicDb: () => ({ visitor: true }) }));
 vi.mock('../../../src/models/clinicModel.js', () => ({
   getSettings: vi.fn(async () => ({ assistant_enabled: true, timezone: 'Africa/Cairo', name_en: 'BrightSmile', phone: '+20 100 555 0123' })),
 }));

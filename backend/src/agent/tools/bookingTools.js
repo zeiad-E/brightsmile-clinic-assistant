@@ -223,8 +223,8 @@ export const myAppointments = defineTool({
 async function loadOwnAppointment(ctx, ref) {
   const id = ctx.state.refs?.[ref] ?? (/^[0-9a-f-]{36}$/i.test(ref) ? ref : null);
   if (!id) return { error: toolError('unknown_appointment', 'Call my_appointments first and use one of its id_for_tools values (A1, A2…).') };
-  const appointment = await appointmentModel.findById(ctx.db, id); // Row Level Security: only the patient's own
-  if (!appointment) return { error: toolError('unknown_appointment', 'That booking was not found.') };
+  const appointment = await appointmentModel.findById(ctx.db, id);
+  if (!appointment || appointment.patient_id !== ctx.user.patientId) return { error: toolError('unknown_appointment', 'That booking was not found.') };
   if (appointment.status !== 'booked') return { error: toolError('not_active', 'That booking is no longer active.') };
   return { appointment };
 }
@@ -314,13 +314,13 @@ export const confirmPendingAction = defineTool({
         };
       }
       if (pending.type === 'cancel') {
-        await appointmentService.cancel({ db: ctx.db }, pending.input.id, pending.input.reason);
+        await appointmentService.cancel({ user: ctx.user, db: ctx.db }, pending.input.id, pending.input.reason);
         delete ctx.state.pending;
         ctx.events.changed = true;
         return { cancelled: true, ...pending.summary };
       }
       if (pending.type === 'reschedule') {
-        await appointmentService.reschedule({ db: ctx.db }, pending.input.id, { starts_at: pending.input.starts_at, staff_id: pending.input.staff_id });
+        await appointmentService.reschedule({ user: ctx.user, db: ctx.db }, pending.input.id, { starts_at: pending.input.starts_at, staff_id: pending.input.staff_id });
         delete ctx.state.pending;
         ctx.events.changed = true;
         return { rescheduled: true, ...pending.summary };

@@ -12,8 +12,7 @@ const guards = {
   personBlock: null,
 };
 
-vi.mock('../../../src/db/supabase.js', () => ({ requireAdmin: () => ({}) }));
-vi.mock('../../../src/db/userClient.js', () => ({ anonClient: () => ({}), createUserClient: () => ({}) }));
+vi.mock('../../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), dbFor: () => ({}), publicDb: () => ({}) }));
 vi.mock('../../../src/models/clinicModel.js', () => ({
   getSettings: vi.fn(async () => ({ assistant_enabled: true, timezone: 'Africa/Cairo', name_en: 'BrightSmile', phone: '+20 100 555 0123' })),
 }));

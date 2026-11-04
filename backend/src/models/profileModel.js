@@ -1,13 +1,10 @@
-import { unwrap } from './query.js';
+import { unwrap, viewName } from './query.js';
 
 /** Logins (one profile per Supabase Auth user) and their roles. */
 
 const PROFILE_COLUMNS = 'id, role, full_name, email, phone, preferred_language, created_at';
 
-/**
- * Everything authenticate() needs about the caller, read AS the caller: the profile
- * (role), plus the linked patient record or staff record if there is one.
- */
+/** Everything authenticate() needs about the caller: the profile (role), plus the linked patient or staff record. */
 export async function findIdentity(db, userId) {
   const [profile, patient, staff] = await Promise.all([
     unwrap(db.from('profiles').select('id, role, full_name, email, preferred_language').eq('id', userId).maybeSingle()),
@@ -35,11 +32,11 @@ export function findByEmail(db, email) {
   return unwrap(db.from('profiles').select(PROFILE_COLUMNS).eq('email', email).maybeSingle());
 }
 
-/** Team members (everyone who isn't a patient). Masked for the viewer by the view. */
+/** Team members (everyone who isn't a patient). The viewer reads the masked view. */
 export function listTeam(db) {
   return unwrap(
     db
-      .from('v_profiles')
+      .from(viewName(db, 'v_profiles'))
       .select('id, role, full_name, email, phone, preferred_language, created_at')
       .in('role', ['owner', 'staff', 'viewer'])
       .order('created_at'),
@@ -47,13 +44,13 @@ export function listTeam(db) {
 }
 
 /**
- * id → full name, for "who wrote this" labels. Dashboard callers pass `from: 'v_profiles'`
- * (masked for the viewer); the server key reads `profiles`.
+ * id → full name, for "who wrote this" labels. Dashboard callers pass `masked: true`, so the
+ * viewer reads the masked view.
  */
-export async function namesByIds(db, ids, { from = 'profiles' } = {}) {
+export async function namesByIds(db, ids, { masked = false } = {}) {
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return new Map();
-  const rows = await unwrap(db.from(from).select('id, full_name').in('id', unique));
+  const rows = await unwrap(db.from(masked ? viewName(db, 'v_profiles') : 'profiles').select('id, full_name').in('id', unique));
   return new Map(rows.map((row) => [row.id, row.full_name]));
 }
 

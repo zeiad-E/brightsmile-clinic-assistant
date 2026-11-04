@@ -11,14 +11,11 @@ import * as waitlistService from './waitlistService.js';
 /**
  * Viewing, cancelling, moving and closing bookings.
  *
- * Cancel and reschedule run with the CALLER's database client, so the database itself
- * applies the rules: a patient only their own and not within 24 h; staff/owner anytime;
- * the viewer never. The service just translates the answers into HTTP.
+ * Who may change a booking is decided here (mayChange). The database functions only keep the
+ * change itself safe: the row lock, the status check and the no-overlap rule.
  */
 
 const CHANGE_ERRORS = {
-  not_authenticated: [401, 'Please sign in first.'],
-  read_only: [403, 'This account is read-only.'],
   not_found: [404, 'Booking not found.'],
   not_cancellable: [409, 'This booking is no longer active.'],
   too_late: [409, 'Bookings can only be changed online until shortly before the appointment. Please call the clinic.'],
@@ -67,37 +64,54 @@ export async function listMine({ user, db }, { scope, limit, offset }) {
   return listView(page, { limit, offset }, appointmentView);
 }
 
-export async function getMine({ db }, id) {
-  const appointment = await appointmentModel.findById(db, id); // RLS: only the patient's own
-  if (!appointment) throw AppError.notFound('not_found', 'Booking not found.');
+export async function getMine({ user, db }, id) {
+  const appointment = await appointmentModel.findById(db, id);
+  if (!appointment || appointment.patient_id !== user.patientId) throw AppError.notFound('not_found', 'Booking not found.');
   return appointmentView(appointment);
 }
 
-// ----- shared by patients and staff (the database applies the role rules) -----
+// ----- shared by patients and staff -----
 
-export async function cancel({ db }, id, reason) {
+/**
+ * The rules for changing a booking. A patient: only their own, and not once the online change
+ * window has closed (someone else's booking looks like it doesn't exist). Staff and the owner: any
+ * booking, any time. Returns the booking as it is now.
+ */
+async function mayChange({ user, db }, id) {
+  const appointment = await appointmentModel.findById(db, id);
+  const isPatient = user.role === 'patient';
+  if (!appointment || (isPatient && appointment.patient_id !== user.patientId)) throw changeError({ error: 'not_found' });
+  if (appointment.status !== 'booked') throw changeError({ error: 'not_cancellable' });
+  if (isPatient) {
+    const { cancellationWindowHours: hours } = await clinicBranding();
+    if (new Date(appointment.starts_at).getTime() - Date.now() < hours * 3_600_000) {
+      throw changeError({ error: 'too_late', window_hours: hours });
+    }
+  }
+  return appointment;
+}
+
+export async function cancel({ user, db }, id, reason) {
+  await mayChange({ user, db }, id);
   const result = await appointmentModel.cancel(db, { id, reason });
   if (!result.ok) throw changeError(result);
   afterCancel(id).catch(() => {});
   return appointmentView(await appointmentModel.findById(db, id));
 }
 
-export async function reschedule({ db }, id, { starts_at: startsAt, staff_id: staffId }) {
-  const before = await appointmentModel.findById(db, id); // the old time opens up for the waitlist
+export async function reschedule({ user, db }, id, { starts_at: startsAt, staff_id: staffId }) {
+  const before = await mayChange({ user, db }, id); // the old time opens up for the waitlist
   const result = await appointmentModel.reschedule(db, { id, startsAt, staffId: staffId ?? null });
   if (result.ok) {
-    if (before) {
-      waitlistService.announceOpening({ serviceId: before.service_id, staffId: before.staff_id, startsAt: before.starts_at });
-    }
+    waitlistService.announceOpening({ serviceId: before.service_id, staffId: before.staff_id, startsAt: before.starts_at });
     return appointmentView(await appointmentModel.findById(db, id));
   }
 
   if (['slot_taken', 'slot_unavailable', 'patient_has_overlap'].includes(result.error)) {
-    const current = await appointmentModel.findById(db, id);
     throw await bookingError(result.error, {
       db: requireAdmin(),
-      serviceId: current?.service_id,
-      staffId: staffId ?? current?.staff_id,
+      serviceId: before.service_id,
+      staffId: staffId ?? before.staff_id,
       startsAt,
     });
   }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 /**
- * Dashboard backend pieces that have real logic (docs/DASHBOARD_PLAN.md):
+ * Dashboard backend pieces that have real logic (docs/14_DASHBOARD_PLAN.md):
  *  - G9  the owner's numbers for a period are added up correctly
  *  - G8  a patient login is turned away at the team sign-in (and its session closed)
  *  - G1  a team member's first name, as the patient sees it
@@ -17,7 +17,7 @@ vi.mock('../../src/db/userClient.js', () => ({
   createUserClient: vi.fn(),
   anonClient: vi.fn(),
 }));
-vi.mock('../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), adminAs: () => ({}) }));
+vi.mock('../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), adminAs: () => ({}), dbFor: () => ({}), publicDb: () => ({}) }));
 vi.mock('../../src/models/profileModel.js', () => ({ findById: findProfile, findIdentity: vi.fn(), namesByIds: vi.fn() }));
 vi.mock('../../src/services/sessionService.js', () => ({ revokeSession, mintSession: vi.fn(), refreshSession: vi.fn() }));
 

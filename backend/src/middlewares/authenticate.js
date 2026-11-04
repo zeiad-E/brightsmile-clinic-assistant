@@ -1,5 +1,6 @@
 import { AppError } from '../utils/AppError.js';
-import { anonClient, createUserClient } from '../db/userClient.js';
+import { dbFor, requireAdmin } from '../db/supabase.js';
+import { anonClient } from '../db/userClient.js';
 import { findIdentity } from '../models/profileModel.js';
 
 /**
@@ -15,7 +16,7 @@ import { findIdentity } from '../models/profileModel.js';
  *
  * Sets:
  *   req.user  = { id, role, email, fullName, preferredLanguage, patientId, staffId }
- *   req.db    = a database client acting AS this user (Row Level Security applies)
+ *   req.db    = the database client for this user (audited as them; masked for the viewer)
  *   req.token = the raw access token (needed to sign out)
  */
 const BEARER = /^Bearer\s+([\w-]+\.[\w-]+\.[\w-]+)$/i;
@@ -42,12 +43,11 @@ export function authenticate() {
 
     const token = match[1];
     const claims = await verifyAccessToken(token);
-    const db = createUserClient(token);
-    const identity = await findIdentity(db, claims.sub);
+    const identity = await findIdentity(requireAdmin(), claims.sub);
     if (!identity) throw AppError.unauthorized('account_not_found', 'This account no longer exists.');
 
     req.user = identity;
-    req.db = db;
+    req.db = dbFor(identity);
     req.token = token;
     return next();
   };

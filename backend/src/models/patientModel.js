@@ -1,4 +1,4 @@
-import { pageRange, searchTerm, unwrap, unwrapPage } from './query.js';
+import { pageRange, searchTerm, unwrap, unwrapPage, viewName } from './query.js';
 
 /**
  * Patient records.
@@ -29,10 +29,10 @@ export function findByEmail(db, email) {
   return unwrap(db.from('patients').select(COLUMNS).eq('email', email).maybeSingle());
 }
 
-/** Staff search by name, email or phone (masked for the viewer by v_patients). */
+/** Staff search by name, email or phone (the viewer searches the masked view). */
 export function search(db, { q, limit, offset }) {
   let query = db
-    .from('v_patients')
+    .from(viewName(db, 'v_patients'))
     .select('id, profile_id, full_name, date_of_birth, email, phone, preferred_language, notes, created_at', {
       count: 'exact',
     })
@@ -45,7 +45,7 @@ export function search(db, { q, limit, offset }) {
 export function findInView(db, id) {
   return unwrap(
     db
-      .from('v_patients')
+      .from(viewName(db, 'v_patients'))
       .select('id, profile_id, full_name, date_of_birth, email, phone, preferred_language, notes, created_at')
       .eq('id', id)
       .maybeSingle(),
@@ -117,10 +117,10 @@ export function findByCodeHmac(db, codeHmac) {
   return unwrap(db.rpc('find_patient_by_code', { p_code_hmac: codeHmac }));
 }
 
-/** id → name for list screens (masked for the viewer by v_patients). */
+/** id → name for list screens (the viewer reads the masked view). */
 export async function namesByIds(db, ids) {
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return new Map();
-  const rows = await unwrap(db.from('v_patients').select('id, full_name').in('id', unique));
+  const rows = await unwrap(db.from(viewName(db, 'v_patients')).select('id, full_name').in('id', unique));
   return new Map(rows.map((row) => [row.id, row.full_name]));
 }
