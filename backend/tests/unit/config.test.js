@@ -55,6 +55,35 @@ describe('loadConfig', () => {
     expect(loadConfig({}).auth.personalCodeSecret).toMatch(/^dev-only/);
   });
 
+  it('refuses short sign-in secrets', () => {
+    expect(() => loadConfig({ JWT_SECRET: 'short' })).toThrow(/JWT_SECRET: must be at least 32/);
+    expect(() => loadConfig({ PROXY_SHARED_SECRET: 'short' })).toThrow(/PROXY_SHARED_SECRET: must be at least 32/);
+  });
+
+  const codeKey = (id, fill) => `${id}:${Buffer.alloc(32, fill).toString('base64')}`;
+
+  it('reads the personal-code keys, old ones included', () => {
+    const { codeKeys } = loadConfig({
+      PERSONAL_CODE_ENCRYPTION_KEY: codeKey('k2', 2),
+      PERSONAL_CODE_ENCRYPTION_KEYS_OLD: codeKey('k1', 1),
+    }).auth;
+
+    expect(codeKeys.current.id).toBe('k2');
+    expect([...codeKeys.byId.keys()].sort()).toEqual(['k1', 'k2']);
+  });
+
+  it('refuses a personal-code key in the wrong shape', () => {
+    const shortKey = `k1:${Buffer.alloc(16).toString('base64')}`;
+    expect(() => loadConfig({ PERSONAL_CODE_ENCRYPTION_KEY: shortKey })).toThrow(/PERSONAL_CODE_ENCRYPTION_KEY/);
+    expect(() => loadConfig({ PERSONAL_CODE_ENCRYPTION_KEY: 'no-colon' })).toThrow(/PERSONAL_CODE_ENCRYPTION_KEY/);
+  });
+
+  it('sends the sign-in cookie over HTTPS only in production, unless told otherwise', () => {
+    expect(loadConfig({}).auth.cookieSecure).toBe(false);
+    expect(loadConfig(productionEnv).auth.cookieSecure).toBe(true);
+    expect(loadConfig({ ...productionEnv, COOKIE_SECURE: 'false' }).auth.cookieSecure).toBe(false);
+  });
+
   it('requires the matching credentials for the chosen email provider', () => {
     expect(() => loadConfig({ EMAIL_PROVIDER: 'smtp' })).toThrow(/SMTP_USER/);
     expect(() => loadConfig({ EMAIL_PROVIDER: 'brevo' })).toThrow(/BREVO_API_KEY/);

@@ -6,5 +6,5 @@ import { capacityStatus } from '../../services/capacity/index.js';
  * `your_ip` is how the server sees the caller — a quick check that per-visitor limits work.
  */
 export function status(req, res) {
-  res.json({ ...capacityStatus(), your_ip: req.ip });
+  res.json({ ...capacityStatus(), your_ip: req.clientIp });
 }

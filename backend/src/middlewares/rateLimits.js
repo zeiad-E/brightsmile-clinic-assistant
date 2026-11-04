@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { AppError } from '../utils/AppError.js';
 
 /**
@@ -21,6 +21,7 @@ function limiter(windowMs, limit, message) {
     limit,
     standardHeaders: 'draft-8', // tells the client how many tries are left
     legacyHeaders: false,
+    keyGenerator: (req) => ipKeyGenerator(req.clientIp),
     skip: (req) => Boolean(req.evalCase), // the agent evals (see middlewares/evalPass.js)
     handler: (_req, _res, next) => next(new AppError(429, 'rate_limited', message)),
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, dayInZone, isValidDay, weekdayOf } from '../../src/utils/clinicTime.js';
-import { generatePersonalCode, hmacPersonalCode, normalizePersonalCode } from '../../src/utils/crypto.js';
+import { generatePersonalCode, hmacPersonalCode, normalizePersonalCode } from '../../src/auth/personalCodes.js';
 
 describe('clinicTime', () => {
   it('uses the clinic day, not the server (UTC) day', () => {

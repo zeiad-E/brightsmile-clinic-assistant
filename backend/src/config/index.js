@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
@@ -17,6 +18,18 @@ dotenv.config({ path: fileURLToPath(new URL(`../../${envFile}`, import.meta.url)
 const text = (fallback = '') => z.string().trim().default(fallback);
 const positiveInt = (fallback) => z.coerce.number().int().positive().default(fallback);
 
+const splitList = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
+
+function parseCodeKey(entry) {
+  const [id, base64 = ''] = entry.split(':');
+  return { id, key: Buffer.from(base64, 'base64') };
+}
+
+const isCodeKey = (entry) => {
+  const { id, key } = parseCodeKey(entry);
+  return /^[\w-]{1,20}$/.test(id) && key.length === 32;
+};
+
 const EnvSchema = z
   .object({
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
@@ -25,6 +38,8 @@ const EnvSchema = z
     // Proxies between the visitor and us. On Render: Cloudflare → Render load balancer → app = 3.
     // Getting this right is what makes per-visitor rate limits and cooldowns work.
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(3),
+    // Proves a request came through our Next.js site, which forwards the visitor's address.
+    PROXY_SHARED_SECRET: text(),
 
     LLM_ENGINE_BASE_URL: text('http://localhost:3001/v1'),
     LLM_ENGINE_API_KEY: text(),
@@ -65,6 +80,16 @@ const EnvSchema = z
 
     // Fingerprints personal sign-in codes (HMAC). Changing it invalidates every issued code.
     PERSONAL_CODE_SECRET: text(),
+    // Signs access tokens. Changing it only makes browsers refresh: sessions live in the database.
+    JWT_SECRET: text(),
+    // Encrypts personal codes: "<key id>:<base64 of 32 bytes>". To rotate, move the old value to
+    // PERSONAL_CODE_ENCRYPTION_KEYS_OLD (comma separated) so existing codes stay readable.
+    PERSONAL_CODE_ENCRYPTION_KEY: text(),
+    PERSONAL_CODE_ENCRYPTION_KEYS_OLD: text(),
+    // Send the sign-in cookie over HTTPS only. Defaults to on in production.
+    COOKIE_SECURE: z.enum(['true', 'false']).optional(),
+    // The read-only demo account behind the sign-in page's demo button; empty hides it.
+    DEMO_VIEWER_EMAIL: text(),
     // Where the frontend lives; used for links in emails.
     APP_URL: text('http://localhost:3000'),
 
@@ -86,8 +111,13 @@ const EnvSchema = z
 
     if (env.EMAIL_PROVIDER === 'smtp') requireKeys(['SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'], 'when EMAIL_PROVIDER=smtp');
     if (env.EMAIL_PROVIDER === 'brevo') requireKeys(['BREVO_API_KEY', 'MAIL_FROM'], 'when EMAIL_PROVIDER=brevo');
-    if (env.EVAL_KEY && env.EVAL_KEY.length < 32) {
-      ctx.addIssue({ code: 'custom', path: ['EVAL_KEY'], message: 'must be at least 32 characters' });
+    for (const key of ['EVAL_KEY', 'PROXY_SHARED_SECRET', 'JWT_SECRET']) {
+      if (env[key] && env[key].length < 32) ctx.addIssue({ code: 'custom', path: [key], message: 'must be at least 32 characters' });
+    }
+    for (const key of ['PERSONAL_CODE_ENCRYPTION_KEY', 'PERSONAL_CODE_ENCRYPTION_KEYS_OLD']) {
+      if (env[key] && !splitList(env[key]).every(isCodeKey)) {
+        ctx.addIssue({ code: 'custom', path: [key], message: 'must look like "<key id>:<base64 of 32 bytes>"' });
+      }
     }
 
     if (env.NODE_ENV !== 'production') return;
@@ -99,6 +129,15 @@ const EnvSchema = z
 
 // Local development and tests may run without a real secret; production never does (checked above).
 const DEV_PERSONAL_CODE_SECRET = 'dev-only-personal-code-secret-never-use-in-production';
+const DEV_JWT_SECRET = 'dev-only-jwt-secret-never-use-in-production';
+const DEV_CODE_KEY = { id: 'dev', key: crypto.createHash('sha256').update('dev-only-personal-code-key').digest() };
+
+/** The key that encrypts new codes, and every key that can still read old ones. */
+function codeKeys(env) {
+  const current = env.PERSONAL_CODE_ENCRYPTION_KEY ? parseCodeKey(env.PERSONAL_CODE_ENCRYPTION_KEY) : DEV_CODE_KEY;
+  const old = splitList(env.PERSONAL_CODE_ENCRYPTION_KEYS_OLD).map(parseCodeKey);
+  return { current, byId: new Map([...old, current].map(({ id, key }) => [id, key])) };
+}
 
 // When the LLM engine runs in the same container, its admin account comes from the
 // engine's own startup config (FREEAPI_CONFIG_JSON); reuse it instead of duplicating secrets.
@@ -128,6 +167,7 @@ export function loadConfig(rawEnv = process.env) {
     nodeEnv: env.NODE_ENV,
     corsOrigin: env.CORS_ORIGIN,
     trustProxyHops: env.TRUST_PROXY_HOPS,
+    proxySharedSecret: env.PROXY_SHARED_SECRET,
 
     llm: {
       engineBaseUrl: env.LLM_ENGINE_BASE_URL,
@@ -175,6 +215,10 @@ export function loadConfig(rawEnv = process.env) {
 
     auth: {
       personalCodeSecret: env.PERSONAL_CODE_SECRET || DEV_PERSONAL_CODE_SECRET,
+      jwtSecret: env.JWT_SECRET || DEV_JWT_SECRET,
+      codeKeys: codeKeys(env),
+      cookieSecure: env.COOKIE_SECURE ? env.COOKIE_SECURE === 'true' : env.NODE_ENV === 'production',
+      demoViewerEmail: env.DEMO_VIEWER_EMAIL,
     },
 
     email: {

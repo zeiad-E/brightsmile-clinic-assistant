@@ -1,7 +1,7 @@
 import { config } from '../config/index.js';
 import { requireAdmin } from '../db/supabase.js';
 import * as patientModel from '../models/patientModel.js';
-import { generatePersonalCode, hmacPersonalCode } from '../utils/crypto.js';
+import { generatePersonalCode, hmacPersonalCode } from '../auth/personalCodes.js';
 
 /**
  * Personal sign-in codes (e.g. K7Q4-9M2X), sent by email.

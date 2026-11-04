@@ -2,6 +2,11 @@
 const nextConfig = {
   /* config options here */
   cacheComponents: true,
+  experimental: {
+    // proxy.js now sees /api calls, and Next.js cuts off bodies above this size when it does.
+    // The backend accepts knowledge files up to 10 MB, plus the form's own overhead.
+    proxyClientMaxBodySize: '11mb',
+  },
   // The browser calls /api/… on this same site and Next.js forwards it to the backend. Same address
   // as the page, so the API's CORS list (which sites may call it from a browser) never gets in the
   // way, wherever the site runs (localhost, a tunnel, Vercel).
