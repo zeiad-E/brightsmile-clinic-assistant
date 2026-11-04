@@ -1,5 +1,5 @@
--- Database tests: booking rules, race guards, sign-in, cancellation, security (RLS),
--- masking, audit log and knowledge search. Run with supabase/tests/run-local.sh.
+-- Database tests: booking rules, race guards, the patient-profile rule, what the public keys can
+-- reach, masking, audit log and knowledge search. Run with supabase/tests/run-local.sh.
 -- Every check prints "PASS: …" or raises "FAIL: …".
 
 \set ON_ERROR_STOP 0
@@ -28,11 +28,11 @@ $$;
 grant execute on all functions in schema test to public;
 
 -- ---------- fixtures ----------
-insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data) values
-  ('00000000-0000-0000-0000-0000000000a1', 'owner@test.local',   '{"role":"owner"}',  '{"full_name":"Olivia Owner"}'),
-  ('00000000-0000-0000-0000-0000000000a2', 'staff@test.local',   '{"role":"staff"}',  '{"full_name":"Sam Staff"}'),
-  ('00000000-0000-0000-0000-0000000000a3', 'viewer@test.local',  '{"role":"viewer"}', '{"full_name":"Vera Viewer"}'),
-  ('00000000-0000-0000-0000-0000000000a4', 'patient@test.local', '{}',                '{"full_name":"Paul Patient"}');
+insert into public.profiles (id, role, full_name, email) values
+  ('00000000-0000-0000-0000-0000000000a1', 'owner',   'Olivia Owner', 'owner@test.local'),
+  ('00000000-0000-0000-0000-0000000000a2', 'staff',   'Sam Staff',    'staff@test.local'),
+  ('00000000-0000-0000-0000-0000000000a3', 'viewer',  'Vera Viewer',  'viewer@test.local'),
+  ('00000000-0000-0000-0000-0000000000a4', 'patient', 'Paul Patient', null);
 
 insert into public.clinic_settings (id, name_en, name_ar) values (1, 'Test Clinic', 'عيادة الاختبار');
 
@@ -53,12 +53,6 @@ insert into public.staff_services (staff_id, service_id) values
 insert into public.working_hours (staff_id, weekday, start_time, end_time)
 select s.id, d, time '10:00', time '18:00'
 from public.staff s, generate_series(0, 6) d;
-
--- ---------- profiles ----------
-select test.assert((select role from public.profiles where id = '00000000-0000-0000-0000-0000000000a1') = 'owner',
-  'new login gets a profile with the role from app_metadata');
-select test.assert((select role from public.profiles where id = '00000000-0000-0000-0000-0000000000a4') = 'patient',
-  'new login without a role defaults to patient');
 
 -- ---------- free slots ----------
 select test.assert(
@@ -164,125 +158,68 @@ select test.assert(
   (select count(*) from public.get_available_slots('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.day(5))) = 0,
   'clinic-wide time off removes all slots that day');
 
--- ---------- phone sign-in ----------
+-- ---------- Arabic name, phone only ----------
 select public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b2', test.at('12:00'),
   'أحمد  محمود', '1985-05-05', p_phone => '+20 100 123 4567');
+select test.assert((select full_name = 'أحمد محمود' from public.patients where phone = '+201001234567'),
+  'booking tidies the name and phone before saving');
 
+-- ---------- one patient, one profile ----------
+select test.assert(not exists (select 1 from public.patients where profile_id is null), 'every patient has a profile');
 select test.assert(
-  public.verify_patient_by_phone('+201001234567', 'احمد محمود', '1985-05-05') ->> 'ok' = 'true',
-  'phone sign-in matches the name despite Arabic letter variants and extra spaces');
+  (select pr.role = 'patient' and pr.full_name = 'Paul Patient' and pr.email is null and pr.phone is null
+   from public.patients p join public.profiles pr on pr.id = p.profile_id where p.email = 'paul@example.com'),
+  'a new patient gets a patient profile, with their contact details left on the patient record');
 
-select test.assert(
-  public.verify_patient_by_phone('+201001234567', 'احمد محمود', '1985-06-06') ->> 'error' = 'invalid_credentials',
-  'phone sign-in with the wrong date of birth fails');
-
-select public.verify_patient_by_phone('+201001234567', 'wrong', '1985-05-05') from generate_series(1, 4);
-select test.assert(
-  public.verify_patient_by_phone('+201001234567', 'احمد محمود', '1985-05-05') ->> 'error' = 'locked',
-  'after 5 wrong tries the account is locked, even for the right answer');
-
--- ---------- cancellation ----------
-update public.patients set profile_id = '00000000-0000-0000-0000-0000000000a4' where email = 'paul@example.com';
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
-select test.assert(
-  public.cancel_appointment((select id from public.appointments where starts_at = test.at('14:00') and staff_id = '00000000-0000-0000-0000-0000000000b1')) ->> 'ok' = 'true',
-  'patient cancels own booking more than 24 h ahead');
-commit;
-
--- Move one of Paul's bookings to 5 hours from now (inside the 24 h window).
-update public.appointments set starts_at = date_trunc('minute', now()) + interval '5 hours'
-where starts_at = test.at('15:00') and staff_id = '00000000-0000-0000-0000-0000000000b2';
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
-select test.assert(
-  public.cancel_appointment((select id from public.appointments where staff_id = '00000000-0000-0000-0000-0000000000b2' and starts_at < now() + interval '6 hours')) ->> 'error' = 'too_late',
-  'patient cannot cancel inside the 24 h window');
-commit;
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}';
-select test.assert(
-  public.cancel_appointment((select id from public.appointments where staff_id = '00000000-0000-0000-0000-0000000000b2' and starts_at < now() + interval '6 hours')) ->> 'error' = 'read_only',
-  'viewer cannot cancel anything');
-commit;
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
-select test.assert(
-  public.cancel_appointment((select id from public.appointments where staff_id = '00000000-0000-0000-0000-0000000000b2' and starts_at < now() + interval '6 hours')) ->> 'ok' = 'true',
-  'staff can cancel inside the 24 h window');
-commit;
-
--- ---------- security: viewer ----------
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}';
-select test.assert((select count(*) from public.patients) = 0, 'viewer cannot read the raw patients table');
-select test.assert((select count(*) from public.v_patients) > 0, 'viewer can read the patients view');
-select test.assert((select bool_and(email is null or email like '_***@%') from public.v_patients), 'viewer sees emails masked');
-select test.assert((select bool_and(phone is null or phone like '%*%') from public.v_patients), 'viewer sees phones masked');
-select test.assert((select bool_and(date_of_birth is null) from public.v_patients), 'viewer does not see dates of birth');
-select test.assert((select count(*) from public.appointments) > 0, 'viewer can read appointments');
-select test.assert((select count(*) from public.v_stats_today) = 1, 'viewer can read today''s stats');
-select test.assert((select count(*) from public.knowledge_chunks) = 0, 'viewer cannot read knowledge chunks');
-update public.services set price_egp = 1 where slug = 'teeth-cleaning';
-commit;
-select test.assert((select price_egp from public.services where slug = 'teeth-cleaning') = 500,
-  'viewer price change has no effect (read-only enforced by the database)');
-
--- ---------- security: patient ----------
-select count(*) as paul_appointments
-from public.appointments a join public.patients p on p.id = a.patient_id
-where p.email = 'paul@example.com' \gset
-select test.assert((select count(*) from public.appointments) > :paul_appointments,
-  'fixture: other patients have appointments too');
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
-select test.assert((select count(*) from public.patients) = 1, 'patient sees only their own patient record');
-select test.assert((select count(*) from public.appointments) = :paul_appointments,
-  'patient sees only their own appointments');
-select test.assert((select count(*) from public.v_patients) = 0, 'patient cannot use the staff views');
-commit;
-
--- ---------- security: anonymous visitor ----------
-begin;
-set local role anon;
-select test.assert((select count(*) from public.services) = 2, 'visitor can read the service catalog');
+select count(*) as profiles_before from public.profiles \gset
 do $$
 begin
-  perform 1 from public.patients;
-  raise exception 'FAIL: visitor could read patients';
-exception when insufficient_privilege then
-  raise notice 'PASS: visitor cannot read patients';
+  insert into public.patients (full_name, date_of_birth, email) values ('Duplicate', '1990-01-01', 'paul@example.com');
+  raise exception 'FAIL: a second patient with the same email was accepted';
+exception when unique_violation then
+  raise notice 'PASS: a patient email is unique';
 end;
 $$;
-select test.assert(
-  (select count(*) from public.get_available_slots('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.day())) > 0,
-  'visitor can look up free slots');
+select test.assert((select count(*) from public.profiles) = :profiles_before,
+  'a patient insert that fails leaves no profile behind (the race in book_appointment)');
+
+insert into public.patients (full_name, date_of_birth, phone, profile_id)
+values ('Linked Already', '1990-01-01', '+201000000055', '00000000-0000-0000-0000-0000000000a4');
+select test.assert((select count(*) from public.profiles) = :profiles_before,
+  'a patient who comes with a profile does not get a second one');
+
 do $$
 begin
-  perform public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.at('17:00'),
-    'Hacker', '1990-01-01', p_email => 'h@example.com');
-  raise exception 'FAIL: visitor could call book_appointment directly';
-exception when insufficient_privilege then
-  raise notice 'PASS: visitor cannot call book_appointment directly (server only)';
+  update public.patients set profile_id = null where email = 'paul@example.com';
+  raise exception 'FAIL: a patient lost their profile';
+exception when not_null_violation then
+  raise notice 'PASS: a patient must have a profile';
 end;
 $$;
-commit;
+
+do $$
+begin
+  delete from public.profiles where id = (select profile_id from public.patients where email = 'paul@example.com');
+  raise exception 'FAIL: a patient''s profile was deleted';
+exception when restrict_violation then
+  raise notice 'PASS: a profile can''t be deleted while its patient exists';
+end;
+$$;
+
+do $$
+begin
+  update public.profiles set email = 'someone@example.com' where id = '00000000-0000-0000-0000-0000000000a4';
+  raise exception 'FAIL: a patient profile got an email';
+exception when check_violation then
+  raise notice 'PASS: a patient profile holds no contact details';
+end;
+$$;
 
 -- ---------- audit log ----------
 begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
+set local request.headers = '{"x-actor-id":"00000000-0000-0000-0000-0000000000a1","x-change-via":"dashboard"}';
 update public.services set price_egp = 600 where slug = 'teeth-cleaning';
 commit;
 select test.assert(
@@ -341,13 +278,13 @@ select public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000
   'Rana Reschedule', '1991-02-02', p_email => 'rana@example.com');
 
 begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
 select test.assert(
   public.reschedule_appointment(
     (select id from public.appointments where starts_at = test.at('10:00', 4) and status = 'booked'),
     test.at('10:15', 4)) ->> 'ok' = 'true',
-  'patient moves own booking by 15 minutes (overlapping its own old time is fine)');
+  'a booking moves by 15 minutes (overlapping its own old time is fine)');
 select test.assert(
   public.reschedule_appointment(
     (select id from public.appointments where starts_at = test.at('10:15', 4) and status = 'booked'),
@@ -358,11 +295,6 @@ select test.assert(
     (select id from public.appointments where starts_at = test.at('10:15', 4) and status = 'booked'),
     test.at('03:00', 4)) ->> 'error' = 'slot_unavailable',
   'reschedule outside working hours is refused as slot_unavailable');
-select test.assert(
-  public.reschedule_appointment(
-    (select id from public.appointments where starts_at = test.at('11:00', 4) and status = 'booked'),
-    test.at('12:00', 4)) ->> 'error' = 'not_found',
-  'patient cannot reschedule someone else''s booking (looks like not found)');
 commit;
 
 select test.assert(
@@ -370,23 +302,13 @@ select test.assert(
   'rescheduled booking keeps the service duration');
 
 begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}';
-select test.assert(
-  public.reschedule_appointment(
-    (select id from public.appointments where starts_at = test.at('11:00', 4) and status = 'booked'),
-    test.at('12:00', 4)) ->> 'error' = 'read_only',
-  'viewer cannot reschedule');
-commit;
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
 select test.assert(
   public.reschedule_appointment(
     (select id from public.appointments where starts_at = test.at('11:00', 4) and status = 'booked'),
     test.at('12:00', 4), '00000000-0000-0000-0000-0000000000b2') ->> 'ok' = 'true',
-  'staff moves a booking to another doctor and time');
+  'a booking moves to another doctor and time');
 commit;
 
 select test.assert(
@@ -395,12 +317,12 @@ select test.assert(
 
 -- ---------- schedule edits (backend part 1) ----------
 begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
 select test.assert(
   public.set_working_hours('00000000-0000-0000-0000-0000000000b2',
     '[{"weekday":1,"start_time":"09:00","end_time":"13:00"},{"weekday":1,"start_time":"14:00","end_time":"17:00"}]') ->> 'count' = '2',
-  'owner replaces a doctor''s weekly schedule in one step');
+  'a doctor''s weekly schedule is replaced in one step');
 select test.assert(
   public.set_working_hours('00000000-0000-0000-0000-0000000000b2',
     '[{"weekday":2,"start_time":"09:00","end_time":"13:00"},{"weekday":2,"start_time":"12:00","end_time":"15:00"}]') ->> 'error' = 'overlapping_shifts',
@@ -411,57 +333,12 @@ select test.assert(
 select test.assert(
   public.set_staff_services('00000000-0000-0000-0000-0000000000b2',
     array['00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000c2']::uuid[]) ->> 'count' = '2',
-  'owner replaces the services a doctor offers');
+  'the services a doctor offers are replaced in one step');
 select test.assert(
   public.set_staff_services('00000000-0000-0000-0000-0000000000b2',
     array['00000000-0000-0000-0000-0000000000ff']::uuid[]) ->> 'error' = 'unknown_service',
   'an unknown service is refused');
 commit;
-
-do $$
-begin
-  set local role authenticated;
-  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
-  perform public.set_working_hours('00000000-0000-0000-0000-0000000000b2', '[]');
-  raise exception 'FAIL: staff changed working hours';
-exception when insufficient_privilege then
-  raise notice 'PASS: only the owner can change working hours';
-end;
-$$;
-
--- ---------- sign-in secrets hidden (backend part 1) ----------
-update public.patients set code_hmac = 'fingerprint-for-test' where email = 'paul@example.com';
-
-do $$
-begin
-  set local role authenticated;
-  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
-  perform code_hmac from public.patients;
-  raise exception 'FAIL: patient could read the code fingerprint';
-exception when insufficient_privilege then
-  raise notice 'PASS: a patient cannot read their code fingerprint';
-end;
-$$;
-
-do $$
-begin
-  set local role authenticated;
-  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
-  update public.patients set login_failed_attempts = 0;
-  raise exception 'FAIL: staff could reset lockout counters directly';
-exception when insufficient_privilege then
-  raise notice 'PASS: staff cannot touch lockout counters directly';
-end;
-$$;
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
-select test.assert(
-  (select full_name from public.patients) = 'Paul Patient',
-  'a patient still reads their own record (without the secret columns)');
-commit;
-
 select test.assert(
   public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.at('16:00', 4),
     'Web Visitor', '1993-03-03', p_email => 'web@example.com', p_source => 'website') ->> 'ok' = 'true',
@@ -544,12 +421,12 @@ insert into public.jobs (type, payload) values ('nightly_cleanup', '{"recurring"
 select test.assert((select count(*) from public.jobs where type = 'nightly_cleanup') = 2,
   'recurring jobs: the next run can be queued once the previous one finished');
 
--- ---------- backend-owned sign-in: profiles (migration 20261104000100) ----------
+-- ---------- team profiles ----------
 insert into public.profiles (role, full_name, email) values ('staff', 'Nadia Noauth', 'nadia@test.local');
 select test.assert(
   (select id is not null and not must_change_password and failed_login_attempts = 0
    from public.profiles where email = 'nadia@test.local'),
-  'a profile can exist without a Supabase login, and gets its own id');
+  'a profile gets its own id');
 
 do $$
 begin
@@ -559,17 +436,6 @@ exception when unique_violation then
   raise notice 'PASS: a team email belongs to one profile, in any case';
 end;
 $$;
-
-insert into public.profiles (role, email) values ('patient', 'nadia@test.local'), ('patient', 'nadia@test.local');
-select test.assert((select count(*) from public.profiles where email = 'nadia@test.local') = 3,
-  'the unique email rule is for the team: patient profiles are not affected');
-
-insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a5', 'spare@test.local');
-select test.assert(exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-0000000000a5'),
-  'a new Supabase login still gets a profile');
-delete from auth.users where id = '00000000-0000-0000-0000-0000000000a5';
-select test.assert(not exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-0000000000a5'),
-  'deleting a Supabase login still removes its profile');
 
 -- ---------- sign-in secrets stay away from the public key ----------
 update public.profiles set password_hash = 'scrypt-hash-for-test', phone = '+201000000001'
@@ -628,19 +494,6 @@ exception when insufficient_privilege then
   raise notice 'PASS: personal-code ciphertexts are hidden from the public key';
 end;
 $$;
-
--- The same columns profileModel.js names, read and written with the user's own token.
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
-select test.assert(
-  (select role = 'patient' and full_name = 'Paul Patient'
-   from (select id, role, full_name, email, phone, preferred_language, created_at from public.profiles) own),
-  'the current backend still reads a profile with the user''s token');
-update public.profiles set preferred_language = 'ar' where id = '00000000-0000-0000-0000-0000000000a4';
-commit;
-select test.assert((select preferred_language = 'ar' from public.profiles where id = '00000000-0000-0000-0000-0000000000a4'),
-  'the current backend still saves a profile with the user''s token');
 
 -- ---------- encrypted personal codes ----------
 do $$
@@ -764,18 +617,21 @@ $$;
 
 do $$
 declare
-  v_view  text;
-  v_count bigint;
+  v_view text;
 begin
-  set local role authenticated;
-  set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
   foreach v_view in array array['v_patients', 'v_profiles', 'v_appointments', 'v_messages', 'v_notifications',
                                 'v_audit_log', 'v_stats_today', 'v_stats_upcoming_by_doctor', 'v_ai_outcomes_7d'] loop
-    execute format('select count(*) from public.%I', v_view) into v_count;
-    perform test.assert(v_count = 0, format('a patient still gets nothing from %s', v_view));
+    begin
+      set local role authenticated;
+      execute format('select count(*) from public.%I', v_view);
+      raise exception 'FAIL: the public key could read %', v_view;
+    exception when insufficient_privilege then
+      raise notice 'PASS: the public key cannot read %', v_view;
+    end;
   end loop;
 end;
 $$;
+
 
 begin;
 set local role service_role;
@@ -834,22 +690,6 @@ select test.assert(
   ),
   'every masked twin has exactly the columns of its plain view');
 
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}';
-select test.assert(
-  (select full_name = 'Olivia O.' and email = 'o***@test.local' from public.v_profiles where id = '00000000-0000-0000-0000-0000000000a1'),
-  'the viewer still sees v_profiles masked with the current token');
-commit;
-
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
-select test.assert(
-  (select full_name = 'Paul Patient' from public.v_patients where email = 'paul@example.com'),
-  'staff still see real names with the current token');
-commit;
-
 -- ---------- cancel and reschedule with the server key ----------
 -- f101, f102: Paul's, hours away, so inside the 24 h window.
 -- f103: Rana's, holding day 6 at 11:00. f104: Paul's with another doctor at 14:00.
@@ -864,29 +704,12 @@ from (values
 join public.patients p on p.email = b.email;
 
 begin;
-set local role authenticated;
-set local request.jwt.claims = '{"role":"authenticated"}';
-select test.assert(
-  public.cancel_appointment('00000000-0000-0000-0000-00000000f101') ->> 'error' = 'not_authenticated',
-  'a token with no user still can''t cancel');
-commit;
-
-begin;
 set local role service_role;
 set local request.jwt.claims = '{"role":"service_role"}';
 set local request.headers = '{"x-actor-id":"00000000-0000-0000-0000-0000000000a2","x-change-via":"dashboard"}';
 select test.assert(
-  public.cancel_appointment('00000000-0000-0000-0000-00000000f101', 'test', '00000000-0000-0000-0000-0000000000a4') ->> 'error' = 'too_late',
-  'the server key acting for a named patient still gets the patient rules');
-select test.assert(
-  public.cancel_appointment('00000000-0000-0000-0000-00000000f101', 'test', '00000000-0000-0000-0000-0000000000a3') ->> 'error' = 'read_only',
-  'the server key acting for the viewer is still read-only');
-select test.assert(
-  public.cancel_appointment('00000000-0000-0000-0000-00000000f101', 'test', '00000000-0000-0000-0000-0000000000ff') ->> 'error' = 'not_authenticated',
-  'the server key acting for an unknown actor is still refused');
-select test.assert(
   public.cancel_appointment('00000000-0000-0000-0000-00000000f101', 'test') ->> 'ok' = 'true',
-  'the server key with no actor cancels inside the window: the backend checked already');
+  'cancelling works inside the 24 h window: that rule is the backend''s now');
 select test.assert(
   public.cancel_appointment('00000000-0000-0000-0000-00000000f101') ->> 'error' = 'not_cancellable',
   'the status check still applies to the server key');
@@ -896,7 +719,7 @@ select test.assert(
 
 select test.assert(
   public.reschedule_appointment('00000000-0000-0000-0000-00000000f102', test.at('12:00', 6)) ->> 'ok' = 'true',
-  'the server key with no actor reschedules inside the window');
+  'rescheduling works inside the 24 h window: that rule is the backend''s now');
 select test.assert(
   public.reschedule_appointment('00000000-0000-0000-0000-00000000f102', test.at('11:00', 6)) ->> 'error' = 'slot_taken',
   'reschedule with the server key: a booked time is still slot_taken');
@@ -912,9 +735,6 @@ select test.assert(
 select test.assert(
   public.reschedule_appointment('00000000-0000-0000-0000-0000000000ff', test.at('13:00', 6)) ->> 'error' = 'not_found',
   'reschedule with the server key: an unknown booking is not_found');
-select test.assert(
-  public.reschedule_appointment('00000000-0000-0000-0000-00000000f103', test.at('13:00', 6), null, '00000000-0000-0000-0000-0000000000a4') ->> 'error' = 'not_found',
-  'the server key acting for a patient still can''t move someone else''s booking');
 commit;
 
 select test.assert(
@@ -955,3 +775,62 @@ select test.assert(
 
 update public.appointments set reminder_sent_at = null where id = '00000000-0000-0000-0000-00000000f004';
 select test.assert(public.queue_due_reminders() = 1, 'reminders: the domain can be left out altogether');
+
+-- ---------- the database only stores data ----------
+select test.assert(not exists (select 1 from pg_policies where schemaname = 'public'), 'no policies are left');
+select test.assert(
+  not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity),
+  'Row Level Security is on for every table, so a key without the service role gets nothing');
+select test.assert(
+  not exists (select 1 from information_schema.role_table_grants
+              where table_schema = 'public' and grantee in ('anon', 'authenticated', 'PUBLIC')),
+  'the public keys have no rights on any table or view');
+select test.assert(
+  not exists (select 1 from information_schema.routine_privileges
+              where routine_schema = 'public' and grantee in ('anon', 'authenticated', 'PUBLIC')),
+  'the public keys can call no function');
+select test.assert(
+  not has_schema_privilege('anon', 'public', 'usage') and not has_schema_privilege('authenticated', 'public', 'usage'),
+  'the public keys cannot even enter the schema');
+
+create table public.test_new_table (id integer);
+create function public.test_new_function() returns integer language sql as 'select 1';
+select test.assert(
+  not has_table_privilege('anon', 'public.test_new_table', 'select')
+  and not has_table_privilege('authenticated', 'public.test_new_table', 'select')
+  and not has_function_privilege('anon', 'public.test_new_function()', 'execute')
+  and not has_function_privilege('authenticated', 'public.test_new_function()', 'execute'),
+  'a future table or function starts with no rights for the public keys');
+drop table public.test_new_table;
+drop function public.test_new_function();
+
+select test.assert(
+  not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname in ('current_user_role', 'is_staff', 'is_owner', 'can_view_all',
+                'handle_new_user', 'handle_deleted_user', 'verify_patient_by_phone', 'find_patient_by_code', 'normalize_person_name')),
+  'the role helpers and the old sign-in functions are gone');
+select test.assert(
+  not exists (select 1 from pg_trigger where tgrelid = 'auth.users'::regclass and not tgisinternal),
+  'nothing listens to Supabase Auth logins any more');
+select test.assert(
+  not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.prolang = (select oid from pg_language where lanname = 'plpgsql')
+      and pg_get_functiondef(p.oid) ~ 'auth\.(uid|jwt|role)'),
+  'no function reads a Supabase Auth user');
+select test.assert(
+  not exists (select 1 from pg_views where schemaname = 'public' and definition ~ 'auth\.'),
+  'no view reads a Supabase Auth user');
+
+do $$
+begin
+  set local role service_role;
+  perform public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.at('17:00', 6),
+    'Server Booking', '1990-01-01', p_email => 'server@example.com');
+  perform 1 from public.patients;
+  perform 1 from public.auth_sessions;
+  perform public.get_available_slots('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.day());
+  raise notice 'PASS: the server key can still do its work';
+end;
+$$;
