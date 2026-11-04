@@ -8,6 +8,7 @@ import * as conversations from '../controllers/staff/conversationController.js';
 import * as reports from '../controllers/staff/assistantReportController.js';
 import { StaffConversationQuery } from '../validators/chat.js';
 import { validate } from '../middlewares/validate.js';
+import { PersonalCodeQuery } from '../validators/me.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { idempotencyKey } from '../middlewares/idempotencyKey.js';
 import { IdParams } from '../validators/common.js';
@@ -49,6 +50,8 @@ export function staffRouter(limits) {
   router.patch('/patients/:id', requirePermission('patients.write'), validate({ params: IdParams, body: PatientUpdateBody }), patients.update);
   router.post('/patients/:id/unlock', requirePermission('patients.login.manage'), id, patients.unlock);
   router.post('/patients/:id/send-code', requirePermission('patients.login.manage'), limits.auth, id, patients.sendCode);
+  router.get('/patients/:id/personal-code', requirePermission('patients.code.view'), validate({ params: IdParams, query: PersonalCodeQuery }), patients.personalCode);
+  router.post('/patients/:id/personal-code', requirePermission('patients.code.regenerate'), limits.auth, id, patients.newPersonalCode);
 
   router.get('/escalations', requirePermission('escalations.read'), validate({ query: EscalationQuery }), escalations.list);
   router.post('/escalations/:id/resolve', requirePermission('escalations.resolve'), id, escalations.resolve);

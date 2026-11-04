@@ -9,9 +9,12 @@ import { AppError } from '../utils/AppError.js';
 import { patientView, staffPatientView } from '../views/patientView.js';
 import { staffAppointmentView } from '../views/appointmentView.js';
 import { listView } from '../views/listView.js';
+import { logger } from '../utils/logger.js';
+import * as accountService from './accountService.js';
 import { sendCurrentCode } from './authService.js';
 import { clinicBranding, clinicNameIn } from './catalogService.js';
 import { isPlaceholderEmail, sendEmailInBackground } from './email/emailService.js';
+import * as personalCodeService from './personalCodeService.js';
 
 /** Patient records: the patient's own profile, and the staff patient screens. */
 
@@ -44,26 +47,44 @@ export async function search({ db }, { q, limit, offset }) {
 export async function getWithAppointments({ db }, id) {
   const patient = await patientModel.findInView(db, id);
   if (!patient) throw AppError.notFound('patient_not_found', 'Patient not found.');
-  const [appointments, login] = await Promise.all([
+  const [appointments, login, account] = await Promise.all([
     appointmentModel.listForStaff(db, { patientId: id, limit: 100, offset: 0 }),
     patientModel.loginStatus(requireAdmin(), id),
+    patient.profile_id ? profileModel.findById(requireAdmin(), patient.profile_id) : null,
   ]);
   return {
     ...staffPatientView(patient),
     // locked = too many wrong phone sign-ins (staff can unlock); has_code = the patient has a personal code
-    login: { locked_until: login?.lockedUntil ?? null, has_code: Boolean(login?.hasCode) },
+    login: { locked_until: login?.lockedUntil ?? null, has_code: Boolean(login?.hasCode), last_sign_in_at: account?.last_sign_in_at ?? null },
     appointments: appointments.rows.map(staffAppointmentView),
   };
 }
 
-/** A new patient record without a booking (G5), e.g. someone who phoned and will book later. */
-export async function create({ user }, body) {
+/**
+ * A new patient at the desk or on the phone, booking now or later (G5). They get an account and a
+ * personal code straight away, so staff can hand them the card. If that step fails the record is
+ * still saved, and the patient page can make a new code.
+ */
+export async function create({ user }, { send_code: sendCode, ...body }) {
+  let patient;
   try {
-    return staffPatientView(await patientModel.create(adminAs(user.id), body));
+    patient = await patientModel.create(adminAs(user.id), body);
   } catch (err) {
     if (err?.code === '23505') throw AppError.conflict('contact_in_use', 'This email or phone already belongs to another patient.');
     throw err;
   }
+
+  const view = staffPatientView(patient);
+  try {
+    await accountService.ensurePatientAccount(patient);
+    view.has_login = true;
+    view.personal_code = await personalCodeService.issueCode(patient.id);
+    await personalCodeService.auditCode(user, 'personal_code.viewed', patient.id);
+    if (sendCode && patient.email) await sendCurrentCode(patient);
+  } catch (err) {
+    logger.warn(`Account setup failed for new patient ${patient.id}: ${err.message}`);
+  }
+  return view;
 }
 
 export async function update({ db }, id, patch) {
@@ -85,11 +106,12 @@ export async function unlock(_ctx, id) {
   return { unlocked: true };
 }
 
-export async function sendNewCode(_ctx, id) {
+export async function sendNewCode({ user }, id) {
   const patient = await patientModel.findById(requireAdmin(), id);
   if (!patient) throw AppError.notFound('patient_not_found', 'Patient not found.');
   if (!patient.email) throw AppError.conflict('no_email', 'This patient has no email address, so no code can be sent.');
   await sendCurrentCode(patient);
+  await personalCodeService.auditCode(user, 'personal_code.emailed', id);
   return { sent: true };
 }
 

@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { localePath } from '@/i18n/config';
 import { useApi, useDash, useDebounced } from '../DashProvider';
-import { Avatar, Badge, Button, Card, Drawer, FormGrid, Loaded, Notice, PageHead, SearchInput, SelectField, Table, TextField, WriteButton } from '../kit';
+import { Avatar, Badge, Button, Card, Drawer, FormGrid, Loaded, Notice, PageHead, SearchInput, SelectField, Table, TextField, Toggle, WriteButton } from '../kit';
+import CodeReveal from '@/components/card/CodeReveal';
+import { BookingDrawer } from './shared';
 import s from './screens.module.css';
 
 const PAGE = 25;
@@ -17,10 +19,13 @@ export default function Patients() {
   const [q, setQ] = useState('');
   const [offset, setOffset] = useState(0);
   const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(null); // the patient just added, with their personal code
+  const [booking, setBooking] = useState(false);
   const term = useDebounced(q.trim(), 300);
   const state = useApi(`/staff/patients?limit=${PAGE}&offset=${offset}${term ? `&q=${encodeURIComponent(term)}` : ''}`);
   const rows = state.data?.data ?? [];
   const total = state.data?.meta.total ?? 0;
+  const openPatient = (p) => router.push(localePath(locale, `/dashboard/patients/${p.id}`));
 
   return (
     <>
@@ -38,7 +43,7 @@ export default function Patients() {
         <Loaded state={state} rows={8} empty={rows.length === 0} emptyText={term ? t.noMatch : t.none}>
           <Table
             rows={rows}
-            onRow={(p) => router.push(localePath(locale, `/dashboard/patients/${p.id}`))}
+            onRow={openPatient}
             columns={[
               {
                 key: 'name',
@@ -72,17 +77,40 @@ export default function Patients() {
           )}
         </Loaded>
       </Card>
-      <Drawer open={adding} onClose={() => setAdding(false)} title={t.newPatient} sub={t.newPatientSub}>
-        <NewPatientForm onDone={(p) => router.push(localePath(locale, `/dashboard/patients/${p.id}`))} onCancel={() => setAdding(false)} />
+      <Drawer open={adding} onClose={() => (setAdding(false), added && state.reload())} title={t.newPatient} sub={t.newPatientSub}>
+        {added ? (
+          <PatientAdded patient={added} onBook={() => (setAdding(false), setBooking(true))} onOpen={() => openPatient(added)} />
+        ) : (
+          <NewPatientForm onDone={setAdded} onCancel={() => setAdding(false)} />
+        )}
       </Drawer>
+      {added && <BookingDrawer open={booking} onClose={() => openPatient(added)} patient={added} />}
     </>
+  );
+}
+
+/** The moment to hand over the code: show it, print the card, then book or open the record. */
+function PatientAdded({ patient, onBook, onOpen }) {
+  const { w, locale } = useDash();
+  const t = w.patients;
+  return (
+    <div className={s.stack}>
+      {patient.personal_code ? <CodeReveal code={patient.personal_code} name={patient.full_name} locale={locale} /> : <Notice tone="warn">{t.noCodeYet}</Notice>}
+      <p className={s.muted}>{t.handOver}</p>
+      <div className={s.rowEnd}>
+        <Button onClick={onOpen}>{t.openPatient}</Button>
+        <WriteButton kind="primary" onClick={onBook}>
+          {t.bookNow}
+        </WriteButton>
+      </div>
+    </div>
   );
 }
 
 function NewPatientForm({ onDone, onCancel }) {
   const { w, api, toast } = useDash();
   const t = w.patients;
-  const [form, setForm] = useState({ full_name: '', date_of_birth: '', phone: '', email: '', preferred_language: 'en', notes: '' });
+  const [form, setForm] = useState({ full_name: '', date_of_birth: '', phone: '', email: '', preferred_language: 'en', notes: '', send_code: true });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const set = (name) => (value) => setForm((f) => ({ ...f, [name]: value }));
@@ -91,7 +119,8 @@ function NewPatientForm({ onDone, onCancel }) {
     setBusy(true);
     setError(null);
     try {
-      const body = Object.fromEntries(Object.entries(form).filter(([, v]) => v.trim?.() !== ''));
+      const { send_code: sendCode, ...details } = form;
+      const body = { ...Object.fromEntries(Object.entries(details).filter(([, v]) => v.trim() !== '')), send_code: sendCode && Boolean(form.email.trim()) };
       const patient = await api('/staff/patients', { method: 'POST', body });
       toast(t.created);
       onDone(patient);
@@ -113,6 +142,7 @@ function NewPatientForm({ onDone, onCancel }) {
         <TextField label={w.patient.notes} hint={w.patient.notesHint} value={form.notes} onChange={set('notes')} multiline wide maxLength={2000} />
       </FormGrid>
       <p className={s.muted}>{t.contactRule}</p>
+      {form.email.trim() && <Toggle checked={form.send_code} onChange={set('send_code')} label={t.emailCode} />}
       {error && <Notice tone="error">{error}</Notice>}
       <div className={s.rowEnd}>
         <Button onClick={onCancel}>{w.common.cancel}</Button>

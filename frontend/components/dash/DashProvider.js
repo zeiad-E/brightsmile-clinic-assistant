@@ -53,6 +53,8 @@ export default function DashProvider({ words, locale, children }) {
         owner: has.has('team.manage'),
         ownerArea: has.has('team.read'),
         viewer: user?.role === 'viewer',
+        viewCode: has.has('patients.code.view'),
+        newCode: has.has('patients.code.regenerate'),
       },
       fmt: {
         date: (iso, options = { day: 'numeric', month: 'short', year: 'numeric' }) => (iso ? dates(options).format(new Date(iso)) : '—'),

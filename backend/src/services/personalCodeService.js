@@ -4,6 +4,7 @@ import * as sessions from '../auth/sessions.js';
 import { requireAdmin } from '../db/supabase.js';
 import * as auditModel from '../models/auditModel.js';
 import * as patientModel from '../models/patientModel.js';
+import { AppError } from '../utils/AppError.js';
 
 /**
  * Personal sign-in codes (e.g. K7Q4-9M2X). See auth/personalCodes.js for how they are stored.
@@ -58,21 +59,44 @@ export async function currentOrNewCode(patientId) {
 }
 
 /** The audit log says who saw or changed a code, and never holds the code itself. */
-const audit = ({ user }, action) =>
-  auditModel.record(requireAdmin(), { actorId: user.id, via: 'dashboard', action, entity: 'patients', entityId: user.patientId });
+export const auditCode = (user, action, patientId) =>
+  auditModel.record(requireAdmin(), { actorId: user.id, via: 'dashboard', action, entity: 'patients', entityId: patientId });
 
-/** The signed-in patient looks at their own code, on screen or to print it. */
-export async function showMine(ctx, { forPrint = false } = {}) {
-  const { code, legacy, issuedAt } = await readCode(ctx.user.patientId);
-  if (code) await audit(ctx, forPrint ? 'personal_code.printed' : 'personal_code.viewed');
+async function show(user, patientId, forPrint) {
+  const { code, legacy, issuedAt } = await readCode(patientId);
+  if (code) await auditCode(user, forPrint ? 'personal_code.printed' : 'personal_code.viewed', patientId);
   return { code, legacy, issued_at: issuedAt };
 }
 
+/** The signed-in patient looks at their own code, on screen or to print it. */
+export const showMine = ({ user }, { forPrint = false } = {}) => show(user, user.patientId, forPrint);
+
 /** A new code. The old one stops working, and this also signs out their other devices. */
-export async function replaceMine(ctx) {
-  const code = await issueCode(ctx.user.patientId);
-  await sessions.revokeAllFor(ctx.user.id, 'code_changed', { exceptId: ctx.user.sessionId });
-  await audit(ctx, 'personal_code.regenerated');
+export async function replaceMine({ user }) {
+  const code = await issueCode(user.patientId);
+  await sessions.revokeAllFor(user.id, 'code_changed', { exceptId: user.sessionId });
+  await auditCode(user, 'personal_code.regenerated', user.patientId);
+  return { code };
+}
+
+async function mustExist(patientId) {
+  const patient = await patientModel.findById(requireAdmin(), patientId);
+  if (!patient) throw AppError.notFound('patient_not_found', 'Patient not found.');
+  return patient;
+}
+
+/** Staff at the desk look at a patient's code, on screen or to print the card. */
+export async function showFor({ user }, patientId, { forPrint = false } = {}) {
+  await mustExist(patientId);
+  return show(user, patientId, forPrint);
+}
+
+/** A lost card: a new code, and every device the patient was signed in on is signed out. */
+export async function replaceFor({ user }, patientId) {
+  const patient = await mustExist(patientId);
+  const code = await issueCode(patientId);
+  if (patient.profile_id) await sessions.revokeAllFor(patient.profile_id, 'code_changed');
+  await auditCode(user, 'personal_code.regenerated', patientId);
   return { code };
 }
 

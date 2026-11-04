@@ -74,6 +74,7 @@ export const PatientCreateBody = z
     phone: Phone.optional(),
     preferred_language: Language.default('en'),
     notes: z.string().trim().max(2000).optional(),
+    send_code: z.boolean().optional(),
   })
   .refine((body) => body.email || body.phone, { message: 'Enter an email or a phone number.', path: ['email'] });
 

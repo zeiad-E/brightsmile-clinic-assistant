@@ -1,4 +1,5 @@
 import * as patientService from '../../services/patientService.js';
+import * as personalCodeService from '../../services/personalCodeService.js';
 import { ctxOf } from '../context.js';
 
 /** Staff patient screens (/api/staff/patients). */
@@ -21,6 +22,14 @@ export async function unlock(req, res) {
 
 export async function sendCode(req, res) {
   res.json(await patientService.sendNewCode(ctxOf(req), req.valid.params.id));
+}
+
+export async function personalCode(req, res) {
+  res.json(await personalCodeService.showFor(ctxOf(req), req.valid.params.id, { forPrint: req.valid.query.for === 'print' }));
+}
+
+export async function newPersonalCode(req, res) {
+  res.json(await personalCodeService.replaceFor(ctxOf(req), req.valid.params.id));
 }
 
 export async function create(req, res) {

@@ -25,7 +25,7 @@ vi.mock('../../src/services/authService.js', () =>
 vi.mock('../../src/services/registrationService.js', () =>
   stubModule(['startRegistration', 'finishRegistration'], { profile: { id: 'p', role: 'patient' }, method: 'sign_up' }),
 );
-vi.mock('../../src/services/personalCodeService.js', () => stubModule(['showMine', 'replaceMine']));
+vi.mock('../../src/services/personalCodeService.js', () => stubModule(['showMine', 'replaceMine', 'showFor', 'replaceFor']));
 vi.mock('../../src/services/catalogService.js', () => stubModule(['clinicInfo', 'listServices', 'getService', 'listDoctors', 'getDoctor']));
 vi.mock('../../src/services/availabilityService.js', () => stubModule(['forDay', 'forRange']));
 vi.mock('../../src/services/bookingService.js', () => ({
@@ -146,6 +146,8 @@ const MATRIX = [
   ['get', `/api/staff/patients/${ID}`, null, STAFF_READ],
   ['patch', `/api/staff/patients/${ID}`, { notes: 'Prefers mornings' }, STAFF_WRITE],
   ['post', `/api/staff/patients/${ID}/unlock`, null, STAFF_WRITE],
+  ['get', `/api/staff/patients/${ID}/personal-code`, null, STAFF_WRITE],
+  ['post', `/api/staff/patients/${ID}/personal-code`, null, STAFF_WRITE],
   ['post', `/api/staff/patients/${ID}/send-code`, null, STAFF_WRITE],
   ['get', '/api/staff/escalations', null, STAFF_READ],
   ['post', `/api/staff/escalations/${ID}/resolve`, null, STAFF_WRITE],

@@ -24,6 +24,7 @@ import {
   TextField,
   WriteButton,
 } from '../kit';
+import CodeReveal from '@/components/card/CodeReveal';
 import s from './screens.module.css';
 
 /** Doctors and treatments (public lists), shared by the booking and filter screens. */
@@ -187,6 +188,7 @@ function BookingForm({ patient: given, onBooked, onClose }) {
   const [pickerKey, setPickerKey] = useState(0);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [newCode, setNewCode] = useState(null); // a new patient's personal code, to hand over
   // One key per booking attempt: if the network hiccups and we send twice, the clinic gets one booking.
   const [idempotencyKey] = useState(() => crypto.randomUUID());
 
@@ -213,7 +215,8 @@ function BookingForm({ patient: given, onBooked, onClose }) {
       const result = await api('/staff/appointments', { method: 'POST', body, headers: { 'Idempotency-Key': idempotencyKey } });
       toast(t.booked);
       onBooked?.(result.appointment);
-      onClose();
+      if (result.personal_code) setNewCode(result.personal_code);
+      else onClose();
     } catch (err) {
       setError(err.message);
       if (err.code === 'slot_taken') {
@@ -223,6 +226,20 @@ function BookingForm({ patient: given, onBooked, onClose }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (newCode) {
+    return (
+      <div className={s.stack}>
+        <Notice>{t.newAccount}</Notice>
+        <CodeReveal code={newCode} name={who.full_name} locale={locale} />
+        <div className={s.rowEnd}>
+          <Button kind="primary" onClick={onClose}>
+            {t.done}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

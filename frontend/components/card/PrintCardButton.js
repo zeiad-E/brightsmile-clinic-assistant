@@ -11,9 +11,10 @@ import styles from './Card.module.css';
  * everything else on the page.
  *
  * `load` returns { name, code } when the button is pressed, so a screen that must record the
- * printing (the audit log) only asks for the code then.
+ * printing (the audit log) only asks for the code then. `as` swaps in another button, such as the
+ * dashboard's own.
  */
-export default function PrintCardButton({ label, load, className, disabled, onError }) {
+export default function PrintCardButton({ as: Trigger = 'button', label, load, className, disabled, onError }) {
   const [card, setCard] = useState(null);
 
   useEffect(() => {
@@ -36,9 +37,9 @@ export default function PrintCardButton({ label, load, className, disabled, onEr
 
   return (
     <>
-      <button type="button" className={className} disabled={disabled} onClick={print}>
+      <Trigger type="button" className={className} disabled={disabled} onClick={print}>
         {label}
-      </button>
+      </Trigger>
       {card && createPortal(<div className={styles.sheet}><SignInCard {...card} /></div>, document.body)}
     </>
   );

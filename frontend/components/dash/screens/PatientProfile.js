@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { localePath } from '@/i18n/config';
 import { clinicDay, useAction, useApi, useDash, useNow } from '../DashProvider';
 import { Avatar, Badge, Button, Card, Confirm, Empty, Facts, FormGrid, Loaded, Notice, PageHead, Segmented, SelectField, StatusBadge, Table, TextField, WriteButton } from '../kit';
+import PrintCardButton from '@/components/card/PrintCardButton';
 import { AppointmentDrawer, BookingDrawer } from './shared';
 import s from './screens.module.css';
 
@@ -20,7 +21,7 @@ function ageOn(dob, today) {
 
 /**
  * One patient: details (staff edit them, incl. private clinic notes), visits, chats, and sign-in
- * help (send a new personal code, unlock after too many wrong phone sign-ins). "Book a visit"
+ * help (their personal code and printed card, unlock after too many wrong phone sign-ins). "Book a visit"
  * opens the booking panel with this patient filled in.
  */
 export default function PatientProfile() {
@@ -86,6 +87,7 @@ export default function PatientProfile() {
           ['details', t.tabs.details],
           ['visits', t.tabs.visits, p.appointments.length],
           ['chats', t.tabs.chats],
+          ...(can.viewCode ? [['signin', t.tabs.signin]] : []),
         ]}
       />
 
@@ -102,6 +104,7 @@ export default function PatientProfile() {
           </div>
         )}
         {tab === 'chats' && <PatientChats patientId={p.id} />}
+        {tab === 'signin' && <SignInPanel patient={p} locked={locked} onChanged={state.reload} />}
       </div>
 
       <AppointmentDrawer appointment={open} onClose={() => setOpen(null)} onChanged={() => (setOpen(null), state.reload())} />
@@ -131,6 +134,72 @@ export default function PatientProfile() {
         }}
       />
     </>
+  );
+}
+
+/** The patient's code at the desk. It stays hidden until asked for; every look goes in the audit log. */
+function SignInPanel({ patient: p, locked, onChanged }) {
+  const { w, say, fmt, api, can, toast } = useDash();
+  const t = w.profilePage;
+  const [code, setCode] = useState(null);
+  const [legacy, setLegacy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [run, busy] = useAction();
+  const url = `/staff/patients/${p.id}/personal-code`;
+
+  const show = async () => {
+    const result = await run(() => api(url));
+    if (!result) return;
+    setCode(result.code);
+    setLegacy(result.legacy);
+  };
+
+  return (
+    <Card>
+      <div className={s.stack}>
+        <Facts
+          items={[
+            [t.lastSignIn, p.login?.last_sign_in_at ? fmt.dateTime(p.login.last_sign_in_at) : t.neverSignedIn],
+            [t.phoneSignIn, locked ? say(t.lockedUntil, { time: fmt.time(p.login.locked_until) }) : t.notLocked],
+          ]}
+        />
+        {legacy ? (
+          <Notice tone="warn">{t.codeLegacy}</Notice>
+        ) : (
+          <p className={s.codeValue} dir="ltr">
+            {code ?? '••••-••••'}
+          </p>
+        )}
+        <div className={s.rowWrap}>
+          <Button busy={busy} onClick={() => (code ? setCode(null) : show())}>
+            {code ? t.hideCode : t.showCode}
+          </Button>
+          <PrintCardButton
+            as={Button}
+            label={t.printCard}
+            disabled={legacy}
+            load={async () => ({ name: p.full_name, code: (await api(`${url}?for=print`)).code })}
+            onError={(err) => toast(err.message, 'error')}
+          />
+          {can.newCode && <Button onClick={() => setConfirming(true)}>{t.newCode}</Button>}
+        </div>
+      </div>
+      <Confirm
+        open={confirming}
+        title={t.newCode}
+        text={t.newCodeText}
+        busy={busy}
+        onClose={() => setConfirming(false)}
+        onConfirm={async () => {
+          const result = await run(() => api(url, { method: 'POST' }), { success: t.newCodeDone });
+          setConfirming(false);
+          if (!result) return;
+          setCode(result.code);
+          setLegacy(false);
+          onChanged();
+        }}
+      />
+    </Card>
   );
 }
 

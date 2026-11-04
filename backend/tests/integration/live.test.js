@@ -369,6 +369,57 @@ describe('viewer: sees everything masked, changes nothing', () => {
   });
 });
 
+describe('the desk: staff register a patient and hand over a card', () => {
+  const email = emailFor('desk');
+  let patient;
+
+  it('a new patient gets an account and a personal code at once, and the code is emailed if asked', async () => {
+    const res = await api('post', '/staff/patients', {
+      token: team.staff.token,
+      body: { full_name: nameFor('Desk Patient'), date_of_birth: '1985-06-06', email, send_code: true },
+    });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.has_login).toBe(true);
+    expect(res.body.personal_code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    patient = res.body;
+    expect(codeIn(await waitForMail(email, 'sign-in code'))).toBe(patient.personal_code);
+  });
+
+  it('the patient signs in with that card', async () => {
+    const res = await api('post', '/auth/code', { body: { code: patient.personal_code } });
+
+    expect(res.status).toBe(200);
+    state.deskToken = res.body.access_token;
+    expect(res.body.user.role).toBe('patient');
+  });
+
+  it('staff can look at the code again, and the audit log records it without the code', async () => {
+    const shown = await api('get', `/staff/patients/${patient.id}/personal-code?for=print`, { token: team.staff.token });
+
+    expect(shown.body.code).toBe(patient.personal_code);
+    const { data: entries } = await admin.from('audit_log').select('action, actor_id').eq('entity_id', patient.id).like('action', 'personal_code.%');
+    expect(entries).toContainEqual({ action: 'personal_code.printed', actor_id: team.staff.id });
+    expect(JSON.stringify(entries)).not.toContain(patient.personal_code);
+  });
+
+  it('the viewer can neither see nor replace it', async () => {
+    const url = `/staff/patients/${patient.id}/personal-code`;
+
+    expect((await api('get', url, { token: team.viewer.token })).status).toBe(403);
+    expect((await api('post', url, { token: team.viewer.token })).status).toBe(403);
+  });
+
+  it('a lost card: the new code ends the old one and signs the patient out', async () => {
+    const res = await api('post', `/staff/patients/${patient.id}/personal-code`, { token: team.staff.token });
+
+    expect(res.status).toBe(200);
+    expect((await api('post', '/auth/code', { body: { code: patient.personal_code } })).status).toBe(401);
+    expect((await api('get', '/auth/me', { token: state.deskToken })).status).toBe(401);
+    expect((await api('post', '/auth/code', { body: { code: res.body.code } })).status).toBe(200);
+  });
+});
+
 describe('staff dashboard', () => {
   it('sees full patient details and can add a note', async () => {
     const search = await api('get', `/staff/patients?q=${encodeURIComponent(emailFor('mona'))}`, { token: team.staff.token });

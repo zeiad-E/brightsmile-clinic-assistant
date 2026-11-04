@@ -281,3 +281,6 @@
 .diff td { padding: 4px 8px; font-family: var(--font-mono); overflow-wrap: anywhere; vertical-align: top; }
 .before { color: #b42318; text-decoration: line-through; text-decoration-color: rgb(180 35 24 / .4); }
 .after { color: #0f766e; }
+
+/* A patient's personal code on the sign-in tab */
+.codeValue { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 28px; font-weight: 700; letter-spacing: .08em; }

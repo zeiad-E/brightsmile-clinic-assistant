@@ -33,7 +33,12 @@
     "clinicWide": "Whole clinic",
     "unknownPatient": "Visitor (not signed in)"
   },
-  "roles": { "staff": "Staff", "owner": "Owner", "viewer": "Viewer (demo)", "patient": "Patient" },
+  "roles": {
+    "staff": "Staff",
+    "owner": "Owner",
+    "viewer": "Viewer (demo)",
+    "patient": "Patient"
+  },
   "status": {
     "booked": "Booked",
     "completed": "Done",
@@ -53,8 +58,17 @@
     "queued": "Queued",
     "sent": "Sent"
   },
-  "urgency": { "low": "Low", "normal": "Normal", "high": "High", "urgent": "Urgent" },
-  "source": { "patient_assistant": "Assistant", "staff_assistant": "Staff assistant", "dashboard": "Clinic / website" },
+  "urgency": {
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "urgent": "Urgent"
+  },
+  "source": {
+    "patient_assistant": "Assistant",
+    "staff_assistant": "Staff assistant",
+    "dashboard": "Clinic / website"
+  },
   "reportKinds": {
     "wrong_answer": "Wrong or made-up answer",
     "wrong_action": "Did the wrong thing (booking, change…)",
@@ -82,7 +96,10 @@
     "brand": "BrightSmile",
     "teamArea": "Clinic dashboard",
     "ownerArea": "Owner dashboard",
-    "groups": { "clinic": "Clinic", "owner": "Owner" },
+    "groups": {
+      "clinic": "Clinic",
+      "owner": "Owner"
+    },
     "nav": {
       "overview": "Overview",
       "today": "Today",
@@ -206,13 +223,15 @@
     "chooseServiceFirst": "Choose a treatment first to see free times.",
     "notes": "Notes for the doctor (optional)",
     "book": "Book",
-    "booked": "Booked ✓"
+    "booked": "Booked ✓",
+    "newAccount": "Booked. We also created their online account. Give them this code or print the card.",
+    "done": "Done"
   },
   "patients": {
     "sub": "Everyone who has booked or chatted with the clinic.",
     "countSuffix": "patients",
     "newPatient": "New patient",
-    "newPatientSub": "A record without a booking, e.g. someone who called and will book later.",
+    "newPatientSub": "They get an online account and a personal code right away.",
     "search": "Search by name, phone or email",
     "noMatch": "No patient matches your search.",
     "none": "No patients yet.",
@@ -223,7 +242,12 @@
     "added": "Added",
     "contactRule": "Email or phone is required, so the clinic can reach the patient and they can sign in.",
     "create": "Add patient",
-    "created": "Patient added ✓"
+    "created": "Patient added ✓",
+    "emailCode": "Email the personal code to the patient",
+    "handOver": "Give the patient their code or print the card. They can sign in with it from now on.",
+    "noCodeYet": "The patient was added, but the code couldn't be made. Open their record and make a new one.",
+    "openPatient": "Open patient",
+    "bookNow": "Book for this patient"
   },
   "profilePage": {
     "age": "{n} years",
@@ -233,19 +257,36 @@
     "lockedUntil": "Phone sign-in locked until {time}",
     "book": "Book a visit",
     "sendCode": "Send sign-in code",
-    "sendCodeText": "A new personal sign-in code goes to {email}. The old code stops working.",
+    "sendCodeText": "The patient's current personal code goes to {email}. It stays the same.",
     "codeSent": "Code sent ✓",
     "unlock": "Unlock sign-in",
     "unlockText": "Too many wrong phone sign-ins locked this patient out. Unlock only after you confirmed who is calling.",
     "unlocked": "Unlocked ✓",
-    "tabs": { "label": "Patient sections", "details": "Details", "visits": "Visits", "chats": "Chats" },
+    "tabs": {
+      "label": "Patient sections",
+      "details": "Details",
+      "visits": "Visits",
+      "chats": "Chats",
+      "signin": "Sign-in"
+    },
     "identityWarning": "Name, phone and date of birth are what phone sign-in checks. Confirm who you're talking to before changing them.",
     "reset": "Undo changes",
     "upcoming": "Upcoming ({n})",
     "past": "Past ({n})",
     "noUpcoming": "No upcoming visits.",
     "noPast": "No past visits.",
-    "noChats": "No chats with the assistant."
+    "noChats": "No chats with the assistant.",
+    "lastSignIn": "Last sign-in",
+    "neverSignedIn": "Not yet",
+    "phoneSignIn": "Phone sign-in",
+    "notLocked": "Not locked",
+    "showCode": "Show code",
+    "hideCode": "Hide",
+    "printCard": "Print card",
+    "newCode": "New code",
+    "newCodeText": "For a lost card. The old code and any printed card stop working, and the patient is signed out everywhere.",
+    "newCodeDone": "New code made ✓",
+    "codeLegacy": "This code is from before codes could be shown. It still works; make a new one to see it."
   },
   "inbox": {
     "sub": "Everything the assistant handed to a person. Reply, then resolve.",
@@ -390,7 +431,13 @@
     "newHint": "At least 10 characters.",
     "again": "New password again",
     "mismatch": "The two don't match.",
-    "strength": ["Too short", "Weak", "OK", "Good", "Strong"],
+    "strength": [
+      "Too short",
+      "Weak",
+      "OK",
+      "Good",
+      "Strong"
+    ],
     "changePassword": "Change password",
     "passwordChanged": "Password changed ✓"
   },
@@ -473,7 +520,10 @@
   "doctors": {
     "sub": "Public profiles, treatments and weekly hours.",
     "add": "Add doctor",
-    "titles": { "dentist": "Dentist", "hygienist": "Hygienist" },
+    "titles": {
+      "dentist": "Dentist",
+      "hygienist": "Hygienist"
+    },
     "hidden": "Hidden",
     "treatmentsN": "{n} treatments",
     "hoursN": "{n} h / week",
@@ -580,7 +630,13 @@
   },
   "assistant": {
     "sub": "Health, problems, what the assistant did, and what it remembers.",
-    "tabs": { "health": "Health", "problems": "Problems", "activity": "Activity", "memory": "Memory notes", "intake": "Intake questions" },
+    "tabs": {
+      "health": "Health",
+      "problems": "Problems",
+      "activity": "Activity",
+      "memory": "Memory notes",
+      "intake": "Intake questions"
+    },
     "switchTitle": "On / off",
     "on": "The assistant is answering patients",
     "off": "The assistant is paused",
@@ -597,7 +653,11 @@
       "limited": "Limited",
       "down": "Not answering",
       "ai": "Connection",
-      "states": { "closed": "Working normally", "open": "Paused after errors", "half-open": "Testing again" },
+      "states": {
+        "closed": "Working normally",
+        "open": "Paused after errors",
+        "half-open": "Testing again"
+      },
       "failures": "Recent errors",
       "openedAt": "Paused since",
       "aiHint": "After several errors in a row the system pauses AI calls for a short while, then tries again by itself."
@@ -613,7 +673,11 @@
       "used": "Used",
       "people": "People who chatted",
       "mode": "Mode",
-      "modes": { "normal": "Normal", "safe": "Safe mode (answers + handover only)", "off": "Daily limit reached" },
+      "modes": {
+        "normal": "Normal",
+        "safe": "Safe mode (answers + handover only)",
+        "off": "Daily limit reached"
+      },
       "hint": "Resets every day ({day}). At 90% the assistant switches to safe mode."
     },
     "reports": "Reported by the team",
@@ -629,7 +693,12 @@
     "activityTitle": "What the assistant did",
     "activityHint": "Bookings, changes, handovers and failures, newest first.",
     "noActivity": "Nothing yet.",
-    "outcomes": { "booked": "Booked", "changed_data": "Changed", "escalated": "Handed over", "fallback": "Failed" },
+    "outcomes": {
+      "booked": "Booked",
+      "changed_data": "Changed",
+      "escalated": "Handed over",
+      "fallback": "Failed"
+    },
     "memoryTitle": "Memory notes",
     "memoryHint": "Short notes the assistant keeps about patients' preferences (e.g. “prefers mornings”). Check them, fix them, or add your own.",
     "memoryOwnerOnly": "Memory notes are visible to the owner only.",
@@ -639,11 +708,18 @@
     "noteDeleted": "Note deleted",
     "noNotes": "No notes yet.",
     "kind": "Kind",
-    "kinds": { "preference": "Preference", "communication_style": "How to talk to them", "logistics": "Practical details" },
+    "kinds": {
+      "preference": "Preference",
+      "communication_style": "How to talk to them",
+      "logistics": "Practical details"
+    },
     "note": "Note",
     "noteHint": "Up to 200 characters. No medical details.",
     "source": "Written by",
-    "sources": { "agent": "Assistant", "owner": "Owner" },
+    "sources": {
+      "agent": "Assistant",
+      "owner": "Owner"
+    },
     "updated": "Updated",
     "intakeTitle": "Intake questions",
     "intakeHint": "What the assistant asks new patients after their first booking (insurance, city…).",
@@ -697,8 +773,17 @@
     "changed": "Changed fields",
     "someone": "A team member",
     "none": "No changes in this period.",
-    "via": { "dashboard": "Dashboard", "patient_assistant": "Assistant", "staff_assistant": "Staff assistant", "system": "System" },
-    "ops": { "insert": "Added", "update": "Changed", "delete": "Removed" },
+    "via": {
+      "dashboard": "Dashboard",
+      "patient_assistant": "Assistant",
+      "staff_assistant": "Staff assistant",
+      "system": "System"
+    },
+    "ops": {
+      "insert": "Added",
+      "update": "Changed",
+      "delete": "Removed"
+    },
     "entities": {
       "appointments": "Booking",
       "time_off": "Time off",
