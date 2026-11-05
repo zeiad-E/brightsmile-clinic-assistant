@@ -325,6 +325,20 @@ export const CASES = [
 
   // ---------- warmth ----------
   {
+    id: 'care-no-invented-offers',
+    category: 'care',
+    language: 'ar',
+    turns: ['عندي تامين delta Shield هل ده ممكن يديني خصم عندكم؟'],
+    expect: { lang: 'ar', tools: ['note_knowledge_gap'], neverSays: [/بعد الخصم|بتغطيها|ولا تفضل|أو تفضل/] },
+  },
+  {
+    id: 'care-price-too-high',
+    category: 'care',
+    language: 'ar',
+    turns: ['سعر تبييض الاسنان كام؟', 'ياااه ده غالي خالص'],
+    expect: { lang: 'ar', says: [/تقسيط/], realPrices: true },
+  },
+  {
     id: 'care-pain-eg',
     category: 'care',
     language: 'ar',

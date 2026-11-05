@@ -1,7 +1,7 @@
 import { llmClient } from '../llm/LlmClient.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
-import { LIMITS } from './guardrails.js';
+import { detectLanguage, LIMITS } from './guardrails.js';
 import { maskDeep, unmaskValue } from './masking.js';
 import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } from './tools/index.js';
 
@@ -16,6 +16,7 @@ import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } fr
  *  - signed-in-only tools refuse guests
  *  - placeholders are swapped to real values only inside tools, and tool results are
  *    masked again before the AI reads them
+ *  - a reply in the wrong language is sent back once to be rewritten
  *
  * Returns how the turn ended; throws only if the AI itself can't be reached
  * (the caller retries once, then hands over to staff).
@@ -35,6 +36,7 @@ export async function runAgentTurn({
   const usage = { in: 0, out: 0 };
   const toolCalls = [];
   let usedModel = null;
+  let rewritten = false;
 
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
     if (Date.now() > deadline) return { status: 'timeout', iterations: iteration, toolCalls, usage, model: usedModel };
@@ -47,7 +49,16 @@ export async function runAgentTurn({
     if (!message) throw new Error('The AI returned no message');
 
     if (!message.tool_calls?.length) {
-      return { status: 'ok', reply: message.content ?? '', iterations: iteration, toolCalls, usage, model: usedModel };
+      const reply = message.content ?? '';
+      // Models sometimes drift to the language of the history. They get one chance to fix it,
+      // only if there's time left: a reply in the wrong language beats no reply.
+      const wrongLanguage = ctx.language && detectLanguage(reply, ctx.language) !== ctx.language;
+      if (wrongLanguage && !rewritten && iteration + 1 < maxIterations && Date.now() < deadline) {
+        rewritten = true;
+        convo.push({ role: 'assistant', content: reply }, { role: 'user', content: `Write that reply again, in ${ctx.language === 'ar' ? 'Arabic' : 'English'}.` });
+        continue;
+      }
+      return { status: 'ok', reply, iterations: iteration, toolCalls, usage, model: usedModel };
     }
 
     convo.push({ role: 'assistant', content: message.content ?? '', tool_calls: message.tool_calls });

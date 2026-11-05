@@ -344,7 +344,7 @@
     "summary": [
       "We keep only what we need to book and treat you.",
       "We never sell your data.",
-      "The AI never sees your name, phone or email."
+      "The AI never sees your phone, email or date of birth."
     ],
     "sections": [
       {
@@ -369,8 +369,8 @@
         "title": "What the assistant sees",
         "body": [
           "The assistant reads your messages and can look up the clinic's services, prices and free times.",
-          "Before your messages reach the AI model, we swap names, phone numbers and emails for placeholders, so the model never learns who you are.",
-          "When you are signed in, it can see your own bookings so it can move or cancel them for you, and nothing about other patients."
+          "Before your messages reach the AI model, we swap phone numbers, emails, dates of birth and codes for placeholders.",
+          "When you are signed in, it knows your name so it can talk to you properly, and it can see your own bookings so it can move or cancel them for you. It sees nothing about other patients."
         ]
       },
       {

@@ -14,7 +14,7 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 export const searchKnowledge = defineTool({
   name: 'search_knowledge',
   description:
-    "Search the clinic's knowledge base (services, prices, hours, insurance, policies, preparation, location). Use it for any factual question about the clinic, and cite the source titles in your answer.",
+    "Search the clinic's knowledge base (services, prices, hours, insurance, policies, preparation, location). Use it for any factual question about the clinic.",
   schema: z.object({ query: z.string().min(2).max(300).describe('The question to look up, in the patient’s words.') }),
   run: async ({ query }, ctx) => {
     const results = await retrieve(query, { topK: 4, language: ctx.language });

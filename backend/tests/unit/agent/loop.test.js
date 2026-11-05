@@ -54,6 +54,38 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe('reply language', () => {
+  it('asks once for a rewrite when the reply is in the wrong language', async () => {
+    script.push(say('ألف سلامة عليك يا فندم، هشوفلك أقرب معاد فورًا.'), say("I'm so sorry you're in pain."));
+    const result = await run(newCtx({ language: 'en' }));
+
+    expect(result).toMatchObject({ status: 'ok', reply: "I'm so sorry you're in pain." });
+    expect(llmClient.chat.mock.calls.at(-1)[0].messages.at(-1)).toEqual({ role: 'user', content: 'Write that reply again, in English.' });
+  });
+
+  it('accepts the second answer whatever its language', async () => {
+    script.push(say('هشوفلك أقرب معاد فورًا يا فندم'), say('تمام يا فندم هشوفلك أقرب معاد'));
+    const result = await run(newCtx({ language: 'en' }));
+
+    expect(result.reply).toBe('تمام يا فندم هشوفلك أقرب معاد');
+    expect(llmClient.chat).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves a reply alone when it keeps a term from the other language', async () => {
+    script.push(say('تكلفة ال whitening أربعة آلاف وخمسمية جنيه يا فندم'));
+    await run(newCtx({ language: 'ar' }));
+
+    expect(llmClient.chat).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the reply when there is no round left to rewrite it', async () => {
+    script.push(say('هشوفلك أقرب معاد فورًا يا فندم'));
+    const result = await run(newCtx({ language: 'en' }), { maxIterations: 1 });
+
+    expect(result).toMatchObject({ status: 'ok', reply: 'هشوفلك أقرب معاد فورًا يا فندم' });
+  });
+});
+
 describe('agent loop', () => {
   it('returns the AI’s reply when it needs no tools', async () => {
     script.push(say('Hello!'));
