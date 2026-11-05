@@ -14,6 +14,7 @@ import * as sessions from '../auth/sessions.js';
 import { buildContext } from '../agent/context.js';
 import { buildSystemPrompt } from '../agent/systemPrompt.js';
 import { runAgentTurn } from '../agent/loop.js';
+import { reviewReply } from '../agent/reviewer.js';
 import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../agent/guardrails.js';
 import { maskText, restoreForPatient, withoutCodes } from '../agent/masking.js';
 import { progressEvent } from '../agent/progress.js';
@@ -174,6 +175,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
 
   const context = await buildContext({ conversation, state, user: ctx.user, db: ctx.db, settings, language: lang });
   context.safeMode = ctx.safeMode;
+  delete state.lastReview; // the assistant hears the verdict once, on the turn right after it
   const system = { role: 'system', content: buildSystemPrompt(context) };
   // What a team member wrote reaches the AI as the clinic's own words.
   const history = (await messageModel.recentDialogue(admin, conversationId, LIMITS.historyMessages)).map((m) =>
@@ -199,6 +201,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
             model: attempt === 0 ? undefined : config.llm.chatModels[1],
             timeoutMs: config.agent.turnTimeoutMs,
             maxIterations: config.agent.maxToolIterations,
+            review: reviewReply,
             ...toolset,
           });
           if (result.status === 'ok' || result.status === 'ended') break;
@@ -262,6 +265,18 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
     outcome = 'refused';
   } else {
     reply = checkReply(result.reply, lang);
+    if (result.review) {
+      state.lastReview = { approved: result.review.approved, feedback: result.review.feedback };
+      if (!result.review.approved) {
+        // It still went out (better than no answer), so a person should look at it.
+        await escalationModel.create(admin, {
+          conversationId,
+          patientId: ctx.user?.patientId ?? conversation.patient_id,
+          reason: `The reviewer objected to a reply that was sent: ${result.review.feedback}`,
+          urgency: 'low',
+        });
+      }
+    }
     outcome = ctx.events.booked ? 'booked' : ctx.events.escalated ? 'escalated' : ctx.events.changed ? 'changed_data' : 'answered';
   }
   if (ctx.events.escalated && patch.status !== 'needs_attention') patch.status = 'handed_off';

@@ -23,6 +23,7 @@ const TOOL_STATUS = {
 };
 
 const THINKING = ['Thinking…', 'لحظة من فضلك…'];
+const REVIEWING = ['Checking my answer…', 'أراجع الرد…'];
 const pick = ([en, ar], language) => (language === 'ar' ? ar : en);
 
 /** A status event for the stream: { stage, text, position? }. */
@@ -34,6 +35,7 @@ export function progressEvent({ stage, tool, position }, language) {
         : `It's busy right now — you're number ${position} in line…`;
     return { stage, position, text };
   }
+  if (stage === 'reviewing') return { stage, text: pick(REVIEWING, language) };
   if (stage === 'tool') return { stage, text: pick(TOOL_STATUS[tool] ?? THINKING, language) };
   return { stage: 'thinking', text: pick(THINKING, language) };
 }

@@ -54,6 +54,90 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe('reviewer', () => {
+  const approve = { approved: true, feedback: null, usage: { prompt_tokens: 100, completion_tokens: 5 } };
+  const reject = (feedback) => ({ approved: false, feedback, usage: { prompt_tokens: 100, completion_tokens: 5 } });
+  const reviewing = (...verdicts) => vi.fn(async () => verdicts.shift());
+  const ctxWithStatus = () => newCtx({ language: 'en', onProgress: vi.fn() });
+
+  it('sends an approved reply as it is, and counts the review', async () => {
+    script.push(say('Whitening takes 60 minutes.'));
+    const review = reviewing(approve);
+    const ctx = ctxWithStatus();
+    const result = await run(ctx, { review });
+
+    expect(result).toMatchObject({ reply: 'Whitening takes 60 minutes.', review: { approved: true } });
+    expect(result.usage).toEqual({ in: 110, out: 10 });
+    expect(result.toolCalls).toContainEqual({ name: '_review', ok: true, reason: null });
+    expect(ctx.onProgress).toHaveBeenCalledWith({ stage: 'reviewing' });
+    expect(llmClient.chat).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the reviewer the messages, this turn’s tool results and the reply', async () => {
+    script.push(call(['echo', { phone: '[PHONE_1]' }]), say('Done.'));
+    const review = reviewing(approve);
+    await run(ctxWithStatus(), { review });
+
+    const seenByReviewer = review.mock.calls[0][0];
+    expect(seenByReviewer).toMatchObject({ reply: 'Done.', language: 'en', messages: [{ role: 'user', content: 'hi' }] });
+    expect(seenByReviewer.toolLog[0]).toMatchObject({ name: 'echo' });
+    expect(JSON.stringify(seenByReviewer)).not.toContain('secret@example.com');
+  });
+
+  it('sends a rejected reply back with the feedback, then checks the new one', async () => {
+    script.push(say('Whitening takes 90 minutes.'), say('Whitening takes 60 minutes.'));
+    const review = reviewing(reject('It takes 60 minutes.'), approve);
+    const result = await run(ctxWithStatus(), { review });
+
+    expect(result).toMatchObject({ reply: 'Whitening takes 60 minutes.', review: { approved: true } });
+    expect(review).toHaveBeenCalledTimes(2);
+    expect(review.mock.calls[1][0].reply).toBe('Whitening takes 60 minutes.');
+    expect(llmClient.chat.mock.calls[1][0].messages.at(-1).content).toContain('It takes 60 minutes.');
+  });
+
+  it('stops after two rewrites and sends the last reply, marked as rejected', async () => {
+    script.push(say('one'), say('two'), say('three'), say('never asked for'));
+    const review = reviewing(reject('a'), reject('b'), reject('c'));
+    const result = await run(ctxWithStatus(), { review });
+
+    expect(result).toMatchObject({ status: 'ok', reply: 'three', review: { approved: false, feedback: 'c' } });
+    expect(llmClient.chat).toHaveBeenCalledTimes(3);
+    expect(review).toHaveBeenCalledTimes(3);
+  });
+
+  it('sends the reply when the reviewer gives no verdict', async () => {
+    script.push(say('Hello!'));
+    const result = await run(ctxWithStatus(), { review: reviewing(null) });
+
+    expect(result).toMatchObject({ status: 'ok', reply: 'Hello!', review: null });
+  });
+
+  it('skips the review when too little time is left', async () => {
+    script.push(say('Hello!'));
+    const review = reviewing(approve);
+    const result = await run(ctxWithStatus(), { review, timeoutMs: 5000 });
+
+    expect(review).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ reply: 'Hello!', review: null });
+  });
+
+  it('keeps the rejected reply if the rewrite fails, instead of losing the answer', async () => {
+    script.push(say('Whitening takes 90 minutes.'));
+    llmClient.chat.mockImplementationOnce(async () => script.shift()).mockRejectedValueOnce(new Error('model down'));
+    const result = await run(ctxWithStatus(), { review: reviewing(reject('It takes 60 minutes.')) });
+
+    expect(result).toMatchObject({ status: 'ok', reply: 'Whitening takes 90 minutes.', review: { approved: false } });
+  });
+
+  it('never reviews a turn that a tool ended', async () => {
+    script.push(call(['stop', {}]));
+    const review = reviewing(approve);
+    await run(ctxWithStatus(), { review });
+
+    expect(review).not.toHaveBeenCalled();
+  });
+});
+
 describe('reply language', () => {
   it('asks once for a rewrite when the reply is in the wrong language', async () => {
     script.push(say('ألف سلامة عليك يا فندم، هشوفلك أقرب معاد فورًا.'), say("I'm so sorry you're in pain."));

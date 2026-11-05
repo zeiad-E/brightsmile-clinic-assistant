@@ -17,10 +17,17 @@ import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } fr
  *  - placeholders are swapped to real values only inside tools, and tool results are
  *    masked again before the AI reads them
  *  - a reply in the wrong language is sent back once to be rewritten
+ *  - the finished reply goes to `review` (a second AI), which can send it back with feedback
+ *
+ * Once a finished reply exists it is never lost: if a rewrite fails or time runs out, that
+ * reply goes out.
  *
  * Returns how the turn ended; throws only if the AI itself can't be reached
  * (the caller retries once, then hands over to staff).
  */
+const MAX_REWRITES = 2;
+const MIN_REVIEW_MS = 12_000; // enough for a review and a rewrite; with less, the reply just goes out
+
 export async function runAgentTurn({
   messages,
   ctx,
@@ -29,6 +36,7 @@ export async function runAgentTurn({
   timeoutMs = 30_000,
   tools = defaultTools,
   definitions = defaultDefinitions,
+  review = null,
 }) {
   const convo = [...messages];
   const deadline = Date.now() + timeoutMs;
@@ -36,29 +44,58 @@ export async function runAgentTurn({
   const usage = { in: 0, out: 0 };
   const toolCalls = [];
   let usedModel = null;
-  let rewritten = false;
+  let languageFixed = false;
+  let rewrites = 0;
+  let draft = null;
+  let verdict = null;
+  const finished = (iterations) => ({ status: 'ok', reply: draft, iterations, toolCalls, usage, model: usedModel, review: verdict });
 
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
-    if (Date.now() > deadline) return { status: 'timeout', iterations: iteration, toolCalls, usage, model: usedModel };
+    if (Date.now() > deadline) return draft === null ? { status: 'timeout', iterations: iteration, toolCalls, usage, model: usedModel } : finished(iteration);
 
-    const res = await llmClient.chat({ messages: convo, tools: definitions, model, maxTokens: LIMITS.maxTokens, deadline, skipAuto: true });
+    let res;
+    try {
+      res = await llmClient.chat({ messages: convo, tools: definitions, model, maxTokens: LIMITS.maxTokens, deadline, skipAuto: true });
+      if (!res.choices?.[0]?.message) throw new Error('The AI returned no message');
+    } catch (err) {
+      if (draft === null) throw err;
+      logger.warn(`Rewrite failed, sending the last reply: ${err.message}`);
+      return finished(iteration);
+    }
     usedModel = res.model ?? usedModel;
     usage.in += res.usage?.prompt_tokens ?? 0;
     usage.out += res.usage?.completion_tokens ?? 0;
-    const message = res.choices?.[0]?.message;
-    if (!message) throw new Error('The AI returned no message');
+    const { message } = res.choices[0];
 
     if (!message.tool_calls?.length) {
-      const reply = message.content ?? '';
-      // Models sometimes drift to the language of the history. They get one chance to fix it,
-      // only if there's time left: a reply in the wrong language beats no reply.
-      const wrongLanguage = ctx.language && detectLanguage(reply, ctx.language) !== ctx.language;
-      if (wrongLanguage && !rewritten && iteration + 1 < maxIterations && Date.now() < deadline) {
-        rewritten = true;
-        convo.push({ role: 'assistant', content: reply }, { role: 'user', content: `Write that reply again, in ${ctx.language === 'ar' ? 'Arabic' : 'English'}.` });
+      draft = message.content || draft || '';
+      const canRewrite = iteration + 1 < maxIterations && Date.now() < deadline;
+      const sendBack = (instruction) => convo.push({ role: 'assistant', content: draft }, { role: 'user', content: instruction });
+
+      // Models sometimes drift to the language of the history. They get one chance to fix it.
+      if (canRewrite && !languageFixed && ctx.language && detectLanguage(draft, ctx.language) !== ctx.language) {
+        languageFixed = true;
+        sendBack(`Write that reply again, in ${ctx.language === 'ar' ? 'Arabic' : 'English'}.`);
         continue;
       }
-      return { status: 'ok', reply, iterations: iteration, toolCalls, usage, model: usedModel };
+
+      verdict = null;
+      if (review && deadline - Date.now() > MIN_REVIEW_MS) {
+        ctx.onProgress?.({ stage: 'reviewing' });
+        verdict = await review({ messages, toolLog: ctx.toolLog, reply: draft, language: ctx.language, writer: usedModel });
+        if (verdict) {
+          usage.in += verdict.usage?.prompt_tokens ?? 0;
+          usage.out += verdict.usage?.completion_tokens ?? 0;
+          toolCalls.push({ name: '_review', ok: verdict.approved, reason: verdict.feedback });
+        }
+        if (verdict && !verdict.approved && canRewrite && rewrites < MAX_REWRITES) {
+          rewrites += 1;
+          sendBack(`A reviewer sent your draft back (the patient has not seen it): ${verdict.feedback}
+Write the full reply again with that fixed. Write only what the patient should read, and don't mention the review.`);
+          continue;
+        }
+      }
+      return finished(iteration);
     }
 
     convo.push({ role: 'assistant', content: message.content ?? '', tool_calls: message.tool_calls });
@@ -76,6 +113,7 @@ export async function runAgentTurn({
     if (ctx.endTurn) return { status: 'ended', iterations: iteration + 1, toolCalls, usage, model: usedModel };
   }
 
+  if (draft !== null) return finished(maxIterations);
   logger.warn('Agent hit the tool-round limit');
   return { status: 'max_iterations', iterations: maxIterations, toolCalls, usage, model: usedModel };
 }

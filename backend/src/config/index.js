@@ -64,7 +64,7 @@ const EnvSchema = z
 
     AGENT_MAX_TOOL_ITERATIONS: positiveInt(8),
     // A whole assistant turn (all AI calls + tools). Real multi-step turns take 10–30 s on free models.
-    AGENT_TURN_TIMEOUT_MS: positiveInt(45000),
+    AGENT_TURN_TIMEOUT_MS: positiveInt(60000),
 
     // Chat capacity: turns at the AI at once, the waiting line, and daily budgets.
     CHAT_MAX_CONCURRENT: positiveInt(8),

@@ -92,6 +92,13 @@ async function send(c, message, { conversationId, token }) {
   }
 }
 
+async function sessionFromTicket(ticket) {
+  const res = await fetch(`${API}/api/auth/ticket`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.access_token) throw new Error(`Sign-in ticket refused: ${res.status} ${body.error ?? ''}`.trim());
+  return body.access_token;
+}
+
 // ---------- reading back what happened ----------
 
 async function patientRecords(name) {
@@ -146,9 +153,11 @@ async function runCase(c) {
     conversationId = res.conversation_id;
     replies.push(res.reply);
     results.push(res);
-    if (res.session?.access_token && c.patient) {
-      sessions.set(c.patient, res.session.access_token);
-      sessionFromCase = res.session.access_token;
+    // The chat signed a new patient in: swap its one-time ticket for a session, as the website does.
+    if (res.sign_in_ticket && c.patient) {
+      const accessToken = await sessionFromTicket(res.sign_in_ticket);
+      sessions.set(c.patient, accessToken);
+      sessionFromCase = accessToken;
     }
   };
 
@@ -165,6 +174,8 @@ async function runCase(c) {
   const checks = score(ev, c.expect);
   // Kept in the report: the records themselves are deleted by the clean-up.
   const failures = ev.runs.flatMap((r) => (r.tool_calls ?? []).filter((t) => t.name === '_attempt_failed').map((t) => t.reason));
+  const reviews = ev.runs.flatMap((r) => (r.tool_calls ?? []).filter((t) => t.name === '_review').map((t) => ({ approved: t.ok, feedback: t.reason })));
+  const models = ev.runs.map((r) => r.model);
   return {
     case: c,
     conversationIds: [conversationId],
@@ -172,6 +183,8 @@ async function runCase(c) {
     checks,
     tools: ev.tools,
     failures,
+    reviews,
+    models,
     statuses: results.map((r) => r.status),
     pass: checks.every((k) => k.pass),
     ms: Date.now() - started,
@@ -341,7 +354,7 @@ async function main() {
     if (report) {
       fs.mkdirSync(new URL('../evals/results/', import.meta.url), { recursive: true });
       const file = new URL(`../evals/results/${STARTED.toISOString().slice(0, 10)}-${RUN}.json`, import.meta.url);
-      const rows = outcomes.map((o) => ({ id: o.case.id, category: o.case.category, language: o.case.language, pass: o.pass ?? false, error: o.error ?? o.skipped, checks: o.checks, replies: o.replies, tools: o.tools, failures: o.failures, statuses: o.statuses, ms: o.ms, tokens: o.tokens }));
+      const rows = outcomes.map((o) => ({ id: o.case.id, category: o.case.category, language: o.case.language, pass: o.pass ?? false, error: o.error ?? o.skipped, checks: o.checks, replies: o.replies, tools: o.tools, failures: o.failures, reviews: o.reviews, models: o.models, statuses: o.statuses, ms: o.ms, tokens: o.tokens }));
       fs.writeFileSync(file, JSON.stringify({ run: RUN, api: API, startedAt: STARTED, summary: report, cases: rows }, null, 2));
       console.log(`Report  ${file.pathname.replace(/^\/([A-Z]:)/, '$1')}`);
     }

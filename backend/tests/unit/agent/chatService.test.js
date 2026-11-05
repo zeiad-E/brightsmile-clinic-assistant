@@ -75,6 +75,26 @@ describe('chatService.sendMessage', () => {
     expect(usedLanguage()).toBe('en');
   });
 
+  it('tells the assistant the reviewer’s verdict on the next turn, once', async () => {
+    runAgentTurn.mockResolvedValue({ ...ok('Hello'), review: { approved: true, feedback: null } });
+    const { conversation_id: id } = await chatService.sendMessage(guest, { message: 'Hello there my friend' });
+    expect(conversations.get(id).state.lastReview).toEqual({ approved: true, feedback: null });
+    expect(saved.escalations).toHaveLength(0);
+
+    runAgentTurn.mockResolvedValue(ok('Hello'));
+    await chatService.sendMessage(guest, { conversationId: id, message: 'Hello again my friend' });
+    expect(buildContext.mock.calls.at(-1)[0].state.lastReview ?? null).toBeNull(); // read, then cleared
+    expect(conversations.get(id).state.lastReview).toBeUndefined();
+  });
+
+  it('asks a person to look when a reply went out without the reviewer’s approval', async () => {
+    runAgentTurn.mockResolvedValue({ ...ok('Whitening takes 90 minutes.'), review: { approved: false, feedback: 'It takes 60 minutes.' } });
+    const res = await chatService.sendMessage(guest, { message: 'How long is whitening?' });
+
+    expect(res.reply).toBe('Whitening takes 90 minutes.');
+    expect(saved.escalations).toEqual([expect.objectContaining({ urgency: 'low', reason: expect.stringContaining('It takes 60 minutes.') })]);
+  });
+
   it('reports progress and cards to a streaming caller while the turn runs', async () => {
     runAgentTurn.mockImplementation(async ({ ctx }) => {
       ctx.onProgress({ stage: 'tool', tool: 'check_availability' });
