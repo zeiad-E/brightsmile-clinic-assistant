@@ -24,7 +24,7 @@ export async function runAgentTurn({
   messages,
   ctx,
   model,
-  maxIterations = 5,
+  maxIterations = 8,
   timeoutMs = 30_000,
   tools = defaultTools,
   definitions = defaultDefinitions,

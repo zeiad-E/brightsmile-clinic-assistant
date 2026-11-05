@@ -37,6 +37,7 @@ vi.mock('../../../src/services/memoryService.js', () => ({ scheduleSummaries: vi
 const { runAgentTurn } = await import('../../../src/agent/loop.js');
 const chatService = await import('../../../src/services/chatService.js');
 const { getSettings } = await import('../../../src/models/clinicModel.js');
+const { buildContext } = await import('../../../src/agent/context.js');
 
 const guest = { user: null, db: null };
 const ok = (reply) => ({ status: 'ok', reply, iterations: 0, toolCalls: [], usage: { in: 1, out: 1 }, model: 'fake' });
@@ -58,6 +59,20 @@ describe('chatService.sendMessage', () => {
     expect(saved.messages[0]).toMatchObject({ role: 'user', content: 'Hello, my email is [EMAIL_1]' });
     expect(saved.runs[0]).toMatchObject({ outcome: 'answered', retries: 0 });
     expect(conversations.get(res.conversation_id)).toMatchObject({ turn_count: 1, state: { placeholders: { '[EMAIL_1]': 'mona@example.com' } } });
+  });
+
+  it('replies in the language of the latest message, not the page', async () => {
+    runAgentTurn.mockResolvedValue(ok('تحت أمرك'));
+    const usedLanguage = () => buildContext.mock.calls.at(-1)[0].language;
+
+    const { conversation_id: id } = await chatService.sendMessage(guest, { message: 'كنت عاوز اعرف تكلفة ال whitening كام', language: 'en' });
+    expect(usedLanguage()).toBe('ar');
+
+    await chatService.sendMessage(guest, { conversationId: id, message: 'ok', language: 'en' });
+    expect(usedLanguage()).toBe('ar'); // too short to prove a switch
+
+    await chatService.sendMessage(guest, { conversationId: id, message: 'Great, how much does it cost?', language: 'ar' });
+    expect(usedLanguage()).toBe('en');
   });
 
   it('reports progress and cards to a streaming caller while the turn runs', async () => {

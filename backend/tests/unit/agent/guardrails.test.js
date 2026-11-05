@@ -53,6 +53,25 @@ describe('language and fixed replies', () => {
     expect(detectLanguage('I want to book')).toBe('en');
   });
 
+  it.each([
+    ['كنت عاوز اعرف تكلفة ال whitening كام', 'en', 'ar'],
+    ['عايز whitening', 'en', 'ar'],
+    ['ايوه', 'en', 'ar'],
+    ['How much is the تبييض for kids?', 'ar', 'en'],
+    ['I want to book a cleaning', 'ar', 'en'],
+    ['What are your opening hours?', 'ar', 'en'],
+  ])('uses the main language of a mixed message: %s', (text, fallback, expected) => {
+    expect(detectLanguage(text, fallback)).toBe(expected);
+  });
+
+  it.each(['ok', 'Ahmed Ali', 'mona@example.com', 'mona.ali@example.com 01012345678', '10:30', '👍'])(
+    'keeps the language so far when a message proves nothing: %s',
+    (text) => {
+      expect(detectLanguage(text, 'ar')).toBe('ar');
+      expect(detectLanguage(text, 'en')).toBe('en');
+    },
+  );
+
   it('has every fixed reply in both languages', () => {
     for (const kind of ['emergency', 'off_topic', 'off_topic_reminder', 'injection', 'cooldown', 'turn_limit', 'paused', 'failure']) {
       expect(fixedReply(kind, 'en')).toMatch(/[a-z]/);

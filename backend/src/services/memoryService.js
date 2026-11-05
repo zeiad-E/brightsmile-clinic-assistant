@@ -30,7 +30,7 @@ async function summarize(messages, { words, focus }) {
     messages: [
       {
         role: 'system',
-        content: `You write private notes for a dental clinic's receptionist. Summarise the chat below in at most ${words} words, in English. ${focus} Keep placeholders like [EMAIL_1] out of the summary. No medical details beyond the treatment name. Output only the summary.`,
+        content: `You write private notes for a dental clinic's receptionist. Summarise the chat below in at most ${words} words, in English. ${focus} Keep placeholders like [EMAIL_1] out of the summary. No medical details beyond the treatment name and the dental problem they came with. Output only the summary.`,
       },
       { role: 'user', content: messages.map(DIALOGUE_HEAD).join('\n').slice(0, 12_000) },
     ],
@@ -117,7 +117,8 @@ export async function recall({ patientId, currentConversationId, question }) {
 
 const KINDS = ['preference', 'communication_style', 'logistics'];
 
-// Notes must be kind, practical and non-sensitive: no health data, no contact details, no insults.
+// Notes must be kind and practical: no contact details, no insults, and no medical conditions.
+// A dental problem ("had tooth pain") is allowed, so the assistant can ask how the patient is doing.
 const SENSITIVE = [
   /allerg|diabet|pregnan|medicat|medicine|pills?\b|antibiotic|blood\s*pressure|heart|asthma|hiv|hepatitis|cancer|surgery|disease|diagnos|infection|symptom|mental|depress|anxiety\s+disorder/i,
   /religio|political|sexual|ethnic/i,

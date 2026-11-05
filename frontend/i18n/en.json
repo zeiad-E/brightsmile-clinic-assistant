@@ -353,7 +353,8 @@
         "body": [
           "Your name, date of birth, and a phone number or email, so we know who is booking and can reach you.",
           "Your appointments: the treatment, the doctor, the time, and whether you came.",
-          "Your chats with the assistant, so the team can follow up if you need help."
+          "Your chats with the assistant, so the team can follow up if you need help.",
+          "When you are signed in, short notes the assistant keeps about you: your preferences, and any dental problem you told it about, so it can ask how you are doing next time."
         ]
       },
       {

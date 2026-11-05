@@ -57,19 +57,22 @@ const isPatient = (user) => user?.role === 'patient' && Boolean(user.patientId);
 export async function sendMessage({ user, ip, evalCase, onEvent }, { conversationId, message, language }) {
   const admin = requireAdmin();
   const settings = await clinicModel.getSettings(admin);
-  const lang = language ?? detectLanguage(message, user?.preferredLanguage ?? 'en');
+  // The patient's latest message decides. The page language only helps when it can't.
+  const pageLanguage = language ?? user?.preferredLanguage ?? 'en';
 
   if (!settings.assistant_enabled) {
-    return { conversation_id: conversationId ?? null, reply: fixedReply('paused', lang, { clinicPhone: settings.phone }), status: 'paused' };
+    return { conversation_id: conversationId ?? null, reply: fixedReply('paused', detectLanguage(message, pageLanguage), { clinicPhone: settings.phone }), status: 'paused' };
   }
 
-  const conversation = conversationId
-    ? await loadOwned(admin, conversationId, user)
-    : await conversationModel.create(admin, {
-        profileId: isPatient(user) ? user.id : null,
-        patientId: isPatient(user) ? user.patientId : null,
-        language: lang,
-      });
+  const existing = conversationId ? await loadOwned(admin, conversationId, user) : null;
+  const lang = detectLanguage(message, existing?.language ?? pageLanguage);
+  const conversation =
+    existing ??
+    (await conversationModel.create(admin, {
+      profileId: isPatient(user) ? user.id : null,
+      patientId: isPatient(user) ? user.patientId : null,
+      language: lang,
+    }));
 
   const keys = personKeys({ userId: user?.id, ip, evalCase });
   const notify = onEvent ?? (() => {});

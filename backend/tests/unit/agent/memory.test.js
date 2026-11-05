@@ -45,6 +45,9 @@ describe('note rules', () => {
     'Lives in Alexandria, prefers slots after 1 pm',
     'Prefers short replies',
     'يفضل المواعيد المسائية',
+    'On 2026-11-05 had tooth pain and wanted the earliest time',
+    'Feels nervous about dental visits',
+    'يوم 2026-11-05 كان عنده وجع في ضرسه',
   ])('accepts a kind, practical note: %s', (note) => {
     expect(memory.checkNote(note)).toBeNull();
   });
@@ -135,11 +138,11 @@ describe('summaries', () => {
   });
 
   it('schedules a rolling summary only once older messages fall outside the window', async () => {
-    await memory.scheduleSummaries({ id: 'c1' }, 3);
+    await memory.scheduleSummaries({ id: 'c1' }, 10);
     expect(store.jobs.map((j) => j.type)).toEqual(['finalize_conversation']);
 
     store.jobs.length = 0;
-    await memory.scheduleSummaries({ id: 'c1' }, 10);
+    await memory.scheduleSummaries({ id: 'c1' }, 15);
     expect(store.jobs.map((j) => j.type)).toEqual(['finalize_conversation', 'summarize_conversation']);
   });
 });

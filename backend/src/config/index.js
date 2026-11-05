@@ -62,7 +62,7 @@ const EnvSchema = z
     SUPABASE_URL: text(),
     SUPABASE_SERVICE_ROLE_KEY: text(),
 
-    AGENT_MAX_TOOL_ITERATIONS: positiveInt(5),
+    AGENT_MAX_TOOL_ITERATIONS: positiveInt(8),
     // A whole assistant turn (all AI calls + tools). Real multi-step turns take 10–30 s on free models.
     AGENT_TURN_TIMEOUT_MS: positiveInt(45000),
 

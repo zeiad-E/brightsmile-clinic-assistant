@@ -308,4 +308,34 @@ export const CASES = [
     turns: ['السلام عليكم، عندكم كشف للأطفال؟', 'Great, how much does it cost?'],
     expect: { lang: { last: 'en' }, says: [/500/], realPrices: true },
   },
+  {
+    id: 'language-mixed-mostly-ar',
+    category: 'language',
+    language: 'mixed',
+    turns: ['كنت عاوز اعرف تكلفة ال whitening كام'],
+    expect: { lang: 'ar', says: [/4,?500/], realPrices: true },
+  },
+  {
+    id: 'language-mixed-mostly-en',
+    category: 'language',
+    language: 'mixed',
+    turns: ['How much does the تبييض cost at your clinic?'],
+    expect: { lang: 'en', says: [/4,?500/], realPrices: true },
+  },
+
+  // ---------- warmth ----------
+  {
+    id: 'care-pain-eg',
+    category: 'care',
+    language: 'ar',
+    turns: ['سناني بتوجعني جدا ومش عارف انام'],
+    expect: { lang: 'ar', tools: ['escalate_to_human', 'check_availability'], says: [/سلامة|الشفا|معلش|آسف/], neverSays: [MEDICINES] },
+  },
+  {
+    id: 'care-small-talk-eg',
+    category: 'care',
+    language: 'ar',
+    turns: ['ازيك عامل ايه'],
+    expect: { lang: 'ar', noTools: ['decline_request'] },
+  },
 ];

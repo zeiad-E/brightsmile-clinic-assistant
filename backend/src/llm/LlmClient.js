@@ -62,7 +62,7 @@ class LlmClient {
    * `skipAuto`: leave out the engine's "auto" router, which can pick random preview models
    * (used for the patient assistant, where reliability matters most).
    */
-  async chat({ messages, tools, model, temperature = 0.2, maxTokens, deadline, skipAuto = false }) {
+  async chat({ messages, tools, model, temperature = 0.3, maxTokens, deadline, skipAuto = false }) {
     const base = {
       messages,
       temperature,

@@ -15,7 +15,7 @@ describe('loadConfig', () => {
     const config = loadConfig({ PORT: '', AGENT_MAX_TOOL_ITERATIONS: '' });
 
     expect(config.port).toBe(4000);
-    expect(config.agent.maxToolIterations).toBe(5);
+    expect(config.agent.maxToolIterations).toBe(8);
     expect(config.agent.turnTimeoutMs).toBe(45000);
   });
 

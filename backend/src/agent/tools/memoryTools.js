@@ -8,7 +8,7 @@ import { defineTool, toolError } from './define.js';
 export const remember = defineTool({
   name: 'remember',
   description:
-    'Save a short, useful note about the signed-in patient for future conversations — a preference, communication style, or practical detail. Examples: "Prefers afternoon appointments", "Writes in Egyptian Arabic; reply the same way", "Lives in Alexandria, prefers slots after 1 pm", "Prefers short replies". Never health information, contact details, or judgements.',
+    'Save a short, useful note about the signed-in patient for future conversations — a preference, communication style, practical detail, or the dental problem they came with. Examples: "Prefers afternoon appointments", "Writes in Egyptian Arabic; reply the same way", "Lives in Alexandria, prefers slots after 1 pm", "Prefers short replies", "On 2026-11-05 had tooth pain and wanted the earliest time". Never medical conditions, medication, allergies, pregnancy, contact details, or judgements.',
   schema: z.object({
     kind: z.enum(['preference', 'communication_style', 'logistics']),
     content: z.string().min(3).max(200).describe('One kind, factual sentence.'),
