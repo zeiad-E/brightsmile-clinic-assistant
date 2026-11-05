@@ -17,7 +17,7 @@ export default async function Header() {
     { href: localePath(locale), label: t.home },
     { href: localePath(locale, '/services'), label: t.services },
     { href: localePath(locale, '/about'), label: t.about },
-    { href: localePath(locale, '/assistant'), label: t.assistant },
+    { href: localePath(locale, '/assistant'), label: t.assistant, highlight: true },
   ];
 
   return (

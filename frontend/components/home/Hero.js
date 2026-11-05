@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MOUSE, lerp, useFrameWhileVisible, prefersReducedMotion } from '@/lib/motion';
 import ButtonLink from '@/components/ui/ButtonLink';
+import LiveDot from '@/components/ui/LiveDot';
 import { Brush, Floss } from './icons';
 import SplitText from './SplitText';
 import styles from './Home.module.css';
@@ -129,7 +130,8 @@ export default function Hero({ t, arabic, eyebrow, nextSlot, bookHref, askHref }
                 {t.book} <span className="flip-rtl" aria-hidden="true">→</span>
               </span>
             </ButtonLink>
-            <ButtonLink href={askHref} variant="ghost" size="lg">
+            <ButtonLink href={askHref} variant="assistant" size="lg">
+              <LiveDot />
               {t.ask}
             </ButtonLink>
           </div>

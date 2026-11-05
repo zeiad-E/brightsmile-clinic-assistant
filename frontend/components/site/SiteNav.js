@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { localePath } from '@/i18n/config';
 import { buttonClasses } from '@/components/ui/ButtonLink';
+import LiveDot from '@/components/ui/LiveDot';
 import { useSession } from '@/components/providers/SessionProvider';
 import LanguageSwitch from './LanguageSwitch';
 import AccountMenu, { MobileAccount } from './AccountMenu';
@@ -42,8 +43,14 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
             key={link.href}
             href={link.href}
             aria-current={isActive(link.href) ? 'page' : undefined}
-            className="relative py-1 text-ink-2 transition-colors hover:text-ink aria-[current=page]:text-ink aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-0 aria-[current=page]:after:-bottom-0.5 aria-[current=page]:after:h-0.5 aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-mint"
+            data-highlight={link.highlight || undefined}
+            className={`relative py-1 transition-colors aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-0 aria-[current=page]:after:-bottom-0.5 aria-[current=page]:after:h-0.5 aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-mint ${
+              link.highlight
+                ? 'inline-flex items-center gap-2 text-[15px] font-bold text-mint-deep hover:text-mint'
+                : 'text-ink-2 hover:text-ink aria-[current=page]:text-ink'
+            }`}
           >
+            {link.highlight && <LiveDot />}
             {link.label}
           </Link>
         ))}
@@ -87,9 +94,10 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
               href={link.href}
               aria-current={isActive(link.href) ? 'page' : undefined}
               onClick={() => setOpen(false)}
-              className="border-b border-line py-4 text-2xl font-bold tracking-tight aria-[current=page]:text-mint-deep"
+              className={`flex items-center gap-3 border-b border-line py-4 text-2xl font-bold tracking-tight aria-[current=page]:text-mint-deep ${link.highlight ? 'text-mint-deep' : ''}`}
             >
               {link.label}
+              {link.highlight && <LiveDot />}
             </Link>
           ))}
         </nav>

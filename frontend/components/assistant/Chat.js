@@ -36,7 +36,7 @@ function load() {
   }
 }
 
-export default function Chat({ t, locale, variant = 'page' }) {
+export default function Chat({ t, locale, variant = 'page', ask = null }) {
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -146,13 +146,15 @@ export default function Chat({ t, locale, variant = 'page' }) {
     };
   }, [checkTeam, team]);
 
-  // /assistant?q=… (from the Services page) asks that question straight away, once
+  // /assistant?q=… (from the Services page) or the bubble's greeting asks that question straight away, once
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const q = params.get('q');
+    const q = params.get('q') ?? ask;
     if (!q) return;
-    params.delete('q');
-    window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`);
+    if (params.has('q')) {
+      params.delete('q');
+      window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`);
+    }
     const timer = setTimeout(() => send(q), 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival

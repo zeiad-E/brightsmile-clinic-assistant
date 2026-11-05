@@ -39,7 +39,7 @@
     ],
     "lead": "Gentle dentistry with clear prices, and an assistant that answers your questions and books your visit at any hour.",
     "book": "Book an appointment",
-    "ask": "Ask a question",
+    "ask": "Talk to our AI assistant",
     "nextFree": "Next free:",
     "scroll": "Scroll",
     "story": [
@@ -438,6 +438,8 @@
     "none": "No appointments.",
     "bubbleOpen": "Chat with the assistant",
     "bubbleClose": "Close chat",
+    "greetLead": "Ask me:",
+    "greetClose": "Hide this message",
     "openFull": "Open full screen",
     "someone": "Someone",
     "teamJoined": "{name} from the clinic joined the chat",

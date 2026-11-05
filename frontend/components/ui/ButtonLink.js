@@ -8,6 +8,7 @@ export const buttonVariants = {
   mint: 'bg-mint text-white shadow-mint',
   dark: 'bg-ink text-white',
   ghost: 'bg-white/85 text-ink shadow-[inset_0_0_0_1.5px_var(--color-line)]',
+  assistant: 'bg-white/90 text-mint-deep shadow-[inset_0_0_0_1.5px_var(--color-mint)]',
 };
 
 export const buttonSizes = {
