@@ -33,10 +33,10 @@ if (typeof window !== 'undefined') {
 /** Where the journey marker is on screen; the 3D tooth rides it (written by Journey, read by the tooth). */
 export const journeyMarker = { x: 0, y: 0 };
 
-/** Event fired once the 3D tooth is built and drawn, so the hero text can start without competing for the CPU. */
-export const TOOTH_READY = 'brightsmile:tooth-ready';
-/** Remembers that it already happened (Next.js may hide and re-show the page; the event won't fire twice). */
-export const toothState = { ready: false };
+/** The Blender molar. Named here so HomeEffects can ask for it early without loading the tooth's code. */
+export const MODEL_URL = '/models/molar.glb';
+/** Remembers that the tooth already assembled once (Next.js may hide and re-show the page). */
+export const toothState = { shown: false };
 
 /* ---------- pinned sections ----------
  * A pinned section is tall (e.g. 300vh) and holds a sticky panel (100vh). While you scroll through

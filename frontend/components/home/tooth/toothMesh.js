@@ -1,4 +1,4 @@
-import { clamp } from '@/lib/motion';
+import { MODEL_URL, clamp } from '@/lib/motion';
 
 /**
  * The 3D tooth's shape: a molar modelled in Blender (assets-src/tooth/build_molar.py → /models/molar.glb).
@@ -10,7 +10,6 @@ import { clamp } from '@/lib/motion';
  * caller spreads the calls over many frames so the page never freezes.
  */
 
-const MODEL_URL = '/models/molar.glb';
 export const MODEL_H = 3.35; // the model is scaled to this height (model units)...
 export const MODEL_CY = 0; // ...and centred on y = 0
 export const STRIDE = 17; // floats per vertex: pos3 nrm3 cen3 fly4 axis3 ao1

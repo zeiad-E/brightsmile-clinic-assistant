@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MOUSE, TOOTH_READY, lerp, toothState, useFrameWhileVisible, prefersReducedMotion, wait } from '@/lib/motion';
+import { MOUSE, lerp, useFrameWhileVisible, prefersReducedMotion } from '@/lib/motion';
 import ButtonLink from '@/components/ui/ButtonLink';
 import { Brush, Floss } from './icons';
 import SplitText from './SplitText';
@@ -12,6 +12,8 @@ const cx = (...names) => names.filter(Boolean).join(' ');
 /**
  * 1 · Hero: the whole section is the scene. Depth layers follow the mouse, the headline types in
  * letter by letter, then the second line keeps swapping phrases. The 3D tooth stands in the spot.
+ * The opening text animation is pure CSS (Home.module.css), so it starts with the very first paint
+ * and waits for neither this JavaScript nor the tooth. JavaScript only takes over for the swapping.
  */
 export default function Hero({ t, arabic, eyebrow, nextSlot, bookHref, askHref }) {
   const heroRef = useRef(null);
@@ -19,15 +21,15 @@ export default function Hero({ t, arabic, eyebrow, nextSlot, bookHref, askHref }
   const sceneRef = useRef(null);
   // The phrases on the second line: [{ key, index, leaving, overlap }]. The old phrase keeps its key
   // while it slides out, so React keeps the same element and the CSS transition can play.
-  const [words, setWords] = useState([]);
+  // The first phrase comes from the server with the page, so the CSS opening can animate it right away.
+  const [words, setWords] = useState([{ key: 0, index: 0, leaving: false, overlap: false, intro: true }]);
   const wordKey = useRef(0);
 
-  /* the opening sequence: eyebrow → "Your smile," letter by letter → phrase → paragraph → buttons */
+  /* once the CSS opening has played: remember it, and start swapping phrases */
   useEffect(() => {
     const hero = heroRef.current;
-    const letters = [...hero.querySelectorAll(`.${styles.hLine} .${styles.c}`)];
     let cancelled = false;
-    let rotateTimer = 0;
+    let timer = 0;
     let n = 0;
 
     const show = (index) => {
@@ -43,56 +45,15 @@ export default function Hero({ t, arabic, eyebrow, nextSlot, bookHref, askHref }
       show(n);
     };
 
-    async function play() {
-      hero.classList.add(styles.in);
-      if (prefersReducedMotion()) {
-        letters.forEach((c) => c.classList.add(styles.on));
-        show(0);
-        hero.classList.add(styles.showLead, styles.showCta);
-        return;
-      }
-      await wait(450);
-      // timed by animation frames: each letter waits 50 ms after the previous one really appeared
-      await new Promise((done) => {
-        let i = 0, due = 0;
-        (function step(now) {
-          if (cancelled) return done();
-          if (now >= due) {
-            letters[i++]?.classList.add(styles.on);
-            due = now + 50;
-          }
-          if (i < letters.length) requestAnimationFrame(step);
-          else done();
-        })(performance.now());
-      });
-      if (cancelled) return;
-      await wait(350);
-      show(0);
-      await wait(t.phrases[0].length * 60 + 450);
-      if (cancelled) return;
-      hero.classList.add(styles.showLead);
-      await wait(400);
-      hero.classList.add(styles.showCta);
-      await wait(3200);
-      if (!cancelled) rotateTimer = setInterval(next, 3600);
-    }
-
-    // Start once the 3D tooth is built and drawn, so no heavy work runs while letters type; 2.5 s at the latest.
-    let started = false;
-    const go = () => {
-      if (started || cancelled) return;
-      started = true;
-      play();
-    };
-    if (toothState.ready) go();
-    window.addEventListener(TOOTH_READY, go, { once: true });
-    const fallback = setTimeout(go, 2500);
+    timer = setTimeout(() => {
+      // Next.js may hide this page and show it again later, which would replay a CSS animation
+      hero.classList.add(styles.played);
+      if (!prefersReducedMotion()) timer = setInterval(next, 3600);
+    }, 2800);
 
     return () => {
       cancelled = true;
-      clearTimeout(fallback);
-      clearInterval(rotateTimer);
-      window.removeEventListener(TOOTH_READY, go);
+      clearInterval(timer); // clears the timeout too: browsers share one list of timers
     };
   }, [t.phrases]);
 
@@ -157,7 +118,7 @@ export default function Hero({ t, arabic, eyebrow, nextSlot, bookHref, askHref }
             </span>
             <span className={styles.rotator}>
               {words.map((w) => (
-                <RotWord key={w.key} text={t.phrases[w.index]} arabic={arabic} leaving={w.leaving} overlap={w.overlap} />
+                <RotWord key={w.key} text={t.phrases[w.index]} arabic={arabic} leaving={w.leaving} overlap={w.overlap} intro={w.intro} />
               ))}
             </span>
           </h1>
@@ -193,8 +154,8 @@ export default function Hero({ t, arabic, eyebrow, nextSlot, bookHref, askHref }
  * One phrase of the rotating second line: letters rise in, then rise out when the next one arrives.
  * While the old phrase leaves, the new one sits on the same line (negative margin) for half a second.
  */
-function RotWord({ text, arabic, leaving, overlap }) {
-  const [shown, setShown] = useState(false);
+function RotWord({ text, arabic, leaving, overlap, intro }) {
+  const [shown, setShown] = useState(Boolean(intro));
   const [sitOnLine, setSitOnLine] = useState(overlap);
   useEffect(() => {
     // two frames later, so the browser has drawn the letters below the line before they rise
@@ -209,7 +170,7 @@ function RotWord({ text, arabic, leaving, overlap }) {
   }, []);
   return (
     <span
-      className={cx(styles.rotWord, (shown || leaving) && styles.show, leaving && styles.leave)}
+      className={cx(styles.rotWord, intro && styles.rotIntro, (shown || leaving) && styles.show, leaving && styles.leave)}
       style={sitOnLine ? { marginTop: 'calc(-1 * var(--rot-line))' } : undefined}
     >
       <SplitText text={text} arabic={arabic} />

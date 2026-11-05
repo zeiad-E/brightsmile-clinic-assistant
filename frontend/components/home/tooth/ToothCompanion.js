@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MOUSE, TOOTH_READY, clamp, easeInOut, easeOut, journeyMarker, lerp, pinTopScreen, pinY, prefersReducedMotion, toothState } from '@/lib/motion';
+import { MOUSE, clamp, easeInOut, easeOut, journeyMarker, lerp, pinTopScreen, pinY, prefersReducedMotion, toothState } from '@/lib/motion';
 import { Mascot } from '../icons';
 import { MODEL_CY, MODEL_H, STRIDE, getMesh } from './toothMesh';
 
@@ -130,7 +130,7 @@ export default function ToothCompanion() {
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     // Warm-up: browsers (Chrome on Windows above all) prepare shaders on the first draw, which can
-    // freeze the page for a moment. Do it now, with an invisible triangle, before the hero text starts.
+    // freeze the page for a moment. Do it now, with an invisible triangle, before the assembly starts.
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(3 * STRIDE), gl.STATIC_DRAW);
     gl.uniform1f(U.u_alpha, 0);
     gl.uniform2f(U.u_view, 1, 1);
@@ -145,17 +145,8 @@ export default function ToothCompanion() {
         if (!alive) return;
         gl.bufferData(gl.ARRAY_BUFFER, mesh.data, gl.STATIC_DRAW);
         COUNT = mesh.triCount * 3;
-        if (!toothState.ready) {
-          // tell the hero text to start once the full mesh has been drawn (two frames from now)
-          requestAnimationFrame(() =>
-            requestAnimationFrame(() => {
-              toothState.ready = true;
-              window.dispatchEvent(new Event(TOOTH_READY));
-            }),
-          );
-        }
       },
-      // the model file failed to download: same fallback as no WebGL (the hero text starts on its own timer)
+      // the model file failed to download: same fallback as no WebGL
       () => alive && setFallbackSpot(document.querySelector('[data-spot="hero"]')),
     );
 

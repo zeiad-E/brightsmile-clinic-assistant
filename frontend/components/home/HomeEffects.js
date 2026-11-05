@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
-import { clamp, lerp, pinProgress, prefersReducedMotion } from '@/lib/motion';
+import { preload } from 'react-dom';
+import { MODEL_URL, clamp, lerp, pinProgress, prefersReducedMotion } from '@/lib/motion';
 
 /**
  * Page-wide effects for the home page only:
@@ -11,9 +12,15 @@ import { clamp, lerp, pinProgress, prefersReducedMotion } from '@/lib/motion';
  *  - the site header turns dark while it sits over a dark section.
  * Each one is undone in its clean-up, so other pages behave normally.
  */
-const ToothCompanion = dynamic(() => import('./tooth/ToothCompanion'), { ssr: false });
+const loadTooth = () => import('./tooth/ToothCompanion');
+const ToothCompanion = dynamic(loadTooth, { ssr: false });
+if (typeof window !== 'undefined') loadTooth(); // fetch its code now, not when React gets to it (slow phones: seconds later)
 
 export default function HomeEffects() {
+  // Puts a hint in the page's HTML, so the browser starts downloading the model while it reads the
+  // page, not after all the JavaScript has run. crossOrigin must match how toothMesh.js fetches it.
+  // Low priority: the text and its styles come first, the tooth joins in when it can.
+  preload(MODEL_URL, { as: 'fetch', crossOrigin: 'anonymous', fetchPriority: 'low' });
   useSmoothWheel();
   useDarkHeader();
   return <ToothCompanion />;
