@@ -28,6 +28,12 @@ describe('eval checks', () => {
     expect(one(ev({ replies: ["The children's check-up (كشف للأطفال) costs 500 EGP and takes about 30 minutes."] }), { lang: 'en' }).pass).toBe(true);
   });
 
+  it('fails every case whose replies have broken text, whatever else it checks', () => {
+    const checks = (replies) => score(ev({ replies }), { lang: 'ar' });
+    expect(checks(['لو عاوز ت预约 كشف'])).toEqual([expect.objectContaining({ name: 'lang', pass: true }), expect.objectContaining({ name: 'clean', pass: false })]);
+    expect(checks(['تحب أحجزلك معاد يا فندم؟']).every((k) => k.pass)).toBe(true);
+  });
+
   it('accepts only real prices, in either language and digit style', () => {
     expect(one(ev({ replies: ['A cleaning is 800 EGP; whitening 4,500 EGP.'] }), { realPrices: true }).pass).toBe(true);
     expect(one(ev({ replies: ['الكشف بـ ٤٠٠ جنيه'] }), { realPrices: true }).pass).toBe(true);
@@ -60,6 +66,7 @@ describe('eval checks', () => {
       ['remembered', true],
       ['waitlisted', true],
       ['booked', false],
+      ['clean', true],
     ]);
   });
 

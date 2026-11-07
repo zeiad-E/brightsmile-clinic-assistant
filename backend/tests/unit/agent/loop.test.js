@@ -138,6 +138,37 @@ describe('reviewer', () => {
   });
 });
 
+describe('broken text', () => {
+  const broken = 'تبيضة الأسنان تكلفتها ٤٥٠٠٠٠٠٠٠٠٠٠٠٠٠ و проверяется';
+
+  it('sends broken text back once, before the reviewer sees it', async () => {
+    script.push(say(broken), say('تكلفة التبييض 4,500 جنيه يا فندم.'));
+    const review = vi.fn(async () => ({ approved: true, feedback: null }));
+    const result = await run(newCtx({ language: 'ar', state: {} }), { review });
+
+    expect(result).toMatchObject({ status: 'ok', reply: 'تكلفة التبييض 4,500 جنيه يا فندم.' });
+    expect(llmClient.chat.mock.calls[1][0].messages.at(-1).content).toContain('broken text');
+    expect(review).toHaveBeenCalledTimes(1);
+    expect(review.mock.calls[0][0].reply).toBe('تكلفة التبييض 4,500 جنيه يا فندم.');
+  });
+
+  it('never returns text that is still broken after the rewrite', async () => {
+    script.push(say(broken), say(broken));
+    const result = await run(newCtx({ language: 'ar' }));
+
+    expect(result.status).toBe('broken');
+    expect(result.reply).toBeUndefined();
+  });
+
+  it('never falls back to a broken draft when the rewrite fails', async () => {
+    script.push(say(broken));
+    llmClient.chat.mockImplementationOnce(async () => script.shift()).mockRejectedValueOnce(new Error('model down'));
+    const result = await run(newCtx({ language: 'ar' }));
+
+    expect(result.status).toBe('broken');
+  });
+});
+
 describe('reply language', () => {
   it('asks once for a rewrite when the reply is in the wrong language', async () => {
     script.push(say('ألف سلامة عليك يا فندم، هشوفلك أقرب معاد فورًا.'), say("I'm so sorry you're in pain."));

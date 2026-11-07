@@ -16,7 +16,7 @@ import { logger } from '../utils/logger.js';
 
 const RECENT_MESSAGES = 20;
 const MAX_TOOL_CHARS = 4000;
-const REVIEW_TIMEOUT_MS = 8000;
+const REVIEW_TIMEOUT_MS = 12_000;
 
 const RULES = `You check a dental clinic receptionist assistant's reply before the patient sees it. Approve unless it has a real problem. Reject it only for one of these:
 1. WRONG FACT: a price, duration, doctor, date or time that contradicts a tool result. If no tool result covers something, let it pass.
@@ -38,7 +38,7 @@ function material({ messages, toolLog, reply, language }) {
   return `RECENT MESSAGES\n${dialogue}\n\nTOOL RESULTS THIS TURN\n${tools || 'none'}\n\nREQUIRED LANGUAGE\n${language === 'ar' ? 'Arabic' : 'English'}\n\nREPLY TO CHECK\n${reply}`;
 }
 
-/** The next model in the chain, so the reviewer isn't the model that wrote the reply. */
+/** Without a reviewer model set: the next model in the chain, so it isn't the one that wrote the reply. */
 function otherModel(writer) {
   return config.llm.chatModels.find((m) => m !== 'auto' && !String(writer ?? '').endsWith(m));
 }
@@ -57,7 +57,7 @@ export async function reviewReply({ messages, toolLog, reply, language, writer }
         { role: 'system', content: RULES },
         { role: 'user', content: material({ messages, toolLog, reply, language }) },
       ],
-      model: otherModel(writer),
+      model: config.llm.reviewModel || otherModel(writer),
       temperature: 0,
       maxTokens: 120,
       deadline: Date.now() + REVIEW_TIMEOUT_MS,

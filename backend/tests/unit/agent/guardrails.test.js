@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../../../src/agent/guardrails.js';
+import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS, looksBroken } from '../../../src/agent/guardrails.js';
 import { sendEmailCode, signInWithPhone } from '../../../src/agent/tools/accountTools.js';
 import { createKeyedLock } from '../../../src/utils/keyedLock.js';
 
@@ -71,6 +71,27 @@ describe('language and fixed replies', () => {
       expect(detectLanguage(text, 'en')).toBe('en');
     },
   );
+
+  it.each([
+    'تبيضة الأسنان تكلفتها ٤٥٠٠٠٠٠٠٠٠٠٠٠٠٠',
+    'التغطية بتتأكد و проверяется في الاستقبل',
+    'لو عاوز ت预约 كشف مبكر',
+    'إذا حضرتك عاوز تbindings أو ت want معلومات',
+  ])('spots broken text from a free model: %s', (text) => {
+    expect(looksBroken(text)).toBe(true);
+  });
+
+  it.each([
+    'تكلفة التبييض 4,500 جنيه مصري',
+    'The whitening (تبييض الأسنان) costs 4,500 EGP.',
+    'كنت عاوز اعرف تكلفة ال whitening كام',
+    'Call us on +20 100 555 0123',
+    'الكشف بـ ٤٠٠ جنيه، ألف سلامة عليك يا فندم 😊',
+    'Dr. Sarah مع موعدك يوم الأحد الساعة 10',
+    'Your number is [PHONE_1]',
+  ])('leaves normal replies alone: %s', (text) => {
+    expect(looksBroken(text)).toBe(false);
+  });
 
   it('has every fixed reply in both languages', () => {
     for (const kind of ['emergency', 'off_topic', 'off_topic_reminder', 'injection', 'cooldown', 'turn_limit', 'paused', 'failure']) {

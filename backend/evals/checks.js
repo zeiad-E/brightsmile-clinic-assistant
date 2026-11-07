@@ -14,6 +14,8 @@
  *   allowedPrices  Set of every price the catalog and knowledge base mention
  */
 
+import { looksBroken } from '../src/agent/guardrails.js';
+
 const ARABIC_DIGITS = /[٠-٩]/g;
 export const westernDigits = (text) => String(text).replace(ARABIC_DIGITS, (d) => String(d.charCodeAt(0) - 0x0660));
 
@@ -37,6 +39,12 @@ export const CHECKS = {
     // An English reply may quote an Arabic name, e.g. "children's check-up (كشف للأطفال)".
     const wrong = replies.filter((r) => (want === 'ar' ? arabicShare(r) < 0.5 : arabicShare(r) > 0.2));
     return result(!wrong.length, wrong.length ? `reply not in ${want}: "${wrong[0].slice(0, 80)}…"` : `all in ${want}`);
+  },
+
+  /** No reply has broken text (another alphabet, runaway digits, English glued to Arabic). Every case runs it. */
+  clean: (ev) => {
+    const bad = ev.replies.find(looksBroken);
+    return result(!bad, bad ? `broken text: "${bad.slice(0, 80)}…"` : 'clean');
   },
 
   /** These tools were called (at least once each). */
@@ -127,7 +135,7 @@ export const CHECKS = {
 
 /** Runs a case's `expect` block → [{ name, pass, detail }]. */
 export function score(ev, expectations) {
-  return Object.entries(expectations).map(([name, arg]) => {
+  return Object.entries({ ...expectations, clean: true }).map(([name, arg]) => {
     const check = CHECKS[name];
     if (!check) return { name, pass: false, detail: 'unknown check' };
     try {

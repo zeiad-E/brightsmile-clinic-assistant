@@ -47,16 +47,31 @@ describe('reviewer', () => {
     expect(maxTokens).toBeLessThan(200);
   });
 
-  it('asks a different model from the one that wrote the reply', async () => {
+  it('uses its own model when one is set, else a different model from the writer', async () => {
     answers('{"approved":true}');
     await reviewReply(input);
 
-    expect(llmClient.chat.mock.calls[0][0].model).toBe(config.llm.chatModels[1]);
+    expect(llmClient.chat.mock.calls[0][0].model).toBe('agnes-3.0-flash');
+
+    const saved = config.llm.reviewModel;
+    config.llm.reviewModel = '';
+    await reviewReply(input);
+    config.llm.reviewModel = saved;
+    expect(llmClient.chat.mock.calls[1][0].model).toBe(config.llm.chatModels[1]);
   });
 
   it.each([['not json at all'], ['{"approved":"maybe"}'], ['']])('gives no verdict for a broken answer: %s', async (content) => {
     answers(content);
     expect(await reviewReply(input)).toBeNull();
+  });
+
+  it('gives the reviewer 12 seconds', async () => {
+    answers('{"approved":true}');
+    const before = Date.now();
+    await reviewReply(input);
+    const { deadline } = llmClient.chat.mock.calls[0][0];
+    expect(deadline - before).toBeGreaterThanOrEqual(12_000);
+    expect(deadline - before).toBeLessThan(13_000);
   });
 
   it('gives no verdict when the AI is down', async () => {

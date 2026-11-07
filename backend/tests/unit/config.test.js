@@ -17,6 +17,7 @@ describe('loadConfig', () => {
     expect(config.port).toBe(4000);
     expect(config.agent.maxToolIterations).toBe(8);
     expect(config.agent.turnTimeoutMs).toBe(60000);
+    expect(config.llm.reviewModel).toBe('agnes-3.0-flash');
   });
 
   it('turns numeric strings into numbers', () => {

@@ -50,6 +50,8 @@ const EnvSchema = z
     // Ordered chat model chain (tried in order on error/timeout); chosen by benchmark.
     LLM_CHAT_MODELS: text('gpt-oss-120b,qwen3.8-27b,command-a-2,gemini-3.5-flash-lite,auto'),
     LLM_CHAT_TIMEOUT_MS: positiveInt(20000),
+    // The reviewer's own model: it needs no tools, and it keeps reviews off the chat chain's quota.
+    LLM_REVIEW_MODEL: text('agnes-3.0-flash'),
     LLM_EMBEDDING_MODEL: text('gemini-embedding-001'),
     LLM_EMBEDDING_DIMENSIONS: positiveInt(768),
     FALLBACK_PROVIDER_BASE_URL: text(),
@@ -178,6 +180,7 @@ export function loadConfig(rawEnv = process.env) {
         .map((m) => m.trim())
         .filter(Boolean),
       chatTimeoutMs: env.LLM_CHAT_TIMEOUT_MS,
+      reviewModel: env.LLM_REVIEW_MODEL,
       embeddingModel: env.LLM_EMBEDDING_MODEL,
       embeddingDimensions: env.LLM_EMBEDDING_DIMENSIONS,
       fallbackBaseUrl: env.FALLBACK_PROVIDER_BASE_URL,

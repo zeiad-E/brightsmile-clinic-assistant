@@ -1,7 +1,7 @@
 import { llmClient } from '../llm/LlmClient.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
-import { detectLanguage, LIMITS } from './guardrails.js';
+import { detectLanguage, LIMITS, looksBroken } from './guardrails.js';
 import { maskDeep, unmaskValue } from './masking.js';
 import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } from './tools/index.js';
 
@@ -16,7 +16,8 @@ import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } fr
  *  - signed-in-only tools refuse guests
  *  - placeholders are swapped to real values only inside tools, and tool results are
  *    masked again before the AI reads them
- *  - a reply in the wrong language is sent back once to be rewritten
+ *  - a reply with broken text, or in the wrong language, is sent back once to be rewritten;
+ *    broken text that survives the rewrite never reaches the patient (status 'broken')
  *  - the finished reply goes to `review` (a second AI), which can send it back with feedback
  *
  * Once a finished reply exists it is never lost: if a rewrite fails or time runs out, that
@@ -26,7 +27,7 @@ import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } fr
  * (the caller retries once, then hands over to staff).
  */
 const MAX_REWRITES = 2;
-const MIN_REVIEW_MS = 12_000; // enough for a review and a rewrite; with less, the reply just goes out
+const MIN_REVIEW_MS = 15_000; // enough for a review and a rewrite; with less, the reply just goes out
 
 export async function runAgentTurn({
   messages,
@@ -45,10 +46,14 @@ export async function runAgentTurn({
   const toolCalls = [];
   let usedModel = null;
   let languageFixed = false;
+  let cleaned = false;
   let rewrites = 0;
   let draft = null;
   let verdict = null;
-  const finished = (iterations) => ({ status: 'ok', reply: draft, iterations, toolCalls, usage, model: usedModel, review: verdict });
+  const finished = (iterations) =>
+    looksBroken(draft)
+      ? { status: 'broken', iterations, toolCalls, usage, model: usedModel }
+      : { status: 'ok', reply: draft, iterations, toolCalls, usage, model: usedModel, review: verdict };
 
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
     if (Date.now() > deadline) return draft === null ? { status: 'timeout', iterations: iteration, toolCalls, usage, model: usedModel } : finished(iteration);
@@ -71,6 +76,15 @@ export async function runAgentTurn({
       draft = message.content || draft || '';
       const canRewrite = iteration + 1 < maxIterations && Date.now() < deadline;
       const sendBack = (instruction) => convo.push({ role: 'assistant', content: draft }, { role: 'user', content: instruction });
+
+      // Free models sometimes write broken text. One chance to fix it; if it stays broken, the
+      // turn fails (the caller retries with a fresh attempt) rather than show it to the patient.
+      if (looksBroken(draft)) {
+        if (!canRewrite || cleaned) return finished(iteration);
+        cleaned = true;
+        sendBack(`That reply has broken text: words in other alphabets, a character repeated many times, or English glued to Arabic. Write it again cleanly, in ${ctx.language === 'ar' ? 'Arabic' : 'English'}.`);
+        continue;
+      }
 
       // Models sometimes drift to the language of the history. They get one chance to fix it.
       if (canRewrite && !languageFixed && ctx.language && detectLanguage(draft, ctx.language) !== ctx.language) {
