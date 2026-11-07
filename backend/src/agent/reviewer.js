@@ -1,6 +1,7 @@
 import { config } from '../config/index.js';
 import { llmClient } from '../llm/LlmClient.js';
 import { logger } from '../utils/logger.js';
+import { clip } from './trace.js';
 
 /**
  * The reviewer: a second AI that reads the assistant's finished reply before the patient does.
@@ -50,22 +51,50 @@ function parseVerdict(text) {
   return { approved: verdict.approved, feedback: verdict.approved ? null : String(verdict.feedback ?? 'Fix the reply.').slice(0, 300) };
 }
 
-export async function reviewReply({ messages, toolLog, reply, language, writer }) {
+/** `note` (optional) receives one 'review' step for the trace: input, raw answer, verdict or why there is none. */
+export async function reviewReply({ messages, toolLog, reply, language, writer, note }) {
+  const input = material({ messages, toolLog, reply, language });
+  const requested = config.llm.reviewModel || otherModel(writer);
+  const chain = [];
+  const started = Date.now();
+  const step = { type: 'review', requested, chain, input: clip(input, 8000) };
+  let res;
   try {
-    const res = await llmClient.chat({
+    res = await llmClient.chat({
       messages: [
         { role: 'system', content: RULES },
-        { role: 'user', content: material({ messages, toolLog, reply, language }) },
+        { role: 'user', content: input },
       ],
-      model: config.llm.reviewModel || otherModel(writer),
+      model: requested,
       temperature: 0,
       maxTokens: 120,
       deadline: Date.now() + REVIEW_TIMEOUT_MS,
       skipAuto: true,
+      attempts: chain,
     });
-    return { ...parseVerdict(res.choices?.[0]?.message?.content), usage: res.usage };
   } catch (err) {
-    logger.warn(`Reviewer gave no verdict: ${err.message}`);
+    note?.({ ...step, ms: Date.now() - started, error: `no answer: ${err.message}` });
+    logger.warn(`Reviewer gave no verdict (${requested}, no answer): ${err.message}`);
+    return null;
+  }
+
+  const choice = res.choices?.[0];
+  const raw = choice?.message?.content;
+  Object.assign(step, {
+    model: res.model ?? null,
+    ms: Date.now() - started,
+    finish: choice?.finish_reason ?? null,
+    tokens: { in: res.usage?.prompt_tokens ?? null, out: res.usage?.completion_tokens ?? null },
+    raw: clip(raw, 2000),
+    reasoning: clip(choice?.message?.reasoning ?? choice?.message?.reasoning_content, 2000),
+  });
+  try {
+    const verdict = parseVerdict(raw);
+    note?.({ ...step, verdict: { approved: verdict.approved, feedback: verdict.feedback } });
+    return { ...verdict, usage: res.usage };
+  } catch (err) {
+    note?.({ ...step, error: `unreadable answer: ${err.message}` });
+    logger.warn(`Reviewer gave no verdict (${res.model ?? requested}, finish=${step.finish}): unreadable answer "${clip(raw, 120)}"`);
     return null;
   }
 }

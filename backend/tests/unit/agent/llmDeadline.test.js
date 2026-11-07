@@ -39,6 +39,18 @@ describe('LlmClient.chat', () => {
     expect(tried).toEqual(config.llm.chatModels.filter((m) => m !== 'auto'));
   });
 
+  it('writes down every model it tried, for the trace', async () => {
+    create.mockRejectedValueOnce(new Error('429 quota')).mockResolvedValueOnce({ model: 'second', choices: [{ message: { content: 'hi' } }] });
+    const attempts = [];
+    await llmClient.chat({ messages: [], skipAuto: true, attempts });
+
+    expect(attempts).toEqual([
+      expect.objectContaining({ model: config.llm.chatModels[0], ok: false, error: '429 quota' }),
+      expect.objectContaining({ model: config.llm.chatModels[1], ok: true }),
+    ]);
+    expect(attempts[0].ms).toBeGreaterThanOrEqual(0);
+  });
+
   it('stops trying more models once the deadline has passed', async () => {
     const error = await errorOf(llmClient.chat({ messages: [], deadline: Date.now() + 1000 }));
 

@@ -138,6 +138,53 @@ describe('reviewer', () => {
   });
 });
 
+describe('trace', () => {
+  const traced = () => {
+    const steps = [];
+    return { steps, note: (step) => steps.push({ at: 0, ...step }) };
+  };
+
+  it('writes down every model call, tool, review and rewrite', async () => {
+    script.push(call(['echo', { phone: '[PHONE_1]' }]), say('Whitening takes 90 minutes.'), say('Whitening takes 60 minutes.'));
+    const verdicts = [{ approved: false, feedback: 'It takes 60 minutes.' }, null];
+    const review = vi.fn(async ({ note }) => {
+      note({ type: 'review', requested: 'r' });
+      return verdicts.shift();
+    });
+    const trace = traced();
+    const result = await run(newCtx({ language: 'en' }), { review, trace });
+
+    expect(trace.steps.map((s) => s.type)).toEqual(['ai', 'tool', 'ai', 'review', 'rewrite', 'ai', 'review']);
+    expect(trace.steps[0]).toMatchObject({ model: 'fake', toolCalls: [{ name: 'echo' }], tokens: { in: 10, out: 5 } });
+    expect(trace.steps[1]).toMatchObject({ name: 'echo', ok: true });
+    expect(trace.steps[1].result).not.toContain('secret@example.com'); // what the AI saw: masked
+    expect(trace.steps[2]).toMatchObject({ content: 'Whitening takes 90 minutes.' });
+    expect(trace.steps[4]).toMatchObject({ reason: 'review', feedback: 'It takes 60 minutes.' });
+    // A review that gave no verdict is counted too, so it can be measured.
+    expect(result.toolCalls).toContainEqual({ name: '_review', ok: null, reason: 'no verdict' });
+  });
+
+  it('notes a broken reply, a language rewrite and a skipped review', async () => {
+    script.push(say('لو عاوز ت预约 كشف'), say('مرحبا بك'), say('Welcome!'));
+    const trace = traced();
+    await run(newCtx({ language: 'en' }), { trace, review: vi.fn(), timeoutMs: 5000 });
+
+    expect(trace.steps.filter((s) => s.type === 'check')).toEqual([
+      expect.objectContaining({ check: 'broken', action: 'rewrite' }),
+      expect.objectContaining({ check: 'language', action: 'rewrite' }),
+    ]);
+    expect(trace.steps.at(-1)).toMatchObject({ type: 'review', skipped: expect.stringContaining('left in the turn') });
+  });
+
+  it('notes a model call that failed', async () => {
+    llmClient.chat.mockRejectedValueOnce(new Error('all models failed'));
+    const trace = traced();
+    await expect(run(newCtx(), { trace })).rejects.toThrow('all models failed');
+
+    expect(trace.steps).toEqual([expect.objectContaining({ type: 'ai', error: 'all models failed' })]);
+  });
+});
+
 describe('broken text', () => {
   const broken = 'تبيضة الأسنان تكلفتها ٤٥٠٠٠٠٠٠٠٠٠٠٠٠٠ و проверяется';
 

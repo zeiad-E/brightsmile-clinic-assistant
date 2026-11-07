@@ -9,6 +9,7 @@ import * as escalationModel from '../models/escalationModel.js';
 import * as patientModel from '../models/patientModel.js';
 import * as profileModel from '../models/profileModel.js';
 import * as assistantReportModel from '../models/assistantReportModel.js';
+import * as agentTraceModel from '../models/agentTraceModel.js';
 import { findIdentity } from '../models/profileModel.js';
 import * as sessions from '../auth/sessions.js';
 import { buildContext } from '../agent/context.js';
@@ -18,6 +19,7 @@ import { reviewReply } from '../agent/reviewer.js';
 import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../agent/guardrails.js';
 import { maskText, restoreForPatient, withoutCodes } from '../agent/masking.js';
 import { progressEvent } from '../agent/progress.js';
+import { clip, finishTrace, startAttempt, startTrace, summarizeTrace } from '../agent/trace.js';
 import { AppError } from '../utils/AppError.js';
 import { createKeyedLock } from '../utils/keyedLock.js';
 import { logger } from '../utils/logger.js';
@@ -123,6 +125,8 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
     visitor,
     signInTicket: null,
     endTurn: null,
+    // Every step of this turn, written down for debugging (agent/trace.js).
+    trace: startTrace({ turn: turnNumber, language: lang, message: maskedMessage }),
     emit: (card) => {
       ctx.cards.push(card);
       notify('card', card);
@@ -150,6 +154,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
       urgency: 'urgent',
     });
     const reply = fixedReply('emergency', lang, { clinicPhone: settings.phone });
+    ctx.trace.notes.push('emergency words found: fixed reply sent, the AI was skipped, staff alerted');
     return save({ admin, conversationId, ctx, patch: { ...patch, status: 'handed_off' }, maskedMessage, reply, startedAt, outcome: 'escalated', run: {} });
   }
 
@@ -182,6 +187,13 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
     m.role === 'staff' ? { role: 'assistant', content: `(Clinic team) ${m.content}` } : { role: m.role, content: m.content },
   );
   const userTurn = { role: 'user', content: maskedMessage };
+  Object.assign(ctx.trace.input, {
+    systemPrompt: clip(system.content, 20_000),
+    history: history.map((m) => ({ role: m.role, content: clip(m.content, 1500) })),
+    safeMode: ctx.safeMode,
+    chatModels: config.llm.chatModels,
+    reviewModel: config.llm.reviewModel || null,
+  });
   const toolset = ctx.safeMode ? { tools: safeModeToolsByName, definitions: safeModeDefinitions } : {};
 
   // Wait for a free slot at the AI (bounded line), then try — and on failure try once more
@@ -194,6 +206,10 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
       let retries = 0;
       const failures = [];
       for (let attempt = 0; attempt < 2; attempt += 1) {
+        const attemptTrace = startAttempt(ctx.trace, {
+          model: attempt === 0 ? 'chain' : (config.llm.chatModels[1] ?? 'chain'),
+          historyMessages: attempt === 0 ? history.length : Math.min(4, history.length),
+        });
         try {
           result = await runAgentTurn({
             messages: attempt === 0 ? [system, ...history, userTurn] : [system, ...history.slice(-4), userTurn],
@@ -202,12 +218,15 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
             timeoutMs: config.agent.turnTimeoutMs,
             maxIterations: config.agent.maxToolIterations,
             review: reviewReply,
+            trace: attemptTrace,
             ...toolset,
           });
+          attemptTrace.status = result.status;
           if (result.status === 'ok' || result.status === 'ended') break;
           logger.warn(`Agent turn ended with ${result.status} (attempt ${attempt + 1})`);
           failures.push({ name: '_attempt_failed', ok: false, reason: result.status, tools: result.toolCalls.map((t) => t.name) });
         } catch (err) {
+          Object.assign(attemptTrace, { status: 'error', error: clip(err.message, 500) });
           logger.warn(`Agent turn failed (attempt ${attempt + 1}): ${err.message}`);
           failures.push({ name: '_attempt_failed', ok: false, reason: String(err.message).slice(0, 300) });
           result = null;
@@ -242,6 +261,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
     });
     patch.status = 'needs_attention';
     reply = fixedReply('failure', lang);
+    ctx.trace.notes.push('no usable reply after both attempts: apology sent, staff alerted');
     outcome = 'fallback';
   } else if (ctx.endTurn) {
     // Declined (off-topic or manipulation): count it for the conversation AND the person.
@@ -263,11 +283,13 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
       reply = fixedReply(kind === 'injection' ? 'injection' : offTopic >= 3 ? 'off_topic_reminder' : 'off_topic', lang);
     }
     outcome = 'refused';
+    ctx.trace.notes.push(`declined as ${kind}: fixed reply sent`);
   } else {
     reply = checkReply(result.reply, lang);
     if (result.review) {
       state.lastReview = { approved: result.review.approved, feedback: result.review.feedback };
       if (!result.review.approved) {
+        ctx.trace.notes.push('sent although the reviewer objected: staff alerted');
         // It still went out (better than no answer), so a person should look at it.
         await escalationModel.create(admin, {
           conversationId,
@@ -301,11 +323,12 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
   if (!ctx.conversation.title) update.title = maskedMessage.slice(0, 60);
   await conversationModel.update(admin, conversationId, update);
 
+  const latencyMs = Date.now() - startedAt;
   await agentRunModel
     .insert(admin, {
       conversationId,
       model: run.model,
-      latencyMs: Date.now() - startedAt,
+      latencyMs,
       iterations: run.iterations,
       toolCalls: run.toolCalls,
       outcome,
@@ -314,6 +337,7 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
       retries: run.retries,
     })
     .catch((err) => logger.warn(`agent_runs not saved: ${err.message}`));
+  await recordTrace({ admin, conversationId, ctx, outcome, reply, latencyMs, run });
 
   // Memory upkeep runs in the background (never delays the reply).
   scheduleSummaries(ctx.conversation, ctx.turnNumber).catch((err) => logger.warn(`Summaries not scheduled: ${err.message}`));
@@ -325,6 +349,17 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
     sign_in_ticket: ctx.signInTicket,
     status: update.status ?? ctx.conversation.status,
   };
+}
+
+/** Saves the turn's trace and logs a one-line summary of it. Never fails the turn. */
+async function recordTrace({ admin, conversationId, ctx, outcome, reply, latencyMs, run }) {
+  const output = { outcome, reply: clip(reply), tokens: { in: run.usage?.in ?? null, out: run.usage?.out ?? null }, retries: run.retries ?? 0 };
+  try {
+    logger.info(summarizeTrace(ctx.trace, { conversationId, outcome, latencyMs }));
+    await agentTraceModel.insert(admin, { conversationId, turn: ctx.turnNumber, outcome, latencyMs, trace: finishTrace(ctx.trace, output) });
+  } catch (err) {
+    logger.warn(`agent_traces not saved: ${err.message}`);
+  }
 }
 
 /** "Dr. Sarah Mansour" → "Sarah": how a team member introduces themself to the patient. */

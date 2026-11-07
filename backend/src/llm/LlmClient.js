@@ -61,8 +61,9 @@ class LlmClient {
    * chain stops — so one slow turn can't drag on for minutes.
    * `skipAuto`: leave out the engine's "auto" router, which can pick random preview models
    * (used for the patient assistant, where reliability matters most).
+   * `attempts` (optional array): each model tried is added to it ({ model, ms, ok, error }), for the trace.
    */
-  async chat({ messages, tools, model, temperature = 0.3, maxTokens, deadline, skipAuto = false }) {
+  async chat({ messages, tools, model, temperature = 0.3, maxTokens, deadline, skipAuto = false, attempts }) {
     const base = {
       messages,
       temperature,
@@ -77,21 +78,26 @@ class LlmClient {
     for (const candidate of chain) {
       const remaining = deadline ? deadline - Date.now() : config.llm.chatTimeoutMs;
       if (remaining < 2000) throw lastError ?? new Error('Turn deadline reached'); // no time left, not even for the backup
+      const started = Date.now();
       try {
-        return await this.withEngine((engine) =>
+        const res = await this.withEngine((engine) =>
           engine.chat.completions.create(
             { ...base, model: candidate },
             { timeout: Math.min(config.llm.chatTimeoutMs, remaining), maxRetries: 0 },
           ),
         );
+        attempts?.push({ model: candidate, ms: Date.now() - started, ok: true });
+        return res;
       } catch (err) {
         lastError = err;
+        attempts?.push({ model: candidate, ms: Date.now() - started, ok: false, error: String(err.message).slice(0, 300) });
         logger.warn(`LLM model ${candidate} failed (${err.message}); trying next in chain`);
       }
     }
 
     if (!this.fallback) throw lastError;
     logger.warn('LLM engine chain exhausted; using direct fallback provider');
+    attempts?.push({ model: `fallback:${config.llm.fallbackModel}`, ok: null });
     return this.fallback.chat.completions.create({
       ...base,
       model: config.llm.fallbackModel,

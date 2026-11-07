@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** chatService with the database and the agent loop replaced by fakes. */
 const conversations = new Map();
-const saved = { messages: [], runs: [], escalations: [] };
+const saved = { messages: [], runs: [], escalations: [], traces: [] };
 
 vi.mock('../../../src/db/supabase.js', () => ({ requireAdmin: () => ({ admin: true }), dbFor: () => ({ user: true }), publicDb: () => ({ visitor: true }) }));
 vi.mock('../../../src/models/clinicModel.js', () => ({
@@ -26,6 +26,7 @@ vi.mock('../../../src/models/messageModel.js', () => ({
   recentDialogue: vi.fn(async () => []),
 }));
 vi.mock('../../../src/models/agentRunModel.js', () => ({ insert: vi.fn(async (_db, run) => saved.runs.push(run)) }));
+vi.mock('../../../src/models/agentTraceModel.js', () => ({ insert: vi.fn(async (_db, row) => saved.traces.push(row)) }));
 vi.mock('../../../src/models/escalationModel.js', () => ({ create: vi.fn(async (_db, e) => saved.escalations.push(e)) }));
 vi.mock('../../../src/models/profileModel.js', () => ({ findIdentity: vi.fn() }));
 vi.mock('../../../src/agent/context.js', () => ({
@@ -47,6 +48,7 @@ beforeEach(() => {
   saved.messages.length = 0;
   saved.runs.length = 0;
   saved.escalations.length = 0;
+  saved.traces.length = 0;
   vi.clearAllMocks();
 });
 
@@ -93,6 +95,33 @@ describe('chatService.sendMessage', () => {
 
     expect(res.reply).toBe('Whitening takes 90 minutes.');
     expect(saved.escalations).toEqual([expect.objectContaining({ urgency: 'low', reason: expect.stringContaining('It takes 60 minutes.') })]);
+  });
+
+  it('saves a trace of the turn: what the AI was given, each attempt, and what went out', async () => {
+    runAgentTurn.mockImplementation(async ({ trace }) => {
+      trace.note({ type: 'ai', model: 'gemini', ms: 900, finish: 'stop', content: 'Hi! How can I help?' });
+      return ok('Hi! How can I help?');
+    });
+    const { conversation_id: id } = await chatService.sendMessage(guest, { message: 'Hello, my email is mona@example.com' });
+
+    expect(saved.traces).toHaveLength(1);
+    const { trace, ...row } = saved.traces[0];
+    expect(row).toMatchObject({ conversationId: id, turn: 1, outcome: 'answered' });
+    expect(trace.input).toMatchObject({ message: 'Hello, my email is [EMAIL_1]', history: [] });
+    expect(trace.input.systemPrompt).toContain('CLINIC ASSISTANT RULES');
+    expect(trace.attempts).toEqual([expect.objectContaining({ attempt: 1, status: 'ok', steps: [expect.objectContaining({ type: 'ai', model: 'gemini' })] })]);
+    expect(trace.output).toMatchObject({ outcome: 'answered', reply: 'Hi! How can I help?' });
+    expect(JSON.stringify(trace)).not.toContain('mona@example.com');
+  });
+
+  it('traces a failed turn: both attempts, why they failed, and the fallback', async () => {
+    runAgentTurn.mockRejectedValueOnce(new Error('429 quota')).mockResolvedValueOnce({ status: 'broken', toolCalls: [], usage: {} });
+    await chatService.sendMessage(guest, { message: 'How much is whitening?' });
+
+    const { trace } = saved.traces[0];
+    expect(trace.attempts.map((a) => [a.attempt, a.status])).toEqual([[1, 'error'], [2, 'broken']]);
+    expect(trace.attempts[0].error).toBe('429 quota');
+    expect(trace.notes.join()).toContain('apology sent');
   });
 
   it('reports progress and cards to a streaming caller while the turn runs', async () => {

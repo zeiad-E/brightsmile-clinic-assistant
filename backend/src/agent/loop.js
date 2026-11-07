@@ -3,6 +3,7 @@ import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { detectLanguage, LIMITS, looksBroken } from './guardrails.js';
 import { maskDeep, unmaskValue } from './masking.js';
+import { clip } from './trace.js';
 import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } from './tools/index.js';
 
 /**
@@ -19,6 +20,7 @@ import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } fr
  *  - a reply with broken text, or in the wrong language, is sent back once to be rewritten;
  *    broken text that survives the rewrite never reaches the patient (status 'broken')
  *  - the finished reply goes to `review` (a second AI), which can send it back with feedback
+ *  - with a `trace` (see agent/trace.js), every step is written down for debugging
  *
  * Once a finished reply exists it is never lost: if a rewrite fails or time runs out, that
  * reply goes out.
@@ -38,6 +40,7 @@ export async function runAgentTurn({
   tools = defaultTools,
   definitions = defaultDefinitions,
   review = null,
+  trace = null,
 }) {
   const convo = [...messages];
   const deadline = Date.now() + timeoutMs;
@@ -50,6 +53,7 @@ export async function runAgentTurn({
   let rewrites = 0;
   let draft = null;
   let verdict = null;
+  const note = (step) => trace?.note(step);
   const finished = (iterations) =>
     looksBroken(draft)
       ? { status: 'broken', iterations, toolCalls, usage, model: usedModel }
@@ -59,10 +63,13 @@ export async function runAgentTurn({
     if (Date.now() > deadline) return draft === null ? { status: 'timeout', iterations: iteration, toolCalls, usage, model: usedModel } : finished(iteration);
 
     let res;
+    const chain = [];
+    const asked = Date.now();
     try {
-      res = await llmClient.chat({ messages: convo, tools: definitions, model, maxTokens: LIMITS.maxTokens, deadline, skipAuto: true });
+      res = await llmClient.chat({ messages: convo, tools: definitions, model, maxTokens: LIMITS.maxTokens, deadline, skipAuto: true, attempts: chain });
       if (!res.choices?.[0]?.message) throw new Error('The AI returned no message');
     } catch (err) {
+      note({ type: 'ai', iteration, ms: Date.now() - asked, chain, error: err.message });
       if (draft === null) throw err;
       logger.warn(`Rewrite failed, sending the last reply: ${err.message}`);
       return finished(iteration);
@@ -70,7 +77,19 @@ export async function runAgentTurn({
     usedModel = res.model ?? usedModel;
     usage.in += res.usage?.prompt_tokens ?? 0;
     usage.out += res.usage?.completion_tokens ?? 0;
-    const { message } = res.choices[0];
+    const { message, finish_reason: finish } = res.choices[0];
+    note({
+      type: 'ai',
+      iteration,
+      model: res.model ?? null,
+      ms: Date.now() - asked,
+      chain,
+      finish: finish ?? null,
+      tokens: { in: res.usage?.prompt_tokens ?? null, out: res.usage?.completion_tokens ?? null },
+      content: clip(message.content),
+      reasoning: clip(message.reasoning ?? message.reasoning_content, 2000),
+      toolCalls: (message.tool_calls ?? []).map((c) => ({ name: c.function?.name, args: clip(c.function?.arguments, 1000) })),
+    });
 
     if (!message.tool_calls?.length) {
       draft = message.content || draft || '';
@@ -80,6 +99,7 @@ export async function runAgentTurn({
       // Free models sometimes write broken text. One chance to fix it; if it stays broken, the
       // turn fails (the caller retries with a fresh attempt) rather than show it to the patient.
       if (looksBroken(draft)) {
+        note({ type: 'check', check: 'broken', action: !canRewrite || cleaned ? 'give_up' : 'rewrite' });
         if (!canRewrite || cleaned) return finished(iteration);
         cleaned = true;
         sendBack(`That reply has broken text: words in other alphabets, a character repeated many times, or English glued to Arabic. Write it again cleanly, in ${ctx.language === 'ar' ? 'Arabic' : 'English'}.`);
@@ -88,22 +108,27 @@ export async function runAgentTurn({
 
       // Models sometimes drift to the language of the history. They get one chance to fix it.
       if (canRewrite && !languageFixed && ctx.language && detectLanguage(draft, ctx.language) !== ctx.language) {
+        note({ type: 'check', check: 'language', wanted: ctx.language, action: 'rewrite' });
         languageFixed = true;
         sendBack(`Write that reply again, in ${ctx.language === 'ar' ? 'Arabic' : 'English'}.`);
         continue;
       }
 
       verdict = null;
+      if (review && deadline - Date.now() <= MIN_REVIEW_MS) note({ type: 'review', skipped: `only ${deadline - Date.now()} ms left in the turn` });
       if (review && deadline - Date.now() > MIN_REVIEW_MS) {
         ctx.onProgress?.({ stage: 'reviewing' });
-        verdict = await review({ messages, toolLog: ctx.toolLog, reply: draft, language: ctx.language, writer: usedModel });
+        verdict = await review({ messages, toolLog: ctx.toolLog, reply: draft, language: ctx.language, writer: usedModel, note });
         if (verdict) {
           usage.in += verdict.usage?.prompt_tokens ?? 0;
           usage.out += verdict.usage?.completion_tokens ?? 0;
           toolCalls.push({ name: '_review', ok: verdict.approved, reason: verdict.feedback });
+        } else {
+          toolCalls.push({ name: '_review', ok: null, reason: 'no verdict' });
         }
         if (verdict && !verdict.approved && canRewrite && rewrites < MAX_REWRITES) {
           rewrites += 1;
+          note({ type: 'rewrite', reason: 'review', feedback: verdict.feedback });
           sendBack(`A reviewer sent your draft back (the patient has not seen it): ${verdict.feedback}
 Write the full reply again with that fixed. Write only what the patient should read, and don't mention the review.`);
           continue;
@@ -116,9 +141,11 @@ Write the full reply again with that fixed. Write only what the patient should r
 
     for (const call of message.tool_calls) {
       ctx.onProgress?.({ stage: 'tool', tool: call.function?.name });
+      const toolStarted = Date.now();
       const result = await runTool(call, { ctx, tools, seen });
       toolCalls.push({ name: call.function?.name, ok: !result?.error });
       const forAi = maskDeep(result, ctx.map);
+      note({ type: 'tool', name: call.function?.name, ok: !result?.error, ms: Date.now() - toolStarted, args: clip(call.function?.arguments, 1000), result: clip(forAi, 3000) });
       ctx.toolLog.push({ name: call.function?.name, args: safeJson(call.function?.arguments), result: truncate(forAi) });
       convo.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(forAi) });
     }

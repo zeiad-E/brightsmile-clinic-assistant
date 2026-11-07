@@ -1,6 +1,7 @@
 import { adminAs, requireAdmin } from '../db/supabase.js';
 import { llmClient } from '../llm/LlmClient.js';
 import * as conversationModel from '../models/conversationModel.js';
+import * as agentTraceModel from '../models/agentTraceModel.js';
 import * as jobModel from '../models/jobModel.js';
 import * as memoryModel from '../models/memoryModel.js';
 import * as messageModel from '../models/messageModel.js';
@@ -215,7 +216,10 @@ export async function forgetPatient({ patientId, keepConversationId = null }) {
   await memoryModel.removeForPatient(adminAs(null, 'patient_assistant'), patientId);
   const ids = (await conversationModel.deletableForPatient(db, patientId)).filter((id) => id !== keepConversationId);
   const deleted = await conversationModel.removeMany(db, ids);
-  if (keepConversationId) await conversationModel.update(db, keepConversationId, { summary: null, summary_embedding: null });
+  if (keepConversationId) {
+    await conversationModel.update(db, keepConversationId, { summary: null, summary_embedding: null });
+    await agentTraceModel.removeForConversation(db, keepConversationId);
+  }
   return { memories_deleted: true, conversations_deleted: deleted };
 }
 

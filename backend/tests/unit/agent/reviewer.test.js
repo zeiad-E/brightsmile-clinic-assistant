@@ -74,6 +74,39 @@ describe('reviewer', () => {
     expect(deadline - before).toBeLessThan(13_000);
   });
 
+  it('records its input, raw answer and verdict for the trace', async () => {
+    llmClient.chat.mockResolvedValue({ model: 'openai/gpt-oss-20b', usage: { prompt_tokens: 900, completion_tokens: 12 }, choices: [{ finish_reason: 'stop', message: { content: '{"approved":false,"feedback":"60 minutes."}' } }] });
+    const note = vi.fn();
+    await reviewReply({ ...input, note });
+
+    expect(note).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'review',
+      requested: 'agnes-3.0-flash',
+      model: 'openai/gpt-oss-20b',
+      finish: 'stop',
+      tokens: { in: 900, out: 12 },
+      raw: '{"approved":false,"feedback":"60 minutes."}',
+      verdict: { approved: false, feedback: '60 minutes.' },
+    }));
+    expect(note.mock.calls[0][0].input).toContain(input.reply);
+  });
+
+  it('says why there is no verdict: an answer cut short while the model was still thinking', async () => {
+    llmClient.chat.mockResolvedValue({ model: 'openai/gpt-oss-20b', choices: [{ finish_reason: 'length', message: { content: '', reasoning: 'Let me check the duration…' } }] });
+    const note = vi.fn();
+    expect(await reviewReply({ ...input, note })).toBeNull();
+
+    expect(note).toHaveBeenCalledWith(expect.objectContaining({ finish: 'length', raw: '', reasoning: 'Let me check the duration…', error: expect.stringContaining('unreadable answer') }));
+  });
+
+  it('says why there is no verdict: no model answered', async () => {
+    llmClient.chat.mockRejectedValue(new Error('Request timed out.'));
+    const note = vi.fn();
+    expect(await reviewReply({ ...input, note })).toBeNull();
+
+    expect(note).toHaveBeenCalledWith(expect.objectContaining({ type: 'review', error: 'no answer: Request timed out.' }));
+  });
+
   it('gives no verdict when the AI is down', async () => {
     llmClient.chat.mockRejectedValue(new Error('all models failed'));
     expect(await reviewReply(input)).toBeNull();

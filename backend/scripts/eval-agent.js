@@ -113,11 +113,12 @@ async function patientRecords(name) {
 }
 
 async function evidence(c, { conversationIds, replies, results }) {
-  const [tools, runs, conversations, escalations] = await Promise.all([
+  const [tools, runs, conversations, escalations, traces] = await Promise.all([
     admin.from('messages').select('tool_name, tool_payload, id').in('conversation_id', conversationIds).eq('role', 'tool').order('id'),
     admin.from('agent_runs').select('outcome, latency_ms, tokens_in, tokens_out, model, retries, tool_calls').in('conversation_id', conversationIds),
     admin.from('conversations').select('id, status').in('id', conversationIds),
     admin.from('escalations').select('id', { count: 'exact', head: true }).in('conversation_id', conversationIds),
+    admin.from('agent_traces').select('turn, outcome, latency_ms, trace').in('conversation_id', conversationIds).order('created_at'),
   ]);
   return {
     replies,
@@ -126,6 +127,7 @@ async function evidence(c, { conversationIds, replies, results }) {
     runs: runs.data ?? [],
     conversations: conversationIds.map((id) => (conversations.data ?? []).find((row) => row.id === id)).filter(Boolean),
     escalations: escalations.count ?? 0,
+    traces: traces.data ?? [],
     patient: c.patient ? await patientRecords(c.patient) : null,
     allowedPrices,
   };
@@ -176,6 +178,7 @@ async function runCase(c) {
   const failures = ev.runs.flatMap((r) => (r.tool_calls ?? []).filter((t) => t.name === '_attempt_failed').map((t) => t.reason));
   const reviews = ev.runs.flatMap((r) => (r.tool_calls ?? []).filter((t) => t.name === '_review').map((t) => ({ approved: t.ok, feedback: t.reason })));
   const models = ev.runs.map((r) => r.model);
+  const traces = ev.traces;
   return {
     case: c,
     conversationIds: [conversationId],
@@ -185,6 +188,7 @@ async function runCase(c) {
     failures,
     reviews,
     models,
+    traces,
     statuses: results.map((r) => r.status),
     pass: checks.every((k) => k.pass),
     ms: Date.now() - started,
@@ -354,7 +358,7 @@ async function main() {
     if (report) {
       fs.mkdirSync(new URL('../evals/results/', import.meta.url), { recursive: true });
       const file = new URL(`../evals/results/${STARTED.toISOString().slice(0, 10)}-${RUN}.json`, import.meta.url);
-      const rows = outcomes.map((o) => ({ id: o.case.id, category: o.case.category, language: o.case.language, pass: o.pass ?? false, error: o.error ?? o.skipped, checks: o.checks, replies: o.replies, tools: o.tools, failures: o.failures, reviews: o.reviews, models: o.models, statuses: o.statuses, ms: o.ms, tokens: o.tokens }));
+      const rows = outcomes.map((o) => ({ id: o.case.id, category: o.case.category, language: o.case.language, pass: o.pass ?? false, error: o.error ?? o.skipped, checks: o.checks, replies: o.replies, tools: o.tools, failures: o.failures, reviews: o.reviews, models: o.models, traces: o.traces, statuses: o.statuses, ms: o.ms, tokens: o.tokens }));
       fs.writeFileSync(file, JSON.stringify({ run: RUN, api: API, startedAt: STARTED, summary: report, cases: rows }, null, 2));
       console.log(`Report  ${file.pathname.replace(/^\/([A-Z]:)/, '$1')}`);
     }
