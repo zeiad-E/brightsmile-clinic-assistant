@@ -134,3 +134,12 @@ describe('per-conversation lock', () => {
     expect(order.indexOf('x:start')).toBeLessThan(order.indexOf('a:end'));
   });
 });
+
+describe('escalate_to_human', () => {
+  it('alerts staff once per turn, even when a retried attempt asks again', async () => {
+    const { escalateToHuman } = await import('../../../src/agent/tools/supportTools.js');
+    const ctx = { events: { escalated: 'high' }, conversation: { id: 'c1' } };
+    const result = await escalateToHuman.run({ reason: 'Tooth pain', summary: 'Patient in pain, wants a visit.', urgency: 'high' }, ctx);
+    expect(result).toMatchObject({ escalated: true, alreadyDone: true });
+  });
+});

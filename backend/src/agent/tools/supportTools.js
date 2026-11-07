@@ -15,6 +15,10 @@ export const escalateToHuman = defineTool({
     urgency: z.enum(['low', 'normal', 'high', 'urgent']),
   }),
   run: async ({ reason, summary, urgency }, ctx) => {
+    // A retried turn (the first attempt timed out) must not alert staff a second time.
+    if (ctx.events.escalated) {
+      return { escalated: true, alreadyDone: true, next: 'Staff were already alerted in this turn. Tell the patient a staff member will contact them.' };
+    }
     await escalationModel.create(requireAdmin(), {
       conversationId: ctx.conversation.id,
       patientId: ctx.user?.patientId ?? ctx.conversation.patient_id ?? null,

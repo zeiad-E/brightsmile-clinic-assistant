@@ -18,6 +18,7 @@ import { clip } from './trace.js';
 const RECENT_MESSAGES = 20;
 const MAX_TOOL_CHARS = 4000;
 const REVIEW_TIMEOUT_MS = 12_000;
+const REVIEW_MAX_TOKENS = 800;
 
 const RULES = `You check a dental clinic receptionist assistant's reply before the patient sees it. Approve unless it has a real problem. Reject it only for one of these:
 1. WRONG FACT: a price, duration, doctor, date or time that contradicts a tool result. If no tool result covers something, let it pass.
@@ -44,10 +45,14 @@ function otherModel(writer) {
   return config.llm.chatModels.find((m) => m !== 'auto' && !String(writer ?? '').endsWith(m));
 }
 
+// Reasoning models (gpt-oss, Gemini) often think out loud before answering, so the verdict is the
+// LAST {"approved": …} object in the text; anything before it, braces included, is thinking.
+const VERDICT = /\{\s*"approved"\s*:\s*(?:true|false)\s*(?:,\s*"feedback"\s*:\s*(?:null|"(?:[^"\\]|\\.)*"))?\s*\}/g;
+
 function parseVerdict(text) {
-  const json = String(text ?? '');
-  const verdict = JSON.parse(json.slice(json.indexOf('{'), json.lastIndexOf('}') + 1));
-  if (typeof verdict.approved !== 'boolean') throw new Error('no verdict');
+  const found = String(text ?? '').match(VERDICT);
+  if (!found) throw new Error('no verdict in the answer');
+  const verdict = JSON.parse(found.at(-1));
   return { approved: verdict.approved, feedback: verdict.approved ? null : String(verdict.feedback ?? 'Fix the reply.').slice(0, 300) };
 }
 
@@ -67,7 +72,9 @@ export async function reviewReply({ messages, toolLog, reply, language, writer, 
       ],
       model: requested,
       temperature: 0,
-      maxTokens: 120,
+      // Room to think first: with 120 tokens, gpt-oss-20b stopped (finish=length) before its
+      // verdict in 10 of 12 reviews on 2026-11-07.
+      maxTokens: REVIEW_MAX_TOKENS,
       deadline: Date.now() + REVIEW_TIMEOUT_MS,
       skipAuto: true,
       attempts: chain,

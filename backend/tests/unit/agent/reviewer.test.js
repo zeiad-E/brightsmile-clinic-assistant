@@ -44,7 +44,7 @@ describe('reviewer', () => {
     expect(text).not.toContain('message 5\n');
     expect(text).not.toContain('SECRET RULES');
     expect(tools).toBeUndefined();
-    expect(maxTokens).toBeLessThan(200);
+    expect(maxTokens).toBeLessThanOrEqual(800);
   });
 
   it('uses its own model when one is set, else a different model from the writer', async () => {
@@ -110,5 +110,18 @@ describe('reviewer', () => {
   it('gives no verdict when the AI is down', async () => {
     llmClient.chat.mockRejectedValue(new Error('all models failed'));
     expect(await reviewReply(input)).toBeNull();
+  });
+});
+
+describe('reviewer verdict after thinking out loud', () => {
+  it('reads the last verdict, even when the thinking quotes braces and JSON', async () => {
+    answers('We need to check {the reply}. Maybe {"approved":true}? No: it says 90 minutes.\n{"approved":false,"feedback":"Whitening takes 60 minutes, not 90."}');
+    expect(await reviewReply(input)).toMatchObject({ approved: false, feedback: 'Whitening takes 60 minutes, not 90.' });
+  });
+
+  it('gives it room to think before the verdict', async () => {
+    answers('{"approved":true}');
+    await reviewReply(input);
+    expect(llmClient.chat.mock.calls[0][0].maxTokens).toBe(800);
   });
 });
