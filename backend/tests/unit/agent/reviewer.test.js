@@ -125,3 +125,21 @@ describe('reviewer verdict after thinking out loud', () => {
     expect(llmClient.chat.mock.calls[0][0].maxTokens).toBe(800);
   });
 });
+
+describe('reviewer: "it is done" claims', () => {
+  it('has a rule to reject "done" that no tool result shows', async () => {
+    answers('{"approved":true}');
+    await reviewReply(input);
+    expect(llmClient.chat.mock.calls.at(-1)[0].messages[0].content).toMatch(/FALSE DONE/);
+  });
+
+  it('puts the proof of what was done first, so a long list of free times can’t push it past the cut', async () => {
+    answers('{"approved":true}');
+    const longSlots = { name: 'check_availability', result: { days: 'x'.repeat(5000) } };
+    const confirmed = { name: 'confirm_pending_action', result: { booked: true } };
+    await reviewReply({ ...input, toolLog: [longSlots, confirmed] });
+
+    const sent = llmClient.chat.mock.calls.at(-1)[0].messages[1].content;
+    expect(sent).toContain('confirm_pending_action: {"booked":true}');
+  });
+});

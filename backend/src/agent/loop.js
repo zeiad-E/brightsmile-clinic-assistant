@@ -1,7 +1,7 @@
 import { llmClient } from '../llm/LlmClient.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
-import { detectLanguage, LIMITS, looksBroken, pricesIn } from './guardrails.js';
+import { claimsDone, detectLanguage, doneIsBacked, LIMITS, looksBroken, pricesIn } from './guardrails.js';
 import { maskDeep, unmaskValue } from './masking.js';
 import { clip } from './trace.js';
 import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } from './tools/index.js';
@@ -22,6 +22,8 @@ import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } fr
  *  - the finished reply goes to `review` (a second AI), which can send it back with feedback
  *  - a price that isn't the clinic's (ctx.knownPrices, this turn's tool results or the patient's
  *    own message) is sent back once; if it stays, the turn fails rather than quote it
+ *  - a reply saying a booking/cancellation/change is done, with no successful confirm_pending_action
+ *    (or my_appointments check) this turn, is sent back once; if it stays, the turn fails
  *  - while rewriting, the AI may not decline: it was answering a clinic question
  *  - with a `trace` (see agent/trace.js), every step is written down for debugging
  *
@@ -54,6 +56,7 @@ export async function runAgentTurn({
   let languageFixed = false;
   let cleaned = false;
   let pricesFixed = false;
+  let claimFixed = false;
   let rewriting = false;
   let rewrites = 0;
   let draft = null;
@@ -64,9 +67,12 @@ export async function runAgentTurn({
     const allowed = new Set([...ctx.knownPrices, ...pricesIn(JSON.stringify(ctx.toolLog.map((t) => t.result))), ...pricesIn(messages.at(-1)?.content)]);
     return pricesIn(text).filter((price) => !allowed.has(price));
   };
+  // Whatever path ends the turn (done, out of time, a failed rewrite), these never reach the patient.
+  const problem = (text) =>
+    looksBroken(text) ? 'broken' : wrongPrices(text).length ? 'wrong_price' : claimsDone(text) && !doneIsBacked(ctx.toolLog) ? 'unbacked_done' : null;
   const finished = (iterations) =>
-    looksBroken(draft) || wrongPrices(draft).length
-      ? { status: looksBroken(draft) ? 'broken' : 'wrong_price', iterations, toolCalls, usage, model: usedModel }
+    problem(draft)
+      ? { status: problem(draft), iterations, toolCalls, usage, model: usedModel }
       : { status: 'ok', reply: draft, iterations, toolCalls, usage, model: usedModel, review: verdict };
 
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
@@ -126,6 +132,23 @@ export async function runAgentTurn({
         if (!canRewrite || pricesFixed) return finished(iteration);
         pricesFixed = true;
         sendBack(`That reply quotes a price the clinic does not have (${unknown.join(', ')} EGP). Never guess prices: call list_services or search_knowledge and use only the prices they return. Write the full reply again.`);
+        continue;
+      }
+
+      // "It's booked / cancelled" with nothing behind it: the patient would leave thinking it's done.
+      // One chance to do it for real (confirm_pending_action) or check the bookings (my_appointments);
+      // if the claim stays unbacked, the turn fails (retry, then staff) rather than send it.
+      if (claimsDone(draft) && !doneIsBacked(ctx.toolLog)) {
+        note({ type: 'check', check: 'unbacked_done', action: !canRewrite || claimFixed ? 'give_up' : 'rewrite' });
+        if (!canRewrite || claimFixed) return finished(iteration);
+        claimFixed = true;
+        sendBack(
+          'That reply says a booking, cancellation or change is done, but nothing in this turn shows it: confirm_pending_action has not succeeded. ' +
+            'Never say it is done until that tool returns booked, cancelled or rescheduled: true. ' +
+            'If the patient has just agreed to what CONTEXT shows as waiting for their confirmation, call confirm_pending_action now. ' +
+            'If you are not sure whether it already happened, check my_appointments (signed-in patients). ' +
+            'Then write the full reply again, saying only what the tools show.',
+        );
         continue;
       }
 

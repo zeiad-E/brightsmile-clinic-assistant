@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS, looksBroken, pricesIn } from '../../../src/agent/guardrails.js';
+import { checkReply, claimsDone, detectLanguage, detectVisitHistory, doneIsBacked, fixedReply, isEmergency, LIMITS, looksBroken, pricesIn } from '../../../src/agent/guardrails.js';
 import { sendEmailCode, signInWithPhone } from '../../../src/agent/tools/accountTools.js';
 import { createKeyedLock } from '../../../src/utils/keyedLock.js';
 
@@ -149,5 +149,44 @@ describe('prices in a reply', () => {
     expect(pricesIn('Teeth cleaning is 1500 EGP; whitening EGP 4,500.')).toEqual([1500, 4500]);
     expect(pricesIn('التبييض بـ ٤٥٠٠ جنيه والكشف 400 ج.م')).toEqual([4500, 400]);
     expect(pricesIn('Call +20 100 555 0123 at 10:00 on 2026-11-11')).toEqual([]);
+  });
+});
+
+describe('"it is done" claims', () => {
+  it('spots a reply saying a booking, cancellation or change is done, in English and Arabic', () => {
+    for (const text of [
+      'Your appointment is confirmed.',
+      'Your Teeth cleaning on Sunday has been cancelled.',
+      'It\'s already done! Your booking was cancelled.',
+      'I\'ve booked you in for Sunday at 13:00.',
+      'You\'re all set for Sunday.',
+      'Your visit has been rescheduled to Monday.',
+      'تم الحجز يا فندم.',
+      'تم إلغاء الموعد.',
+      'معاد حضرتك اتلغى.',
+      'الحجز اتأكد يا فندم',
+      'حجزتلك يوم الأحد الساعة ١',
+    ]) expect(claimsDone(text), text).toBe(true);
+  });
+
+  it('leaves alone a reply that only prepares it, asks to confirm, or talks about free times', () => {
+    for (const text of [
+      'I have prepared your booking. Shall I go ahead and confirm it?',
+      'Please confirm and I\'ll finalize it right away.',
+      'Your booking will be confirmed once you say yes.',
+      'Dr. Nadia is free at 13:00 and 14:15.',
+      'هيتم الحجز بعد تأكيد حضرتك.',
+      'تحب أأكد الحجز؟',
+      'جهزتلك الحجز، أأكده؟',
+    ]) expect(claimsDone(text), text).toBe(false);
+  });
+
+  it('counts as proof only a successful confirm_pending_action or a my_appointments check', () => {
+    expect(doneIsBacked([{ name: 'confirm_pending_action', result: { booked: true } }])).toBe(true);
+    expect(doneIsBacked([{ name: 'confirm_pending_action', result: { cancelled: true } }])).toBe(true);
+    expect(doneIsBacked([{ name: 'my_appointments', result: { appointments: [] } }])).toBe(true);
+    expect(doneIsBacked([{ name: 'confirm_pending_action', result: { error: 'needs_patient_confirmation' } }])).toBe(false);
+    expect(doneIsBacked([{ name: 'propose_cancel', result: { pending: true } }])).toBe(false);
+    expect(doneIsBacked([])).toBe(false);
   });
 });

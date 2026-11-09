@@ -5,10 +5,15 @@ import { AppError } from '../../../src/utils/AppError.js';
 vi.mock('../../../src/db/supabase.js', () => ({ requireAdmin: () => ({}), adminAs: () => ({}) }));
 vi.mock('../../../src/services/bookingService.js', () => ({ bookAsVisitor: vi.fn() }));
 vi.mock('../../../src/services/appointmentService.js', () => ({ cancel: vi.fn(), reschedule: vi.fn(), listMine: vi.fn() }));
+vi.mock('../../../src/services/catalogService.js', () => ({
+  listServices: vi.fn(async () => [{ id: 's', slug: 'check-up', name_en: 'Check-up', name_ar: 'كشف', duration_minutes: 30, price_egp: 400 }]),
+  listDoctors: vi.fn(async () => [{ id: 'd', full_name_en: 'Sarah Mansour', full_name_ar: 'سارة منصور', service_ids: ['s'] }]),
+}));
+vi.mock('../../../src/models/availabilityModel.js', () => ({ slotsFor: vi.fn(async () => [{ slot_start: '2026-12-01T09:00:00.000Z' }]) }));
 
 const bookingService = await import('../../../src/services/bookingService.js');
 const appointmentService = await import('../../../src/services/appointmentService.js');
-const { confirmPendingAction } = await import('../../../src/agent/tools/bookingTools.js');
+const { confirmPendingAction, proposeBooking } = await import('../../../src/agent/tools/bookingTools.js');
 
 const pendingBooking = (proposedAtTurn) => ({
   type: 'book',
@@ -104,5 +109,26 @@ describe('confirm_pending_action', () => {
 
   it('says so when there is nothing to confirm', async () => {
     expect((await confirmPendingAction.run({}, ctxWith(undefined, 2))).error).toBe('nothing_pending');
+  });
+});
+
+describe('propose_booking after the patient replied', () => {
+  const guest = { service: 'check-up', doctor: 'Sarah Mansour', date: '2026-12-01', full_name: 'Mona Ali', date_of_birth: '1992-04-15', email: 'mona@example.com' };
+
+  it('refuses to propose the same booking again (it would restart the wait for their yes)', async () => {
+    const ctx = ctxWith(pendingBooking(2), 3); // proposed in turn 2: 10:00 Cairo time
+    const result = await proposeBooking.run({ ...guest, time: '10:00' }, ctx);
+
+    expect(result.error).toBe('already_proposed');
+    expect(result.message).toMatch(/call confirm_pending_action now/);
+    expect(ctx.state.pending.proposedAtTurn).toBe(2); // the yes still counts
+  });
+
+  it('still proposes a changed booking (another time)', async () => {
+    const ctx = ctxWith(pendingBooking(2), 3);
+    const result = await proposeBooking.run({ ...guest, time: '11:00' }, ctx);
+
+    expect(result.pending).toBe(true);
+    expect(ctx.state.pending).toMatchObject({ proposedAtTurn: 3, input: { starts_at: '2026-12-01T09:00:00.000Z' } });
   });
 });

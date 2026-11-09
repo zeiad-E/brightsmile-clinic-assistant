@@ -114,6 +114,12 @@ async function isFree(ctx, { serviceId, staffId, day, startsAt }) {
   return slots.some((s) => new Date(s.slot_start).getTime() === new Date(startsAt).getTime());
 }
 
+/** The same action is already waiting from an earlier turn (so the patient has replied to it since). */
+const alreadyProposed = (ctx, type, same) => {
+  const earlier = ctx.state.pending;
+  return earlier?.type === type && earlier.proposedAtTurn < ctx.turnNumber && same(earlier.input);
+};
+
 export const proposeBooking = defineTool({
   name: 'propose_booking',
   description:
@@ -138,6 +144,11 @@ export const proposeBooking = defineTool({
     if (!doctor) return toolError('doctor_not_found', `No doctor offering ${service.name_en} matches "${args.doctor}".`);
 
     const startsAt = zonedDateTime(args.date, args.time, ctx.timeZone);
+    // Proposing the same booking again after the patient replied would restart the wait for their
+    // "yes", so confirm_pending_action would refuse it (the eval saw exactly that on 2026-11-09).
+    if (alreadyProposed(ctx, 'book', (input) => input.service_id === service.id && input.staff_id === doctor.id && input.starts_at === startsAt)) {
+      return toolError('already_proposed', 'This booking was already proposed and the patient has replied since. If they agreed, call confirm_pending_action now. Propose again only if they changed something.');
+    }
     if (!(await isFree(ctx, { serviceId: service.id, staffId: doctor.id, day: args.date, startsAt }))) {
       return toolError('time_not_available', 'That time is not free.', {
         alternatives: await nextAlternatives(ctx, { serviceId: service.id, staffId: doctor.id, after: startsAt }),
@@ -273,6 +284,9 @@ export const proposeReschedule = defineTool({
       doctorName = match.full_name_en;
     }
     const startsAt = zonedDateTime(date, time, ctx.timeZone);
+    if (alreadyProposed(ctx, 'reschedule', (input) => input.id === appointment.id && input.starts_at === startsAt && input.staff_id === staffId)) {
+      return toolError('already_proposed', 'This change was already proposed and the patient has replied since. If they agreed, call confirm_pending_action now.');
+    }
     if (!(await isFree(ctx, { serviceId: appointment.service_id, staffId, day: date, startsAt }))) {
       return toolError('time_not_available', 'That time is not free.', {
         alternatives: await nextAlternatives(ctx, { serviceId: appointment.service_id, staffId, after: startsAt }),

@@ -376,3 +376,56 @@ describe('agent loop', () => {
     await expect(run(newCtx())).rejects.toThrow('all models down');
   });
 });
+
+describe('"it is done" without proof', () => {
+  const done = { booked: true, service: 'Teeth cleaning' };
+  const confirm = defineTool({ name: 'confirm_pending_action', description: 'confirm', run: async () => done });
+  const failing = defineTool({ name: 'confirm_pending_action', description: 'confirm', run: async () => ({ error: 'needs_patient_confirmation', message: 'Ask first.' }) });
+  const bookings = defineTool({ name: 'my_appointments', description: 'list', run: async () => ({ appointments: [{ status: 'cancelled' }] }) });
+  const withTools = (...list) => ({ tools: new Map(list.map((t) => [t.name, t])), definitions: list.map(toOpenAiDefinition) });
+  const turn = (ctx, list) => runAgentTurn({ messages: [{ role: 'user', content: 'Yes, confirm.' }], ctx, ...withTools(...list) });
+
+  it('sends back "booked" when nothing booked it; the rewrite confirms for real and is accepted', async () => {
+    script.push(say('Your appointment is confirmed.'), call(['confirm_pending_action', {}]), say('Your appointment is confirmed.'));
+    const result = await turn(newCtx({ language: 'en' }), [confirm]);
+
+    expect(result).toMatchObject({ status: 'ok', reply: 'Your appointment is confirmed.' });
+    const sentBack = llmClient.chat.mock.calls[1][0].messages.filter((m) => m.role === 'user').at(-1);
+    expect(sentBack.content).toMatch(/confirm_pending_action has not succeeded/);
+  });
+
+  it('never sends a "cancelled" that is still unbacked after the rewrite (the turn fails instead)', async () => {
+    script.push(say('Your booking has been cancelled.'), say('All done, it has been cancelled.'));
+    expect((await turn(newCtx({ language: 'en' }), [confirm])).status).toBe('unbacked_done');
+  });
+
+  it('does not count a confirm that returned an error', async () => {
+    script.push(call(['confirm_pending_action', {}]), say('تم الحجز يا فندم.'), say('تم الحجز يا فندم.'));
+    expect((await turn(newCtx({ language: 'ar' }), [failing])).status).toBe('unbacked_done');
+  });
+
+  it('accepts it when confirm_pending_action succeeded in the same turn', async () => {
+    script.push(call(['confirm_pending_action', {}]), say('Your appointment is confirmed for Sunday.'));
+    const result = await turn(newCtx({ language: 'en' }), [confirm]);
+
+    expect(result).toMatchObject({ status: 'ok' });
+    expect(llmClient.chat).toHaveBeenCalledTimes(2); // no rewrite
+  });
+
+  it('accepts it after the bookings were checked in the database (my_appointments)', async () => {
+    script.push(say('It has been cancelled.'), call(['my_appointments', {}]), say('Your cleaning on Sunday has been cancelled.'));
+    expect((await turn(newCtx({ language: 'en', isPatient: true }), [bookings])).status).toBe('ok');
+  });
+
+  it('never falls back to an unbacked claim when the rewrite fails', async () => {
+    script.push(say('Your appointment is confirmed.'));
+    llmClient.chat.mockImplementationOnce(async () => script.shift()).mockRejectedValueOnce(new Error('AI down'));
+    expect((await turn(newCtx({ language: 'en' }), [confirm])).status).toBe('unbacked_done');
+  });
+
+  it('leaves a reply that asks the patient to confirm alone', async () => {
+    script.push(say('I have prepared your booking. Shall I confirm it?'));
+    expect((await turn(newCtx({ language: 'en' }), [confirm])).status).toBe('ok');
+    expect(llmClient.chat).toHaveBeenCalledTimes(1);
+  });
+});

@@ -79,6 +79,39 @@ export const looksBroken = (text) => {
 };
 
 /**
+ * A reply that says a booking, cancellation or change is DONE ("your appointment is confirmed",
+ * "has been cancelled", "تم الحجز", "اتلغى"). Asking to confirm ("shall I confirm?") or saying it
+ * is prepared doesn't count. Free models wrote "cancelled" without cancelling on 2026-11-09.
+ */
+const NOT_LETTER = '(?<![\\p{L}])';
+const DONE_CLAIMS = [
+  /\b(?:appointment|booking|visit|reservation|cancellation|it|this|that)\s+(?:is|has been|was)\s+(?:now\s+|all\s+|successfully\s+)?(?:confirmed|booked|cancell?ed|rescheduled|moved)\b/i,
+  /\bhas been\s+(?:successfully\s+)?(?:confirmed|booked|cancell?ed|rescheduled|moved)\b/i,
+  /\bI(?:'ve| have)?\s+(?:now\s+|successfully\s+|just\s+)?(?:booked|cancell?ed|rescheduled|moved|confirmed)\b/i,
+  /\byou(?:'re| are)\s+(?:all\s+)?(?:set|booked|confirmed)\b/i,
+  /\bsuccessfully\s+(?:booked|cancell?ed|rescheduled|confirmed)\b/i,
+  /\b(?:all done|all set|it'?s done|already done)\b/i,
+  new RegExp(`${NOT_LETTER}تم\\s*(?:ال)?(?:حجز|تأكيد|تاكيد|إلغاء|الغاء|إلغا|تغيير|نقل|تعديل)`, 'u'),
+  new RegExp(`${NOT_LETTER}(?:ا|إ)ت(?:حجز|لغى|لغت|لغي|أكد|اكد|نقل|غير)`, 'u'),
+  new RegExp(`${NOT_LETTER}(?:حجزت|لغيت|ألغيت|الغيت|أكدت|اكدت)(?:لك|لحضرتك)`, 'u'),
+];
+
+export const claimsDone = (text) => DONE_CLAIMS.some((pattern) => pattern.test(String(text ?? '')));
+
+/**
+ * What can back such a claim this turn: confirm_pending_action succeeded (booked / cancelled /
+ * rescheduled / forgotten), or the patient's bookings were read from the database (my_appointments),
+ * so the reply can report what is really there (the reviewer checks it matches).
+ */
+export function doneIsBacked(toolLog = []) {
+  return toolLog.some(
+    ({ name, result }) =>
+      (name === 'confirm_pending_action' && ['booked', 'cancelled', 'rescheduled', 'forgotten'].some((key) => result?.[key] === true)) ||
+      (name === 'my_appointments' && result && !result.error),
+  );
+}
+
+/**
  * Prices written in a text: a number next to EGP / جنيه / ج.م / LE, in Western or Arabic digits,
  * with or without a thousands comma ("4,500 EGP", "٤٥٠٠ جنيه", "EGP 800").
  */
