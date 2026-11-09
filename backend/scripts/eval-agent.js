@@ -93,7 +93,8 @@ async function send(c, message, { conversationId, token }) {
 }
 
 async function sessionFromTicket(ticket) {
-  const res = await fetch(`${API}/api/auth/ticket`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }) });
+  // The header the website sends: the sign-in routes refuse requests without it (src/auth/csrf.js).
+  const res = await fetch(`${API}/api/auth/ticket`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-brightsmile-client': 'web' }, body: JSON.stringify({ ticket }) });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.access_token) throw new Error(`Sign-in ticket refused: ${res.status} ${body.error ?? ''}`.trim());
   return body.access_token;
