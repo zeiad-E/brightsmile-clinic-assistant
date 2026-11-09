@@ -14,7 +14,7 @@
  *   allowedPrices  Set of every price the catalog and knowledge base mention
  */
 
-import { looksBroken } from '../src/agent/guardrails.js';
+import { detectLanguage, looksBroken } from '../src/agent/guardrails.js';
 
 const ARABIC_DIGITS = /[٠-٩]/g;
 export const westernDigits = (text) => String(text).replace(ARABIC_DIGITS, (d) => String(d.charCodeAt(0) - 0x0660));
@@ -36,8 +36,9 @@ export const CHECKS = {
     const lastOnly = typeof expected === 'object';
     const want = lastOnly ? expected.last : expected;
     const replies = lastOnly ? ev.replies.slice(-1) : ev.replies;
-    // An English reply may quote an Arabic name, e.g. "children's check-up (كشف للأطفال)".
-    const wrong = replies.filter((r) => (want === 'ar' ? arabicShare(r) < 0.5 : arabicShare(r) > 0.2));
+    // Judged like the assistant judges the patient: by the main language of the words, so an
+    // English reply that quotes an Arabic term ("whitening (تبييض الأسنان)") still counts as English.
+    const wrong = replies.filter((r) => detectLanguage(r, want) !== want);
     return result(!wrong.length, wrong.length ? `reply not in ${want}: "${wrong[0].slice(0, 80)}…"` : `all in ${want}`);
   },
 

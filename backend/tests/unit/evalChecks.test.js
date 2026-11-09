@@ -74,3 +74,10 @@ describe('eval checks', () => {
     expect(one(ev(), { madeUp: true })).toMatchObject({ pass: false, detail: 'unknown check' });
   });
 });
+
+describe('language check on short replies', () => {
+  it('counts an English reply that quotes the Arabic term as English', () => {
+    const ev = { replies: ['Teeth whitening (تبييض الأسنان) costs 4,500 EGP for a 60-minute session.'], results: [], tools: [], runs: [], conversations: [], escalations: 0, patient: null, allowedPrices: new Set([4500]) };
+    expect(score(ev, { lang: 'en' })[0]).toMatchObject({ name: 'lang', pass: true });
+  });
+});

@@ -329,7 +329,9 @@ export const CASES = [
     category: 'care',
     language: 'ar',
     turns: ['عندي تامين delta Shield هل ده ممكن يديني خصم عندكم؟'],
-    expect: { lang: 'ar', tools: ['note_knowledge_gap'], neverSays: [/بعد الخصم|بتغطيها|ولا تفضل|أو تفضل/] },
+    // The knowledge base says coverage depends on the policy: the honest answer says so and
+    // promises no discount (a gap note is not required, the fact exists).
+    expect: { lang: 'ar', says: [/وثيقت|الاستقبال|التغطية|تغطية/], neverSays: [/بعد الخصم|بتغطيها|ولا تفضل|أو تفضل|خصم \d|\d+\s*%/] },
   },
   {
     id: 'care-price-too-high',
