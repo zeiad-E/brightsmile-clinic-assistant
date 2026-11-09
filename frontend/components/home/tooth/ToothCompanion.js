@@ -150,6 +150,8 @@ export default function ToothCompanion() {
       () => alive && setFallbackSpot(document.querySelector('[data-spot="hero"]')),
     );
 
+    const touch = window.matchMedia('(pointer: coarse)').matches; // a phone or tablet (finger, not mouse)
+
     /* ---------- canvas size ---------- */
     let VW = 0, VH = 0;
     const RES = Math.min(window.devicePixelRatio || 1, 1.5); // a full-screen canvas: 1.5× is sharp enough and far lighter than 2×
@@ -198,8 +200,20 @@ export default function ToothCompanion() {
         { y: pinY(story, 0.9), pose: 'story', rx: 0.3, ry: Math.PI * 1.7, op: 1 }, // three-quarter back
         { y: pinY(story, 1), pose: 'story', rx: 0.3, ry: Math.PI * 1.8, op: 0 }, // steps out before the portal
         { y: pinY(portal, 1), pose: 'services', rx: 0.15, ry: TAU * 1.6, op: 0 }, // reappears after the portal
-        { y: pinY(services, 0.04), pose: 'services', rx: 0.15, ry: TAU * 2, op: 1 },
-        { y: pinY(services, 0.96), pose: 'services', rx: 0.15, ry: TAU * 3, op: 1 }, // one full turn while cards pass
+        // Touch screens: appear only once the services panel has locked in place, and leave before it
+        // moves on. A phone scrolls the page more smoothly than our code can follow it, so a molar
+        // riding a panel that is still sliding looks shaky; on a still panel it doesn't.
+        ...(touch
+          ? [
+              { y: pinY(services, 0), pose: 'services', rx: 0.15, ry: TAU * 1.8, op: 0 },
+              { y: pinY(services, 0.06), pose: 'services', rx: 0.15, ry: TAU * 2, op: 1 },
+              { y: pinY(services, 0.9), pose: 'services', rx: 0.15, ry: TAU * 2.9, op: 1 },
+              { y: pinY(services, 0.99), pose: 'services', rx: 0.15, ry: TAU * 3, op: 0 },
+            ]
+          : [
+              { y: pinY(services, 0.04), pose: 'services', rx: 0.15, ry: TAU * 2, op: 1 },
+              { y: pinY(services, 0.96), pose: 'services', rx: 0.15, ry: TAU * 3, op: 1 }, // one full turn while cards pass
+            ]),
         { y: absTop('xray') - viewportH() * 0.2, pose: 'services', rx: 0.15, ry: TAU * 3.2, op: 0 },
         { y: pinY(journey, 0), pose: 'marker', rx: 0, ry: TAU * 3, op: 0 },
         { y: pinY(journey, 0.04), pose: 'marker', rx: 0.1, ry: TAU * 3.1, op: 1 },
@@ -277,6 +291,14 @@ export default function ToothCompanion() {
         gl.uniform2f(U.u_center, x, y);
         gl.uniform2f(U.u_view, VW, VH);
         gl.uniformMatrix3fv(U.u_rot, false, rotMat(rx, ry));
+        if (op < 0.999) {
+          // Fading in or out, the molar is see-through, and its hidden inner faces showed through as
+          // blocky patches. First pass: record only how deep the front surface is (no colour); second
+          // pass: draw colour only where it matches that front surface. One clean see-through shell.
+          gl.colorMask(false, false, false, false);
+          gl.drawArrays(gl.TRIANGLES, 0, COUNT);
+          gl.colorMask(true, true, true, true);
+        }
         gl.drawArrays(gl.TRIANGLES, 0, COUNT);
       }
     }

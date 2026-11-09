@@ -39,7 +39,9 @@ export default function Portal({ t }) {
     copyRef.current.style.transform = `scale(${1 + p * 1.4})`;
     sceneRef.current.style.transform = `scale(${1.28 - 0.28 * easeOut(p)})`;
     [...sceneRef.current.querySelectorAll('[data-word]')].forEach((word, i) => {
-      const q = easeOut(clamp((p - 0.6 - i * 0.06) / 0.16));
+      // The words start as soon as the window is wide enough to frame them (0.36), right after "Step
+      // inside" has faded (0.31). They used to wait until 0.6, leaving an empty screen people stopped at.
+      const q = easeOut(clamp((p - 0.36 - i * 0.05) / 0.14));
       if (q === lastWords.current[i]) return; // most of the scroll they sit at 0 or 1: don't touch them
       lastWords.current[i] = q;
       word.style.opacity = q;
