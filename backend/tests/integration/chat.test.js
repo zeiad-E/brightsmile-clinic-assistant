@@ -151,7 +151,7 @@ describe('streaming', () => {
   it('sends progress, the free-times card, the reply and done', async () => {
     ai.script.push({ tool: 'check_availability', args: { service: 'check-up', from: dayInZone(new Date(slot)), days: 1 } }, { text: 'Here are the free times.' });
 
-    const res = await request(app).post('/api/chat/stream').send({ message: 'Any free check-up times?' });
+    const res = await request(app).post('/api/chat/stream').set('x-brightsmile-client', 'web').send({ message: 'Any free check-up times?' });
 
     expect(res.status).toBe(200);
     const events = res.text
