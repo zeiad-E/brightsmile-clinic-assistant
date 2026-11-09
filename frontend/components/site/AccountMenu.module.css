@@ -4,7 +4,8 @@
 
 .chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 99px; color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-line); transition: box-shadow .25s, background .25s; }
 .chip:dir(rtl) { padding: 4px 4px 4px 10px; }
-.chip:hover, .chip[aria-expanded="true"] { box-shadow: inset 0 0 0 1px var(--color-mint); background: rgb(20 184 166 / .06); }
+.chip[aria-expanded="true"] { box-shadow: inset 0 0 0 1px var(--color-mint); background: rgb(20 184 166 / .06); }
+@media (hover: hover) { .chip:hover { box-shadow: inset 0 0 0 1px var(--color-mint); background: rgb(20 184 166 / .06); } }
 .name { max-width: 11ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 650; }
 .chevron { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: .6; transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
 .chip[aria-expanded="true"] .chevron { transform: rotate(180deg); }
@@ -30,8 +31,9 @@
 .who small { display: block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-ink-3); }
 
 .item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; font-size: 14px; font-weight: 600; color: var(--color-ink-2); text-align: start; transition: background .2s, color .2s; }
-.item:hover, .item:focus-visible { background: var(--color-mint-soft); color: var(--color-ink); }
-.signOut:hover { background: #fff1f1; color: #b42318; }
+.item:focus-visible { background: var(--color-mint-soft); color: var(--color-ink); }
+@media (hover: hover) { .item:hover { background: var(--color-mint-soft); color: var(--color-ink); } }
+@media (hover: hover) { .signOut:hover { background: #fff1f1; color: #b42318; } }
 .icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* the phone menu version */

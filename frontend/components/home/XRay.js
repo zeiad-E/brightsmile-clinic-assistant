@@ -25,16 +25,24 @@ export default function XRay({ t }) {
 
   useEffect(() => {
     const stage = stageRef.current;
+    let hold = 0;
     const move = (e) => {
+      clearTimeout(hold);
       const r = stage.getBoundingClientRect();
       Object.assign(pointer.current, { tx: e.clientX - r.left, ty: e.clientY - r.top, inside: true });
     };
-    const leave = () => {
-      pointer.current.inside = false;
+    // A finger "leaves" the moment it lifts: keep the lens where it was put for a moment, then drift again.
+    const leave = (e) => {
+      clearTimeout(hold);
+      if (e.pointerType === 'touch') hold = setTimeout(() => (pointer.current.inside = false), 2500);
+      else pointer.current.inside = false;
     };
+    stage.addEventListener('pointerdown', move); // a tap puts the lens there
     stage.addEventListener('pointermove', move);
     stage.addEventListener('pointerleave', leave);
     return () => {
+      clearTimeout(hold);
+      stage.removeEventListener('pointerdown', move);
       stage.removeEventListener('pointermove', move);
       stage.removeEventListener('pointerleave', leave);
     };

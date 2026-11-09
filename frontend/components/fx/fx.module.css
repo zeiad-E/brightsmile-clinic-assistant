@@ -73,6 +73,9 @@
 .mesh i:nth-child(2) { background: #93c5fd; inset-inline-end: 6%; top: 18%; animation-duration: 19s; animation-delay: -5s; }
 .mesh i:nth-child(3) { background: #c4b5fd; inset-inline-start: 30%; bottom: 2%; width: 34%; height: 40%; animation-duration: 17s; animation-delay: -9s; }
 @keyframes drift { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(10%, -8%) scale(1.12); } 100% { transform: translate(-8%, 9%) scale(.92); } }
+/* Phones: the colour blobs stay still. Moving them under a big blur (and under the glass card's
+   backdrop blur) makes the phone re-blur both on every frame; still, they look the same. */
+@media (max-width: 860px) { .mesh i { animation: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .scribble path { stroke-dashoffset: 0; transition: none; }

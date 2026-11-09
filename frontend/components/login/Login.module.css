@@ -25,7 +25,7 @@
 .field input:focus { border-color: var(--color-mint); box-shadow: 0 0 0 4px rgb(20 184 166 / .15); }
 .field small { font-size: 12px; color: var(--color-ink-3); }
 .submit { padding: 13px 18px; border-radius: 99px; background: var(--color-ink); color: #fff; font-weight: 650; transition: background .25s, transform .25s; }
-.submit:hover:not(:disabled) { background: var(--color-mint-deep); transform: translateY(-1px); }
+@media (hover: hover) { .submit:hover:not(:disabled) { background: var(--color-mint-deep); transform: translateY(-1px); } }
 .submit:disabled { opacity: .6; }
 .error, .info { margin: 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; }
 .error { background: #fff1f1; color: #b42318; }
@@ -36,11 +36,21 @@
 .demo p { margin: 0 0 10px; }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .demo .row button { padding: 8px 13px; border-radius: 99px; background: var(--color-mint-soft); color: var(--color-mint-deep); font-weight: 650; transition: background .25s, color .25s; }
-.demo .row button:hover { background: var(--color-mint); color: #fff; }
+@media (hover: hover) { .demo .row button:hover { background: var(--color-mint); color: #fff; } }
 .signedIn { margin: 0 0 18px; font-size: 18px; font-weight: 650; }
 
+/* minmax(0, 1fr), not 1fr: a plain 1fr column grows to fit its widest content, and a text field's
+   natural width (about 20 letters) pushed the page 7px past a 320px phone screen. */
 @media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; gap: 32px; padding-block: 40px 64px; }
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-block: 40px 64px; }
 }
 
 .page:lang(ar) h1 { letter-spacing: 0; line-height: 1.25; }
+
+/* Touch screens: finger-sized tap targets (about 44px). With a mouse nothing changes. The empty ::after
+   layers are invisible: they only stretch the tap area of small text links, without moving anything. */
+@media (pointer: coarse) {
+  .tabs button, .methods button, .demo .row button { min-height: 44px; }
+  .link { position: relative; }
+  .link::after { content: ""; position: absolute; inset: -12px -8px; }
+}

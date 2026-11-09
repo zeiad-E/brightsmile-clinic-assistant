@@ -20,14 +20,17 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
   const [open, setOpen] = useState(false);
 
   // While the menu is open: Escape closes it, and the page behind doesn't scroll.
+  // data-menu-open on <body> tells the floating chat button to step aside (see ChatBubble.module.css).
   useEffect(() => {
     if (!open) return;
     const onKey = (event) => event.key === 'Escape' && setOpen(false);
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
+    document.body.dataset.menuOpen = '';
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
+      delete document.body.dataset.menuOpen;
     };
   }, [open]);
 
@@ -65,7 +68,12 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
         ) : (
           <AccountLink locale={locale} labels={labels} className="hidden text-sm font-semibold text-ink-2 hover:text-ink sm:inline" onDark />
         )}
-        <Link href={bookHref} data-book className={buttonClasses({ variant: 'dark', size: 'sm' })}>
+        {/* The ::after layer is invisible: it only stretches the tap area to 44px around the 36px pill. */}
+        <Link
+          href={bookHref}
+          data-book
+          className={buttonClasses({ variant: 'dark', size: 'sm', className: 'relative after:absolute after:-inset-y-1 after:inset-x-0' })}
+        >
           {labels.book}
         </Link>
         <button
@@ -74,7 +82,7 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? labels.closeMenu : labels.openMenu}
-          className="grid size-10 place-items-center rounded-full text-ink md:hidden"
+          className="-me-0.5 grid size-11 place-items-center rounded-full text-ink md:hidden"
         >
           <MenuIcon open={open} />
         </button>
@@ -84,7 +92,7 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
       <div
         id="mobile-menu"
         hidden={!open}
-        className="fixed inset-x-0 top-16 bottom-0 z-40 animate-menu-in overflow-y-auto bg-page px-6 pt-6 pb-10 md:hidden"
+        className="fixed inset-x-0 top-16 bottom-0 z-40 animate-menu-in overflow-y-auto overscroll-contain bg-page px-6 pt-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] md:hidden"
       >
         {status === 'signed-in' && <MobileAccount locale={locale} labels={labels} onNavigate={() => setOpen(false)} />}
         <nav aria-label={labels.nav} className="flex flex-col">
@@ -103,7 +111,7 @@ export default function SiteNav({ locale, links, bookHref, labels }) {
         </nav>
         <div className="mt-8 flex flex-wrap items-center gap-4">
           {status !== 'signed-in' && <AccountLink locale={locale} labels={labels} className={buttonClasses({ variant: 'ghost', size: 'lg' })} />}
-          <LanguageSwitch locale={locale} label={labels.switchLanguage} ariaLabel={labels.switchLanguageLabel} />
+          <LanguageSwitch locale={locale} label={labels.switchLanguage} ariaLabel={labels.switchLanguageLabel} className="inline-flex min-h-11 px-4" />
         </div>
       </div>
     </>

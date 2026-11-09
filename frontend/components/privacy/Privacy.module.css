@@ -12,7 +12,7 @@
 .toc ol { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; border-inline-start: 2px solid var(--color-line); }
 .toc a { position: relative; display: block; padding: 7px 14px; font-size: 15px; color: var(--color-ink-2); transition: color .25s; }
 .toc a::before { content: ""; position: absolute; inset-inline-start: -2px; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--color-mint); transform: scaleY(0); transition: transform .35s cubic-bezier(.2, .8, .2, 1); }
-.toc a:hover { color: var(--color-ink); }
+@media (hover: hover) { .toc a:hover { color: var(--color-ink); } }
 .toc a[aria-current] { color: var(--color-ink); font-weight: 650; }
 .toc a[aria-current]::before { transform: scaleY(1); }
 
@@ -36,3 +36,9 @@
 .page:lang(ar) h1, .page:lang(ar) h2 { letter-spacing: 0; }
 .page:lang(ar) h1 { line-height: 1.3; }
 .page:lang(ar) .toc p { letter-spacing: 0; font-size: 13px; }
+
+/* Touch screens: finger-sized tap targets (about 44px). With a mouse nothing changes. The empty ::after
+   layers are invisible: they only stretch the tap area of small text links, without moving anything. */
+@media (pointer: coarse) {
+  .toc a { padding-block: 11px; }
+}

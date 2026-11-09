@@ -10,6 +10,9 @@
 .intro { position: relative; overflow: hidden; padding: 80px 0 64px; background: radial-gradient(90% 120% at 80% 0%, #e9fbf7 0%, #f3fafb 55%, var(--color-page) 100%); }
 .blobs { position: absolute; inset: -30% -10% auto; height: 160%; filter: blur(60px); pointer-events: none; }
 .blobs i { position: absolute; border-radius: 50%; opacity: .7; animation: drift 16s ease-in-out infinite alternate; }
+/* Phones: the colour blobs stay still. Moving them under a big blur makes the phone re-blur the whole
+   area on every frame (hard work for a small GPU); still, they look the same. */
+@media (max-width: 860px) { .blobs i { animation: none; } }
 .blobs i:nth-child(1) { inset-inline-end: 4%; top: 6%; width: 38%; height: 46%; background: #a7f3e4; }
 .blobs i:nth-child(2) { inset-inline-end: 30%; top: 26%; width: 26%; height: 34%; background: #bfe3ff; animation-duration: 20s; animation-delay: -6s; }
 @keyframes drift { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(8%, -6%) scale(1.1); } 100% { transform: translate(-6%, 8%) scale(.92); } }
@@ -32,14 +35,14 @@
 
 .values { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; margin: 24px 0 0; padding: 0; list-style: none; counter-reset: none; }
 .values li { padding: 26px 24px; border-radius: 22px; background: #fff; border: 1px solid var(--color-line); transition: transform .4s cubic-bezier(.2, .8, .2, 1), box-shadow .4s, border-color .4s; }
-.values li:hover { transform: translateY(-4px); border-color: rgb(20 184 166 / .35); box-shadow: 0 20px 44px rgb(11 37 69 / .08); }
+@media (hover: hover) { .values li:hover { transform: translateY(-4px); border-color: rgb(20 184 166 / .35); box-shadow: 0 20px 44px rgb(11 37 69 / .08); } }
 .valueNumber { font: 700 13px var(--font-mono); color: var(--color-mint-deep); }
 .values h3 { margin: 14px 0 8px; font-size: 20px; font-weight: 750; letter-spacing: -.02em; }
 .values p { margin: 0; line-height: 1.6; color: var(--color-ink-2); }
 
 .team { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 18px; }
 .member { display: flex; flex-direction: column; padding: 26px; border-radius: 24px; background: #fff; border: 1px solid var(--color-line); transition: transform .4s cubic-bezier(.2, .8, .2, 1), box-shadow .4s; }
-.member:hover { transform: translateY(-4px) rotate(-.4deg); box-shadow: 0 22px 46px rgb(11 37 69 / .09); }
+@media (hover: hover) { .member:hover { transform: translateY(-4px) rotate(-.4deg); box-shadow: 0 22px 46px rgb(11 37 69 / .09); } }
 .avatar { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--color-mint-light), #bfe3ff); color: var(--color-ink); font-size: 20px; font-weight: 750; }
 .member h3 { margin: 16px 0 2px; font-size: 20px; font-weight: 750; }
 .role { margin: 0; font: 600 12px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--color-ink-3); }
@@ -47,9 +50,9 @@
 .visitLabel { margin: 18px 0 8px; font: 600 12px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--color-ink-3); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .chips a { display: inline-block; padding: 6px 12px; border-radius: 99px; background: var(--color-mint-soft); color: var(--color-mint-deep); font-size: 13px; font-weight: 600; transition: background .25s, color .25s; }
-.chips a:hover { background: var(--color-mint); color: #fff; }
+@media (hover: hover) { .chips a:hover { background: var(--color-mint); color: #fff; } }
 .bookWith { display: inline-flex; gap: 6px; margin-top: auto; padding-top: 18px; font-weight: 650; color: var(--color-mint-deep); }
-.bookWith:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (hover: hover) { .bookWith:hover { text-decoration: underline; text-underline-offset: 3px; } }
 
 /* ---------- visit us ---------- */
 .visit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: stretch; margin-top: 24px; }
@@ -79,7 +82,7 @@
 .cta p { margin: 0; max-width: 52ch; color: rgb(255 255 255 / .7); line-height: 1.6; }
 .ctaActions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
 .ctaAsk { color: #fff; font-weight: 650; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgb(255 255 255 / .35); }
-.ctaAsk:hover { text-decoration-color: var(--color-mint-light); }
+@media (hover: hover) { .ctaAsk:hover { text-decoration-color: var(--color-mint-light); } }
 
 /* scroll reveal where supported */
 @supports (animation-timeline: view()) {
@@ -100,4 +103,13 @@
 @media (prefers-reduced-motion: reduce) {
   .blobs i, .cta::before, .badge.open i { animation: none; }
   .values li, .member, .stats div { animation: none; }
+}
+
+/* Touch screens: finger-sized tap targets (about 44px). With a mouse nothing changes. The empty ::after
+   layers are invisible: they only stretch the tap area of small text links, without moving anything. */
+@media (pointer: coarse) {
+  .chips a { padding-block: 12px; }
+  .mapLink { padding-block: 12px; }
+  .ctaAsk, .contact a { position: relative; }
+  .ctaAsk::after, .contact a::after { content: ""; position: absolute; inset: -12px -8px; }
 }

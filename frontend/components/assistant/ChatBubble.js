@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { localePath } from '@/i18n/config';
 import styles from './ChatBubble.module.css';
 
@@ -25,6 +25,7 @@ export default function ChatBubble({ t, locale }) {
   const [opened, setOpened] = useState(false); // keep the chat alive after closing, so it remembers
   const [greeting, setGreeting] = useState(false);
   const [ask, setAsk] = useState(null); // the ready question, handed to the chat when it opens
+  const rootRef = useRef(null);
 
   useEffect(() => {
     if (opened || pathname.endsWith('/assistant')) return;
@@ -65,10 +66,38 @@ export default function ChatBubble({ t, locale }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
+  // The phone keyboard. It covers the bottom of the screen without changing the page's size, so a
+  // panel pinned to the bottom would hide under it (or iPhone Safari pushes the whole page up).
+  // window.visualViewport is the part of the page the person can actually see: we give its height to
+  // the CSS (--vv-h), plus how much of the bottom is covered (--kb), and the panel sits just above.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const root = rootRef.current;
+    if (!open || !vv || !root) return;
+    const update = () => {
+      // offsetTop: iPhone Safari sometimes slides the visible area down the page instead of covering
+      // its bottom, so what's hidden below is the page height minus where the visible part ends.
+      const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      root.style.setProperty('--vv-h', `${Math.round(vv.height)}px`);
+      root.style.setProperty('--kb', `${Math.round(covered)}px`);
+      // over 80px less to see is a keyboard (not a browser bar); a pinch-zoom (scale > 1) also shrinks
+      // the visible part, so skip that
+      root.toggleAttribute('data-keyboard', window.innerHeight - vv.height > 80 && vv.scale < 1.05);
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      root.removeAttribute('data-keyboard');
+    };
+  }, [open]);
+
   if (pathname.endsWith('/assistant')) return null;
 
   return (
-    <div className={styles.root}>
+    <div ref={rootRef} className={styles.root}>
       {greeting && (
         <div className={styles.greet} role="status">
           <button

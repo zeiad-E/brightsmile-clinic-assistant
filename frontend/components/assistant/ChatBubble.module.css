@@ -1,9 +1,16 @@
 /* The floating assistant button + its greeting + its chat panel (bottom corner, mirrored in Arabic). */
 
 .root { position: fixed; inset-inline-end: 20px; bottom: 20px; z-index: 60; }
+/* iPhone: stay above the home bar (and clear of the notch when the phone is sideways). env() is 0 elsewhere. */
+@supports (bottom: env(safe-area-inset-bottom)) {
+  .root { inset-inline-end: calc(20px + max(env(safe-area-inset-left), env(safe-area-inset-right))); bottom: calc(20px + env(safe-area-inset-bottom)); }
+}
+/* the phone menu is open (SiteNav sets this on <body>): the chat button steps aside */
+:global(body[data-menu-open]) .root { visibility: hidden; }
 
 .button { position: relative; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: var(--color-mint); color: #fff; box-shadow: var(--shadow-mint); transition: transform .35s cubic-bezier(.3, 1.4, .5, 1), background .3s; }
-.button:hover { transform: scale(1.07); background: var(--color-mint-deep); }
+/* (hover: hover) = a real mouse. On a phone a tap "hovers" and the style would stay stuck after it. */
+@media (hover: hover) { .button:hover { transform: scale(1.07); background: var(--color-mint-deep); } }
 .button svg { position: absolute; width: 26px; height: 26px; transition: transform .35s cubic-bezier(.3, 1.4, .5, 1), opacity .2s; }
 .iconChat { fill: currentColor; }
 .iconClose { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; opacity: 0; transform: rotate(-90deg) scale(.6); }
@@ -20,10 +27,10 @@
 .greet { position: absolute; inset-inline-end: 72px; bottom: 8px; display: flex; align-items: center; gap: 2px; width: max-content; padding: 4px; padding-inline-end: 7px; border-radius: 999px; background: #fff; border: 1px solid var(--color-line); box-shadow: 0 12px 30px rgb(11 37 69 / .16); animation: greetIn .45s cubic-bezier(.2, .9, .3, 1.1) backwards; }
 @keyframes greetIn { from { opacity: 0; transform: translateY(10px); } }
 .greetAsk { padding: 8px 12px; border-radius: 999px; color: var(--color-mint-deep); font-size: 13px; font-weight: 650; white-space: nowrap; transition: background .2s; }
-.greetAsk:hover { background: var(--color-mint-soft); }
+@media (hover: hover) { .greetAsk:hover { background: var(--color-mint-soft); } }
 .greetLead { font-weight: 500; color: var(--color-ink-2); }
 .greetClose { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: var(--color-ink-3); }
-.greetClose:hover { background: var(--color-mint-soft); color: var(--color-ink); }
+@media (hover: hover) { .greetClose:hover { background: var(--color-mint-soft); color: var(--color-ink); } }
 .greetClose svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 
 .panel {
@@ -37,7 +44,7 @@
 .panelOpen { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition: opacity .25s, transform .35s cubic-bezier(.2, .9, .3, 1.1), visibility 0s; }
 .panel > :first-child { flex: 1; min-height: 0; }
 .full { padding: 10px; text-align: center; font-size: 13px; font-weight: 650; color: var(--color-mint-deep); border-top: 1px solid var(--color-line); }
-.full:hover { background: var(--color-mint-soft); }
+@media (hover: hover) { .full:hover { background: var(--color-mint-soft); } }
 
 /* Same width as the home hero's stacked layout: the hero's own assistant button already sits
    right beside the chat button there, and the pill would land on top of it. */
@@ -49,6 +56,20 @@
   .root { inset-inline-end: 14px; bottom: 14px; }
   .panel { bottom: 72px; height: calc(100dvh - 100px); }
 }
+@supports (bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 480px) {
+    .root { inset-inline-end: calc(14px + max(env(safe-area-inset-left), env(safe-area-inset-right))); bottom: calc(14px + env(safe-area-inset-bottom)); }
+    .panel { height: calc(100dvh - 100px - env(safe-area-inset-bottom)); }
+  }
+}
+
+/* The phone keyboard is open (ChatBubble.js measures it with window.visualViewport and sets
+   --kb = how much of the screen bottom it covers, --vv-h = the height still visible).
+   The panel then sits right above the keyboard and fills the visible area; the round button hides
+   until the keyboard closes, so every pixel goes to the conversation. */
+.root[data-keyboard] { bottom: calc(var(--kb) + 8px); }
+.root[data-keyboard] .button, .root[data-keyboard] .full { display: none; }
+.root[data-keyboard] .panel { bottom: 0; height: min(620px, calc(var(--vv-h) - 16px)); }
 
 @media (prefers-reduced-motion: reduce) {
   .ping, .greet { animation: none; }

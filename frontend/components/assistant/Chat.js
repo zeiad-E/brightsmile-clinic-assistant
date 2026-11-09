@@ -79,6 +79,9 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
     async (text) => {
       const message = text.trim();
       if (!message || busy) return;
+      // Typing (the field has focus)? Then give the field back after the answer. Not after a tapped
+      // chip or slot: on a phone that would pop the keyboard up over the answer.
+      const typing = document.activeElement === inputRef.current;
       setInput('');
       setBusy(true);
       setStatus(team ? null : t.thinking);
@@ -114,7 +117,7 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
       setMessages((all) => (all.at(-1)?.streaming ? [...all.slice(0, -1), { ...all.at(-1), streaming: false }] : all));
       setStatus(null);
       setBusy(false);
-      inputRef.current?.focus({ preventScroll: true });
+      if (typing) inputRef.current?.focus({ preventScroll: true });
     },
     [busy, getToken, locale, signInWithTicket, t, team],
   );
@@ -248,6 +251,7 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
           aria-label={t.placeholder}
           maxLength={1000}
           dir="auto"
+          enterKeyHint="send"
         />
         <button type="submit" disabled={busy || !input.trim()} aria-label={t.send}>
           <svg viewBox="0 0 24 24" aria-hidden="true" className="flip-rtl">

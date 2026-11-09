@@ -100,7 +100,9 @@
   .menuBtn { display: grid; }
   .top { padding: 0 12px; gap: 6px; }
   .search kbd, .userName, .lang { display: none; }
-  .main { padding: 16px 16px 96px; }
+  /* the bottom bar grows by the iPhone's home-bar area (env(): 0 elsewhere), so the page's end clears it too */
+  .main { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); }
+  .sideFoot { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
   .viewerBanner { margin: 12px 16px 0; }
   .bottomBar {
     position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 30; display: grid; grid-template-columns: repeat(5, 1fr);

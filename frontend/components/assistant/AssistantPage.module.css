@@ -11,8 +11,16 @@
 .intro h1 { margin: 14px 0 16px; font-size: clamp(36px, 4.6vw, 64px); line-height: 1.04; letter-spacing: -.045em; font-weight: 800; }
 .lead { margin: 0; max-width: 44ch; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.6; color: var(--color-ink-2); }
 
+/* minmax(0, 1fr), not 1fr: a plain 1fr column grows to fit its widest unbreakable content (here the
+   row of quick questions), which pushed the chat past the edge of the phone screen. */
 @media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; gap: 28px; padding-block: 36px 48px; }
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-block: 36px 48px; }
+}
+
+/* Phones: the colour blobs stay still. Moving them under a big blur makes the phone re-blur the whole
+   area on every frame (hard work for a small GPU); still, they look the same. */
+@media (max-width: 860px) {
+  .glow i { animation: none; }
 }
 
 .page:lang(ar) h1 { letter-spacing: 0; line-height: 1.25; }

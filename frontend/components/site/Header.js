@@ -26,7 +26,8 @@ export default async function Header() {
     // data-site-header: the home page sets data-tone="dark" on it over dark sections (see globals.css).
     <header data-site-header className="sticky top-0 z-50 h-16 border-b border-line/80 bg-page/95">
       <div className="wrap flex h-full items-center gap-7">
-        <Link href={localePath(locale)} className="flex items-center gap-2 text-lg font-[750] tracking-[-0.02em]">
+        {/* py-2: a taller tap area (44px) for thumbs; the logo itself doesn't move. */}
+        <Link href={localePath(locale)} className="flex items-center gap-2 py-2 text-lg font-[750] tracking-[-0.02em]">
           <Logo />
           {dict.brand}
         </Link>

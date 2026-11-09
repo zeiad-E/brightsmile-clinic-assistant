@@ -30,7 +30,7 @@
 /* ---------- choices ---------- */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 12px; }
 .option { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 18px; border-radius: 18px; border: 1.5px solid var(--color-line); text-align: start; transition: border-color .25s, transform .25s, box-shadow .25s, background .25s; }
-.option:hover { border-color: var(--color-mint); transform: translateY(-2px); box-shadow: 0 14px 30px rgb(11 37 69 / .08); }
+@media (hover: hover) { .option:hover { border-color: var(--color-mint); transform: translateY(-2px); box-shadow: 0 14px 30px rgb(11 37 69 / .08); } }
 .option[aria-pressed="true"] { border-color: var(--color-mint); background: var(--color-mint-soft); }
 .option strong { font-size: 17px; }
 .option span { font-size: 14px; color: var(--color-ink-2); }
@@ -42,12 +42,13 @@
 .days button { flex: none; width: 66px; display: grid; justify-items: center; gap: 2px; padding: 10px 6px; border-radius: 16px; border: 1.5px solid var(--color-line); transition: border-color .25s, background .25s, color .25s; }
 .days button strong { font-size: 20px; }
 .days button small { font-size: 12px; color: var(--color-ink-3); }
-.days button:hover { border-color: var(--color-mint); }
+@media (hover: hover) { .days button:hover { border-color: var(--color-mint); } }
 .days button[aria-pressed="true"] { background: var(--color-ink); border-color: var(--color-ink); color: #fff; }
 .days button[aria-pressed="true"] small { color: rgb(255 255 255 / .7); }
 .times { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .times button { padding: 11px 8px; border-radius: 12px; border: 1.5px solid var(--color-line); font: 600 14px var(--font-mono); animation: pop .35s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--i) * 25ms); transition: background .2s, border-color .2s, color .2s; }
-.times button:hover, .times button[aria-pressed="true"] { background: var(--color-mint); border-color: var(--color-mint); color: #fff; }
+.times button[aria-pressed="true"] { background: var(--color-mint); border-color: var(--color-mint); color: #fff; }
+@media (hover: hover) { .times button:hover { background: var(--color-mint); border-color: var(--color-mint); color: #fff; } }
 @keyframes pop { from { opacity: 0; scale: .85; } to { opacity: 1; scale: 1; } }
 
 /* ---------- details + summary ---------- */
@@ -65,10 +66,10 @@
 
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 22px; }
 .next { padding: 13px 26px; border-radius: 99px; background: var(--color-ink); color: #fff; font-weight: 650; transition: background .25s, transform .25s; }
-.next:hover { background: var(--color-mint-deep); transform: translateY(-1px); }
+@media (hover: hover) { .next:hover { background: var(--color-mint-deep); transform: translateY(-1px); } }
 .linkButton { display: inline-flex; gap: 6px; margin-top: 18px; font-weight: 650; color: var(--color-ink-2); }
 .actions .linkButton { margin-top: 0; }
-.linkButton:hover { color: var(--color-ink); }
+@media (hover: hover) { .linkButton:hover { color: var(--color-ink); } }
 .inlineLink { font-weight: 650; color: var(--color-mint-deep); text-decoration: underline; text-underline-offset: 3px; }
 .notice a { text-decoration: underline; text-underline-offset: 3px; }
 .muted { margin: 0; color: var(--color-ink-2); font-size: 14px; line-height: 1.6; }
@@ -89,7 +90,8 @@
 .done .actions { justify-content: center; }
 
 @media (max-width: 640px) {
-  .progress button { flex-direction: column; gap: 4px; font-size: 11px; text-align: center; }
+  /* each step fills its fifth of the bar: a wider tap target, and the label is centred under its number */
+  .progress button { width: 100%; min-height: 44px; flex-direction: column; justify-content: flex-start; gap: 4px; font-size: 11px; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
   .pair { grid-template-columns: 1fr; }
 }
 
@@ -99,4 +101,11 @@
 @media (prefers-reduced-motion: reduce) {
   .step, .times button, .bigCheck { animation: none; }
   .bigCheck svg { stroke-dashoffset: 0; animation: none; }
+}
+
+/* Touch screens: finger-sized tap targets (about 44px). With a mouse nothing changes. The empty ::after
+   layers are invisible: they only stretch the tap area of small text links, without moving anything. */
+@media (pointer: coarse) {
+  .linkButton, .inlineLink { position: relative; }
+  .linkButton::after, .inlineLink::after { content: ""; position: absolute; inset: -12px -8px; }
 }

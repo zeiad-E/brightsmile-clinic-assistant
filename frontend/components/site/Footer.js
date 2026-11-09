@@ -6,6 +6,9 @@ import { getClinic } from '@/lib/api/public';
 import { summarizeOpeningHours } from '@/lib/format';
 import Logo from '@/components/brand/Logo';
 
+// On touch screens each link gets a finger-sized row (about 44px tall). With a mouse nothing changes.
+const TAP = 'pointer-coarse:inline-block pointer-coarse:py-2.5';
+
 /**
  * The public site footer, with live clinic details (hours, address, phone) from the API.
  * 'use cache' makes Next.js build this once and reuse it for an hour, per language, instead of
@@ -56,14 +59,14 @@ export default async function Footer() {
             {address && <p>{address}</p>}
             {clinic?.phone && (
               <p>
-                <a href={`tel:${clinic.phone.replace(/\s/g, '')}`} dir="ltr" className="text-mint-light hover:underline">
+                <a href={`tel:${clinic.phone.replace(/\s/g, '')}`} dir="ltr" className={`text-mint-light hover:underline ${TAP}`}>
                   {clinic.phone}
                 </a>
               </p>
             )}
             {clinic?.email && (
               <p>
-                <a href={`mailto:${clinic.email}`} className="text-mint-light hover:underline">
+                <a href={`mailto:${clinic.email}`} className={`text-mint-light hover:underline ${TAP}`}>
                   {clinic.email}
                 </a>
               </p>
@@ -76,7 +79,7 @@ export default async function Footer() {
           <ul className="mt-3 space-y-1">
             {links.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="hover:text-white">
+                <Link href={link.href} className={`hover:text-white ${TAP}`}>
                   {link.label}
                 </Link>
               </li>
@@ -85,7 +88,8 @@ export default async function Footer() {
         </nav>
       </div>
       <div className="border-t border-white/10">
-        <p className="wrap py-5 text-xs text-white/45">
+        {/* the extra bottom padding keeps the last line above the iPhone's home bar */}
+        <p className="wrap pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-xs text-white/45">
           © {new Date().getFullYear()} {dict.clinicName}. {t.rights}
         </p>
       </div>

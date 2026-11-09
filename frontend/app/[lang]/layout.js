@@ -25,6 +25,13 @@ export function generateStaticParams() {
   return locales.map((lang) => ({ lang }));
 }
 
+// The <meta name="viewport"> tag. Next.js already writes width=device-width, initial-scale=1;
+// viewportFit: 'cover' lets the page use the whole iPhone screen (under the notch and the home bar),
+// and switches on env(safe-area-inset-*) in CSS, so we can keep buttons clear of those areas.
+export const viewport = {
+  viewportFit: 'cover',
+};
+
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {

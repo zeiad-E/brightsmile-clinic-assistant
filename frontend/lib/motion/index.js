@@ -17,12 +17,14 @@ export const prefersReducedMotion = () =>
 
 export const isRtl = () => typeof document !== 'undefined' && document.documentElement.dir === 'rtl';
 
-/** The mouse position, -1…1 across the screen. One listener for the whole page, shared by everyone. */
+/** The mouse position, -1…1 across the screen. One listener for the whole page, shared by everyone.
+ *  Fingers don't count: a touch that starts a scroll would yank the tooth toward the thumb. */
 export const MOUSE = { x: 0, y: 0 };
 if (typeof window !== 'undefined') {
   window.addEventListener(
     'pointermove',
     (e) => {
+      if (e.pointerType === 'touch') return;
       MOUSE.x = (e.clientX / window.innerWidth) * 2 - 1;
       MOUSE.y = (e.clientY / window.innerHeight) * 2 - 1;
     },

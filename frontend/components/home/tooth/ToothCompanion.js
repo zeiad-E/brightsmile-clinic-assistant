@@ -153,9 +153,16 @@ export default function ToothCompanion() {
     /* ---------- canvas size ---------- */
     let VW = 0, VH = 0;
     const RES = Math.min(window.devicePixelRatio || 1, 1.5); // a full-screen canvas: 1.5× is sharp enough and far lighter than 2×
+    // Draw at the canvas's own CSS size (100vw × 100vh), so one drawing unit = one CSS pixel from the
+    // top of the screen. (innerHeight is not the same thing on iPhone: while Safari's bar shows it is
+    // smaller than 100vh, and the tooth came out stretched and too low.) Safari's bar sliding in and
+    // out fires "resize" but doesn't change this box, so the drawing buffer is kept: re-making it
+    // mid-scroll is what made the page hitch.
     const resize = () => {
-      VW = window.innerWidth;
-      VH = window.innerHeight;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (w === VW && h === VH) return;
+      VW = w;
+      VH = h;
       canvas.width = Math.round(VW * RES);
       canvas.height = Math.round(VH * RES);
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -222,7 +229,7 @@ export default function ToothCompanion() {
 
     /* ---------- the frame loop ---------- */
     const reduced = prefersReducedMotion();
-    let start = 0, mx = 0, my = 0, frameId = 0;
+    let start = 0, mx = 0, my = 0, frameId = 0, drewLast = true;
     function frame(now) {
       frameId = requestAnimationFrame(frame);
       if (!COUNT || KEYS.length < 2) return; // still building
@@ -250,9 +257,14 @@ export default function ToothCompanion() {
       rx += my * 0.22 + Math.sin(sec * 0.8) * 0.04;
       ry += mx * 0.35 + Math.sin(sec * 0.5) * 0.1 + (1 - easeOut(clamp(t))) * 1.4;
 
+      // The tooth is out of sight (portal, X-ray…) and the canvas is already empty: touch nothing, so the
+      // browser has no new frame to paint and shadow (a real saving on phones).
+      const visible = op > 0.01 && size > 4;
+      if (!visible && !drewLast) return;
+      drewLast = visible;
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      if (op > 0.01 && size > 4) {
+      if (visible) {
         gl.uniform1f(U.u_t, t);
         gl.uniform1f(U.u_alpha, op);
         gl.uniform1f(U.u_px, size / MODEL_H);
@@ -277,8 +289,14 @@ export default function ToothCompanion() {
 
   return (
     <>
-      {/* the drop shadow follows the tooth's outline, so the white tooth stays clear on white sections */}
-      <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-30 h-screen w-screen drop-shadow-[0_16px_22px_rgba(8,52,58,0.24)]" />
+      {/* The drop shadow follows the tooth's outline, so the white tooth stays clear on white sections.
+          The browser re-blurs it over the whole canvas every frame, so phones (smaller tooth) get a
+          tighter, much cheaper shadow. */}
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-30 h-screen w-screen drop-shadow-[0_16px_22px_rgba(8,52,58,0.24)] max-[860px]:drop-shadow-[0_8px_10px_rgba(8,52,58,0.22)]"
+      />
       {fallbackSpot && createPortal(<Mascot />, fallbackSpot)}
     </>
   );

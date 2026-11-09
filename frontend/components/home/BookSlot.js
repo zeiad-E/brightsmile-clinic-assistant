@@ -13,6 +13,7 @@ export default function BookSlot({ t, slot, assistantHref }) {
   const cardRef = useRef(null);
 
   const onMove = (e) => {
+    if (e.pointerType === 'touch') return; // a finger scrolling past shouldn't tip the card
     const card = cardRef.current;
     const r = card.getBoundingClientRect(), s = sectionRef.current.getBoundingClientRect();
     card.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
