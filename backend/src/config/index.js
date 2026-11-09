@@ -72,8 +72,8 @@ const EnvSchema = z
     CHAT_MAX_CONCURRENT: positiveInt(8),
     CHAT_QUEUE_MAX: positiveInt(50),
     CHAT_QUEUE_WAIT_MS: positiveInt(30000),
-    CHAT_DAILY_MESSAGES_PER_PERSON: positiveInt(150),
-    CHAT_DAILY_TOKENS_PER_PERSON: positiveInt(150000),
+    CHAT_DAILY_MESSAGES_PER_PERSON: positiveInt(375),
+    CHAT_DAILY_TOKENS_PER_PERSON: positiveInt(375000), // a reply costs ~15k tokens: about 25 replies a day
     CHAT_DAILY_TOKENS_CLINIC: positiveInt(3000000),
 
     // The agent evals' pass (see middlewares/evalPass.js); empty disables it.
