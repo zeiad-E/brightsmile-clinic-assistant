@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import * as chatService from '../services/chatService.js';
+import { ensureVisitor, readVisitor, visitorHash } from '../auth/visitorCookie.js';
 import { toResponse } from '../middlewares/errorHandler.js';
 import { openEventStream, replyChunks } from '../utils/eventStream.js';
 import { logger } from '../utils/logger.js';
@@ -7,9 +8,23 @@ import { ctxOf } from './context.js';
 
 /** The patient assistant (/api/chat) and the patient's own conversation list. */
 
+const isPatient = (user) => user?.role === 'patient';
+
+/**
+ * Which browser is chatting (auth/visitorCookie.js), as the fingerprint the database compares.
+ * Sending a message: anyone not signed in as a patient gets (or keeps) the visitor cookie.
+ * Reading: the cookie is only read, never started. An eval conversation is its own visitor
+ * (the eval script keeps no cookies).
+ */
+function visitorFor(req, res, { start = false } = {}) {
+  if (req.evalCase) return visitorHash(`eval:${req.evalCase}`);
+  return visitorHash(start && !isPatient(req.user) ? ensureVisitor(req, res) : readVisitor(req));
+}
+
 export async function send(req, res) {
   const { conversation_id: conversationId, message, language } = req.valid.body;
-  res.json(await chatService.sendMessage({ user: req.user, ip: req.clientIp, evalCase: req.evalCase }, { conversationId, message, language }));
+  const visitor = visitorFor(req, res, { start: true });
+  res.json(await chatService.sendMessage({ user: req.user, ip: req.clientIp, evalCase: req.evalCase, visitorHash: visitor }, { conversationId, message, language }));
 }
 
 /**
@@ -20,10 +35,11 @@ export async function send(req, res) {
  */
 export async function stream(req, res) {
   const { conversation_id: conversationId, message, language } = req.valid.body;
+  const visitor = visitorFor(req, res, { start: true }); // before the stream: cookies travel in its headers
   const events = openEventStream(req, res);
   try {
     const result = await chatService.sendMessage(
-      { user: req.user, ip: req.clientIp, evalCase: req.evalCase, onEvent: events.send },
+      { user: req.user, ip: req.clientIp, evalCase: req.evalCase, visitorHash: visitor, onEvent: events.send },
       { conversationId, message, language },
     );
     const chunks = result.reply ? replyChunks(result.reply) : [];
@@ -45,7 +61,12 @@ export async function stream(req, res) {
 }
 
 export async function history(req, res) {
-  res.json(await chatService.getConversation({ user: req.user }, req.valid.params.id));
+  res.json(await chatService.getConversation({ user: req.user, visitorHash: visitorFor(req, res) }, req.valid.params.id));
+}
+
+/** GET /api/chat/current — the chat to pick up when someone comes back: { conversation } or null. */
+export async function current(req, res) {
+  res.json(await chatService.currentConversation({ user: req.user, visitorHash: visitorFor(req, res) }));
 }
 
 export async function mine(req, res) {

@@ -36,8 +36,8 @@ describe('app wiring', () => {
   });
 
   it('validates chat messages', async () => {
-    const empty = await request(app).post('/api/chat').send({});
-    const tooLong = await request(app).post('/api/chat').send({ message: 'x'.repeat(1001) });
+    const empty = await request(app).post('/api/chat').set('x-brightsmile-client', 'web').send({});
+    const tooLong = await request(app).post('/api/chat').set('x-brightsmile-client', 'web').send({ message: 'x'.repeat(1001) });
 
     expect(empty.status).toBe(400);
     expect(empty.body.details[0].path).toBe('message');

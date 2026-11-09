@@ -378,6 +378,7 @@
         "title": "How long we keep it",
         "body": [
           "Chats are deleted automatically after 90 days, unless someone from the team is still helping you with that conversation.",
+          "If you chat without signing in, a small private cookie on this browser lets you pick the chat up again for 30 days. It holds only a random key, never your details, and it is removed when you sign in (your chats then move to your account) or sign out.",
           "Appointment records stay as long as the clinic needs them for your treatment history."
         ]
       },

@@ -33,7 +33,8 @@ const SARAH = '5eed0000-0000-4000-a000-000000000101';
 const { llmClient } = await import('../../src/llm/LlmClient.js');
 const chatCalls = () => llmClient.chat.mock.calls;
 
-const say = (message, { conversationId, token } = {}) => api('post', '/chat', { token, body: { message, conversation_id: conversationId } });
+// A guest chat belongs to the browser that started it (visitor cookie): pass `agent` to keep its cookies.
+const say = (message, { conversationId, token, agent } = {}) => api('post', '/chat', { token, agent, body: { message, conversation_id: conversationId } });
 const state = {};
 let slot;
 
@@ -51,9 +52,10 @@ describe('creating an account through the chat', () => {
   const sixDigits = (mail) => /\b(\d{6})\b/.exec(mail.text)?.[1];
 
   it('emails a code, then makes the account, shows the code on screen and keeps it from the AI', async () => {
+    const browser = newBrowser();
     const phone = phoneFor();
     ai.script.push({ tool: 'start_sign_up', args: { full_name: name, date_of_birth: '[DOB_1]', phone: '[PHONE_1]', email: '[EMAIL_1]' } }, { text: 'Please type the code from your email.' });
-    const first = await say(`First visit, I only want an account. I'm ${name}, born 1991-05-05, phone ${phone}, email ${email}.`);
+    const first = await say(`First visit, I only want an account. I'm ${name}, born 1991-05-05, phone ${phone}, email ${email}.`, { agent: browser });
     expect(first.status).toBe(200);
     tracked.conversations.push(first.body.conversation_id);
     const { data: before } = await admin.from('patients').select('id').eq('email', email).maybeSingle();
@@ -62,7 +64,7 @@ describe('creating an account through the chat', () => {
     const code = sixDigits(await waitForMail(email, 'sign-in code'));
     const seen = chatCalls().length;
     ai.script.push({ tool: 'finish_sign_up', args: { code: '[CODE_1]' } }, { text: 'Your account is ready!' });
-    const second = await say(`The code is ${code}`, { conversationId: first.body.conversation_id });
+    const second = await say(`The code is ${code}`, { conversationId: first.body.conversation_id, agent: browser });
 
     expect(second.status).toBe(200);
     expect(second.body.sign_in_ticket).toBeTruthy();
@@ -79,6 +81,7 @@ describe('creating an account through the chat', () => {
 describe('booking through the chat', () => {
   it('the assistant can propose but not book in the same turn (the confirmation gate)', async () => {
     state.email = emailFor('chat');
+    state.browser = newBrowser();
     ai.script.push(
       {
         tool: 'propose_booking',
@@ -88,7 +91,7 @@ describe('booking through the chat', () => {
       { text: 'Shall I book it?' },
     );
 
-    const res = await say(`First visit. I'm ${nameFor('Chat Guest')}, born 1991-05-05, email ${state.email}. Please book that check-up.`);
+    const res = await say(`First visit. I'm ${nameFor('Chat Guest')}, born 1991-05-05, email ${state.email}. Please book that check-up.`, { agent: state.browser });
 
     expect(res.status).toBe(200);
     state.conversationId = res.body.conversation_id;
@@ -107,7 +110,7 @@ describe('booking through the chat', () => {
   it('after the patient says yes: a real booking, a new account, and a sign-in ticket', async () => {
     ai.script.push({ tool: 'confirm_pending_action' }, { text: 'Booked!' });
 
-    const res = await say('Yes, book it.', { conversationId: state.conversationId });
+    const res = await say('Yes, book it.', { conversationId: state.conversationId, agent: state.browser });
 
     expect(res.status).toBe(200);
     expect(res.body.session).toBeUndefined();
@@ -184,5 +187,58 @@ describe('waitlist', () => {
     expect(mail.text).toMatch(/whoever books first/);
     const { data: after } = await admin.from('waitlist').select('status').eq('id', wish.id).single();
     expect(after.status).toBe('notified');
+  });
+});
+
+describe('coming back to a guest chat, then signing up on the website', () => {
+  const browser = newBrowser(); // keeps the visitor cookie, like a real browser
+  const email = emailFor('returning');
+  const sixDigits = (mail) => /\b(\d{6})\b/.exec(mail.text)?.[1];
+  let chatId;
+
+  it('a guest’s first message starts a chat tied to their browser by a private cookie', async () => {
+    ai.script.push({ text: 'Hello! How can I help?' });
+    const res = await say('Hi, what are your opening hours?', { agent: browser });
+
+    expect(res.status).toBe(200);
+    chatId = res.body.conversation_id;
+    tracked.conversations.push(chatId);
+    expect(res.headers['set-cookie'].join()).toMatch(/bs_vid=[\w-]{43}; Max-Age=2592000; Path=\/api; .*HttpOnly.*SameSite=Strict/);
+    const { data } = await admin.from('conversations').select('visitor_hash, profile_id').eq('id', chatId).single();
+    expect(data.visitor_hash).toMatch(/^[0-9a-f]{64}$/); // only a fingerprint is stored
+    expect(data.profile_id).toBeNull();
+  });
+
+  it('coming back on the same browser picks the chat up; any other browser sees nothing', async () => {
+    const back = await api('get', '/chat/current', { agent: browser });
+    expect(back.status).toBe(200);
+    expect(back.body.conversation).toMatchObject({ id: chatId, messages: [{ role: 'user' }, { role: 'assistant' }] });
+
+    expect((await api('get', '/chat/current')).body).toEqual({ conversation: null });
+    expect((await api('get', `/chat/${chatId}`)).status).toBe(404);
+    expect((await say('Is this my chat?', { conversationId: chatId })).status).toBe(404);
+  });
+
+  it('signing up on the website moves the chat into the account and clears the cookie', async () => {
+    const details = { full_name: nameFor('Returning Guest'), date_of_birth: '1992-02-02', email, phone: phoneFor() };
+    expect((await api('post', '/auth/register/start', { body: details, agent: browser })).body).toEqual({ sent: true });
+    const code = sixDigits(await waitForMail(email, 'sign-in code'));
+    const res = await api('post', '/auth/register/verify', { body: { email, code }, agent: browser });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.headers['set-cookie'].join()).toMatch(/bs_vid=;/);
+    const token = res.body.access_token;
+
+    const mine = await api('get', '/me/conversations', { token });
+    expect(mine.body.data.map((c) => c.id)).toContain(chatId);
+    expect((await api('get', '/chat/current', { token })).body.conversation.id).toBe(chatId);
+
+    ai.script.push({ text: 'Welcome back!' });
+    expect((await say('Thanks, I have an account now.', { conversationId: chatId, token, agent: browser })).status).toBe(200);
+  });
+
+  it('without the account’s sign-in, the same browser starts fresh and can’t open that chat', async () => {
+    expect((await api('get', '/chat/current', { agent: browser })).body).toEqual({ conversation: null });
+    expect((await say('hello?', { conversationId: chatId, agent: browser })).status).toBe(401);
   });
 });

@@ -12,6 +12,8 @@ import * as assistantReportModel from '../models/assistantReportModel.js';
 import * as agentTraceModel from '../models/agentTraceModel.js';
 import { findIdentity } from '../models/profileModel.js';
 import * as sessions from '../auth/sessions.js';
+import { safeEqual } from '../auth/secrets.js';
+import { VISITOR_MAX_AGE_MS } from '../auth/visitorCookie.js';
 import { buildContext } from '../agent/context.js';
 import { clinicPrices } from './catalogService.js';
 import { buildSystemPrompt } from '../agent/systemPrompt.js';
@@ -39,26 +41,67 @@ import { safeModeDefinitions, safeModeToolsByName } from '../agent/tools/index.j
 
 const withConversationLock = createKeyedLock();
 
-/** Loads a conversation and checks the caller may continue it. */
-async function loadOwned(admin, id, user) {
-  const conversation = await conversationModel.findById(admin, id);
-  if (!conversation || conversation.assistant !== 'patient') throw AppError.notFound('conversation_not_found', 'Conversation not found.');
-  if (conversation.profile_id && conversation.profile_id !== user?.id) {
-    // Once a patient has signed in, only they can continue it (a leaked link is useless).
+const notFound = () => AppError.notFound('conversation_not_found', 'Conversation not found.');
+
+/**
+ * Loads a conversation and checks the caller may continue it:
+ *  - a patient's chat: only that patient (a leaked link is useless);
+ *  - a guest's chat: only the browser that started it (its visitor cookie, auth/visitorCookie.js),
+ *    signed in or not — a patient continuing their own guest chat takes it into their account;
+ *  - a guest chat from before visitor cookies existed: the first browser to come back adopts it.
+ */
+async function loadOwned(admin, id, user, visitorHash = null) {
+  const conversation = await conversationModel.findForChat(admin, id);
+  if (!conversation || conversation.assistant !== 'patient') throw notFound();
+  if (conversation.profile_id) {
+    if (conversation.profile_id === user?.id) return conversation;
     if (!user) throw AppError.unauthorized('sign_in_required', 'Please sign in to continue this conversation.');
-    throw AppError.notFound('conversation_not_found', 'Conversation not found.');
+    throw notFound();
   }
+  if (conversation.visitor_hash) {
+    if (visitorHash && safeEqual(conversation.visitor_hash, visitorHash)) return conversation;
+    throw notFound();
+  }
+  if (visitorHash && !isPatient(user)) await conversationModel.update(admin, id, { visitor_hash: visitorHash });
   return conversation;
 }
 
 const isPatient = (user) => user?.role === 'patient' && Boolean(user.patientId);
+
+/** How long a chat can be picked up again by coming back to the site (the visitor cookie's life). */
+const RESUME_MS = VISITOR_MAX_AGE_MS;
+
+/**
+ * The chat to show when someone opens the site: their latest one from the last 30 days, unless it
+ * is full. A signed-in patient's comes from their account, a guest's from their visitor cookie.
+ */
+export async function currentConversation({ user, visitorHash }) {
+  const owner = isPatient(user) ? { profileId: user.id } : visitorHash ? { visitorHash } : null;
+  if (!owner) return { conversation: null };
+  const since = new Date(Date.now() - RESUME_MS).toISOString();
+  const latest = await conversationModel.findLatest(requireAdmin(), { ...owner, since });
+  if (!latest || latest.turn_count >= LIMITS.maxTurnsPerConversation) return { conversation: null };
+  return { conversation: await getConversation({ user, visitorHash }, latest.id) };
+}
+
+/**
+ * Someone just signed in, signed up or booked as a new patient: every chat this browser had as a
+ * guest moves into their account (and their "My conversations"). Team accounts take nothing.
+ */
+export async function claimVisitorChats({ visitorHash, profileId }) {
+  if (!visitorHash) return [];
+  const admin = requireAdmin();
+  const identity = await findIdentity(admin, profileId);
+  if (!isPatient(identity)) return [];
+  return conversationModel.claimForPatient(admin, { visitorHash, profileId: identity.id, patientId: identity.patientId });
+}
 
 /**
  * `onEvent(type, data)` (optional, used by the streaming endpoint) hears progress while the
  * turn runs: 'status' (place in line, what the assistant is doing) and 'card' (free times,
  * booking summary…). The JSON endpoint leaves it out and just waits for the result.
  */
-export async function sendMessage({ user, ip, evalCase, onEvent }, { conversationId, message, language }) {
+export async function sendMessage({ user, ip, evalCase, visitorHash = null, onEvent }, { conversationId, message, language }) {
   const admin = requireAdmin();
   const settings = await clinicModel.getSettings(admin);
   // The patient's latest message decides. The page language only helps when it can't.
@@ -68,13 +111,14 @@ export async function sendMessage({ user, ip, evalCase, onEvent }, { conversatio
     return { conversation_id: conversationId ?? null, reply: fixedReply('paused', detectLanguage(message, pageLanguage), { clinicPhone: settings.phone }), status: 'paused' };
   }
 
-  const existing = conversationId ? await loadOwned(admin, conversationId, user) : null;
+  const existing = conversationId ? await loadOwned(admin, conversationId, user, visitorHash) : null;
   const lang = detectLanguage(message, existing?.language ?? pageLanguage);
   const conversation =
     existing ??
     (await conversationModel.create(admin, {
       profileId: isPatient(user) ? user.id : null,
       patientId: isPatient(user) ? user.patientId : null,
+      visitorHash: isPatient(user) ? null : visitorHash,
       language: lang,
     }));
 
@@ -90,7 +134,8 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
   const startedAt = Date.now();
   const conversation = await conversationModel.findById(admin, conversationId); // fresh, inside the lock
   const patch = { last_message_at: new Date().toISOString(), language: lang };
-  if (isPatient(user) && !conversation.profile_id) Object.assign(patch, { profile_id: user.id, patient_id: user.patientId });
+  // A patient continuing their own guest chat (loadOwned checked the visitor cookie) takes it in.
+  if (isPatient(user) && !conversation.profile_id) Object.assign(patch, { profile_id: user.id, patient_id: user.patientId, visitor_hash: null });
 
   if (conversation.blocked_until && new Date(conversation.blocked_until) > new Date()) {
     return { conversation_id: conversationId, reply: fixedReply('cooldown', lang), status: 'cooldown' };
@@ -141,7 +186,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
       if (!isPatient(identity)) return null;
       const { refreshToken } = await sessions.issue({ profile, method, ticket: true, client: { ip: visitor } });
       Object.assign(ctx, { user: identity, isPatient: true, db: dbFor(identity, 'patient_assistant'), signInTicket: refreshToken });
-      Object.assign(patch, { profile_id: identity.id, patient_id: identity.patientId });
+      Object.assign(patch, { profile_id: identity.id, patient_id: identity.patientId, visitor_hash: null });
       return identity;
     },
   };
@@ -377,9 +422,9 @@ export function firstName(fullName) {
  * A conversation's history, for the patient who owns it (placeholders shown as real values).
  * Team members' messages carry their first name; `with_team` tells the page to keep checking for replies.
  */
-export async function getConversation({ user }, id) {
+export async function getConversation({ user, visitorHash = null }, id) {
   const admin = requireAdmin();
-  const conversation = await loadOwned(admin, id, user);
+  const conversation = await loadOwned(admin, id, user, visitorHash);
   const map = conversation.state?.placeholders ?? {};
   const messages = await messageModel.listForConversation(admin, id);
   const names = await profileModel.namesByIds(admin, [conversation.taken_over_by, ...messages.map((m) => m.author_id)]);

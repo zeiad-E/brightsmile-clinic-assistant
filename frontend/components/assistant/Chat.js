@@ -18,8 +18,10 @@ import styles from './Chat.module.css';
  * - The assistant can attach cards: free times (tap one to ask for it), a booking summary (confirm
  *   or change), a confirmation, or your appointments.
  * - If the assistant signs you in during the chat, the whole site learns it (useSession().signInWithTicket).
- * - The conversation is kept in sessionStorage, so the bubble and the full page share it while the
- *   tab is open.
+ * - Coming back: the server remembers the chat (GET /api/chat/current) — a guest's through a private
+ *   cookie on this browser, a patient's in their account — so closing the site loses nothing.
+ *   Signing in keeps the same chat (the server moves it into the account); signing out starts a
+ *   fresh one. sessionStorage is only a quick copy for this tab, which also keeps the cards.
  * - A clinic team member can join the chat from the dashboard ("take over"). The page checks for
  *   their messages every few seconds (every 3 s while they are in the chat) and shows them with
  *   their name; the assistant stays quiet until they hand the chat back.
@@ -45,15 +47,55 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
   const conversationId = useRef(null);
   const listRef = useRef(null);
   const inputRef = useRef(null);
-  const { getToken, signInWithTicket, user } = useSession();
+  const { getToken, signInWithTicket, user, status: session } = useSession();
 
-  // restore the conversation of this tab
+  // restore the conversation of this tab at once (the server's answer below may replace it)
   useEffect(() => {
     const saved = load();
     conversationId.current = saved.conversationId;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage only exists in the browser, after the page has loaded
     setMessages(saved.messages.map((m) => ({ ...m, id: nextId++ })));
   }, []);
+
+  // Ask the server which chat this visitor has, once we know who they are, and again whenever they
+  // sign in or out. Same chat as on screen → keep the screen (it has the cards, e.g. a personal
+  // code shown once). Another chat → show it (this tab's copy if it has one, else the server's
+  // text: old free-time cards could be taken by now). None → a fresh chat.
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (session === 'loading' || busy) return;
+    let stale = false;
+    (async () => {
+      let found;
+      try {
+        found = (await apiRequest('/chat/current', { token: await getToken().catch(() => null) })).conversation;
+      } catch {
+        return; // offline, or an older server without /chat/current: keep this tab's copy
+      }
+      if (stale || found?.id === conversationId.current) return;
+      if (!found) {
+        if (!conversationId.current) return;
+        conversationId.current = null; // e.g. signed out: that chat is in the account now
+        setMessages([]);
+        setTeam(null);
+        return;
+      }
+      const saved = load();
+      conversationId.current = found.id;
+      setTeam(found.with_team ? (found.team_member ?? t.someone) : null);
+      setMessages(
+        saved.conversationId === found.id
+          ? saved.messages.map((m) => ({ ...m, id: nextId++ }))
+          : found.messages
+              .filter((m) => m.content)
+              .map((m) => ({ id: nextId++, serverId: m.id, role: m.role, content: m.content, ...(m.role === 'staff' && { author: m.author ?? t.someone, event: m.event }) })),
+      );
+    })();
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when who is visiting changes, not on every reply
+  }, [session, userId]);
 
   // keep it (only finished messages, never a half-typed reply)
   useEffect(() => {

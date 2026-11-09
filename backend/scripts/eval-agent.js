@@ -64,7 +64,8 @@ let breakerWaits = 0; // minutes spent waiting for the live circuit breaker to c
 // ---------- talking to the live API ----------
 
 async function send(c, message, { conversationId, token }) {
-  const headers = { 'Content-Type': 'application/json', 'x-eval-key': config.evalKey, 'x-eval-case': `${RUN}-${c.id}`.slice(0, 64) };
+  // x-brightsmile-client: the chat refuses requests without the website's header (src/auth/csrf.js).
+  const headers = { 'Content-Type': 'application/json', 'x-brightsmile-client': 'web', 'x-eval-key': config.evalKey, 'x-eval-case': `${RUN}-${c.id}`.slice(0, 64) };
   if (token) headers.Authorization = `Bearer ${token}`;
   for (let attempt = 1; ; attempt += 1) {
     const started = Date.now();

@@ -9,11 +9,17 @@ const FULL_COLUMNS = `${LIST_COLUMNS}, state, off_topic_count, blocked_until, su
 /** "Live" on the dashboard = a message in the last 10 minutes. */
 export const LIVE_MINUTES = 10;
 
-export function create(db, { assistant = 'patient', profileId = null, patientId = null, language = 'en' }) {
+/**
+ * The patient chat also needs `visitor_hash` (which browser a guest chat belongs to). It is read
+ * only for the ownership check and never sent anywhere, so it stays out of FULL_COLUMNS.
+ */
+const CHAT_COLUMNS = `${FULL_COLUMNS}, visitor_hash`;
+
+export function create(db, { assistant = 'patient', profileId = null, patientId = null, language = 'en', visitorHash = null }) {
   return unwrap(
     db
       .from('conversations')
-      .insert({ assistant, profile_id: profileId, patient_id: patientId, language })
+      .insert({ assistant, profile_id: profileId, patient_id: patientId, language, visitor_hash: visitorHash })
       .select(FULL_COLUMNS)
       .single(),
   );
@@ -21,6 +27,34 @@ export function create(db, { assistant = 'patient', profileId = null, patientId 
 
 export function findById(db, id) {
   return unwrap(db.from('conversations').select(FULL_COLUMNS).eq('id', id).maybeSingle());
+}
+
+/** findById plus the guest's visitor_hash, for the chat's ownership check only. */
+export function findForChat(db, id) {
+  return unwrap(db.from('conversations').select(CHAT_COLUMNS).eq('id', id).maybeSingle());
+}
+
+/**
+ * The chat to resume: the newest patient chat of a signed-in profile, or of a guest's browser
+ * (visitor hash, no owner yet), with a message since `since`.
+ */
+export function findLatest(db, { profileId = null, visitorHash = null, since }) {
+  let query = db.from('conversations').select('id, turn_count').eq('assistant', 'patient').gte('last_message_at', since);
+  query = profileId ? query.eq('profile_id', profileId) : query.eq('visitor_hash', visitorHash).is('profile_id', null);
+  return unwrap(query.order('last_message_at', { ascending: false }).limit(1).maybeSingle());
+}
+
+/** Moves every ownerless chat of this browser to the patient. Returns the moved ids. */
+export async function claimForPatient(db, { visitorHash, profileId, patientId }) {
+  const rows = await unwrap(
+    db
+      .from('conversations')
+      .update({ profile_id: profileId, patient_id: patientId, visitor_hash: null })
+      .eq('visitor_hash', visitorHash)
+      .is('profile_id', null)
+      .select('id'),
+  );
+  return (rows ?? []).map((row) => row.id);
 }
 
 export function update(db, id, patch) {

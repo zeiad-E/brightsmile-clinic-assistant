@@ -10,11 +10,24 @@ vi.mock('../../../src/models/clinicModel.js', () => ({
 }));
 vi.mock('../../../src/models/conversationModel.js', () => ({
   create: vi.fn(async (_db, row) => {
-    const c = { id: `c${conversations.size + 1}`, assistant: 'patient', status: 'active', state: {}, turn_count: 0, off_topic_count: 0, profile_id: row.profileId, patient_id: row.patientId, title: null };
+    const c = { id: `c${conversations.size + 1}`, assistant: 'patient', status: 'active', state: {}, turn_count: 0, off_topic_count: 0, profile_id: row.profileId, patient_id: row.patientId, visitor_hash: row.visitorHash ?? null, title: null, last_message_at: new Date().toISOString() };
     conversations.set(c.id, c);
     return c;
   }),
   findById: vi.fn(async (_db, id) => (conversations.has(id) ? structuredClone(conversations.get(id)) : null)),
+  findForChat: vi.fn(async (_db, id) => (conversations.has(id) ? structuredClone(conversations.get(id)) : null)),
+  findLatest: vi.fn(async (_db, { profileId, visitorHash, since }) => {
+    const mine = [...conversations.values()]
+      .filter((c) => (profileId ? c.profile_id === profileId : c.visitor_hash === visitorHash && !c.profile_id))
+      .filter((c) => (c.last_message_at ?? '') >= since)
+      .sort((a, b) => b.last_message_at.localeCompare(a.last_message_at));
+    return mine[0] ?? null;
+  }),
+  claimForPatient: vi.fn(async (_db, { visitorHash, profileId, patientId }) => {
+    const moved = [...conversations.values()].filter((c) => c.visitor_hash === visitorHash && !c.profile_id);
+    for (const c of moved) Object.assign(c, { profile_id: profileId, patient_id: patientId, visitor_hash: null });
+    return moved.map((c) => c.id);
+  }),
   update: vi.fn(async (_db, id, patch) => {
     const c = { ...conversations.get(id), ...patch };
     conversations.set(id, c);
@@ -24,11 +37,12 @@ vi.mock('../../../src/models/conversationModel.js', () => ({
 vi.mock('../../../src/models/messageModel.js', () => ({
   insertMany: vi.fn(async (_db, rows) => saved.messages.push(...rows)),
   recentDialogue: vi.fn(async () => []),
+  listForConversation: vi.fn(async (_db, id) => saved.messages.filter((m) => m.conversation_id === id).map((m, i) => ({ id: i + 1, created_at: 'now', ...m }))),
 }));
 vi.mock('../../../src/models/agentRunModel.js', () => ({ insert: vi.fn(async (_db, run) => saved.runs.push(run)) }));
 vi.mock('../../../src/models/agentTraceModel.js', () => ({ insert: vi.fn(async (_db, row) => saved.traces.push(row)) }));
 vi.mock('../../../src/models/escalationModel.js', () => ({ create: vi.fn(async (_db, e) => saved.escalations.push(e)) }));
-vi.mock('../../../src/models/profileModel.js', () => ({ findIdentity: vi.fn() }));
+vi.mock('../../../src/models/profileModel.js', () => ({ findIdentity: vi.fn(), namesByIds: vi.fn(async () => new Map()) }));
 vi.mock('../../../src/agent/context.js', () => ({
   buildContext: vi.fn(async () => ({ clinicName: 'BrightSmile', today: { date: '2026-10-26', weekday: 'Monday', time: '10:00' }, openingHours: 'x', patient: null })),
 }));
@@ -39,6 +53,7 @@ const { runAgentTurn } = await import('../../../src/agent/loop.js');
 const chatService = await import('../../../src/services/chatService.js');
 const { getSettings } = await import('../../../src/models/clinicModel.js');
 const { buildContext } = await import('../../../src/agent/context.js');
+const { findIdentity } = await import('../../../src/models/profileModel.js');
 
 const guest = { user: null, db: null };
 const ok = (reply) => ({ status: 'ok', reply, iterations: 0, toolCalls: [], usage: { in: 1, out: 1 }, model: 'fake' });
@@ -217,5 +232,104 @@ describe('chatService.sendMessage', () => {
 
     expect(res.status).toBe('turn_limit');
     expect(runAgentTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe('guest chats and the visitor cookie', () => {
+  const patient = { user: { id: 'user-1', role: 'patient', patientId: 'p1' } };
+  const browser = (hash) => ({ user: null, visitorHash: hash });
+  const chat = (id, extra = {}) =>
+    conversations.set(id, { id, assistant: 'patient', status: 'active', state: {}, turn_count: 1, off_topic_count: 0, profile_id: null, patient_id: null, visitor_hash: null, last_message_at: new Date().toISOString(), ...extra });
+
+  it('starts a guest chat under the browser’s visitor fingerprint, a patient’s under their account', async () => {
+    runAgentTurn.mockResolvedValue(ok('Hi!'));
+    const asGuest = await chatService.sendMessage(browser('v1'), { message: 'hi' });
+    const asPatient = await chatService.sendMessage({ ...patient, visitorHash: 'v1' }, { message: 'hi' });
+
+    expect(conversations.get(asGuest.conversation_id)).toMatchObject({ visitor_hash: 'v1', profile_id: null });
+    expect(conversations.get(asPatient.conversation_id)).toMatchObject({ visitor_hash: null, profile_id: 'user-1' });
+  });
+
+  it('lets only the browser that started a guest chat continue or read it', async () => {
+    runAgentTurn.mockResolvedValue(ok('Sure.'));
+    chat('g', { visitor_hash: 'v1' });
+
+    expect((await chatService.sendMessage(browser('v1'), { conversationId: 'g', message: 'hi' })).reply).toBe('Sure.');
+    await expect(chatService.sendMessage(browser('v2'), { conversationId: 'g', message: 'hi' })).rejects.toMatchObject({ status: 404 });
+    await expect(chatService.sendMessage(browser(null), { conversationId: 'g', message: 'hi' })).rejects.toMatchObject({ status: 404 });
+    await expect(chatService.getConversation(browser('v2'), 'g')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('never lets a signed-in patient take a stranger’s guest chat', async () => {
+    chat('g', { visitor_hash: 'v1', state: { placeholders: { '[PHONE_1]': '01000000000' } } });
+
+    await expect(chatService.sendMessage({ ...patient, visitorHash: null }, { conversationId: 'g', message: 'hi' })).rejects.toMatchObject({ status: 404 });
+    expect(conversations.get('g').profile_id).toBeNull();
+  });
+
+  it('moves a patient’s own guest chat into their account when they continue it', async () => {
+    runAgentTurn.mockResolvedValue(ok('Welcome back.'));
+    chat('g', { visitor_hash: 'v1' });
+    await chatService.sendMessage({ ...patient, visitorHash: 'v1' }, { conversationId: 'g', message: 'hi' });
+
+    expect(conversations.get('g')).toMatchObject({ profile_id: 'user-1', patient_id: 'p1', visitor_hash: null });
+  });
+
+  it('lets the first browser to come back adopt a guest chat from before visitor cookies', async () => {
+    runAgentTurn.mockResolvedValue(ok('Hi again.'));
+    chat('old');
+    await chatService.sendMessage(browser('v1'), { conversationId: 'old', message: 'hi' });
+
+    expect(conversations.get('old').visitor_hash).toBe('v1');
+    await expect(chatService.getConversation(browser('v2'), 'old')).rejects.toMatchObject({ status: 404 });
+  });
+
+  describe('currentConversation (coming back to the site)', () => {
+    it('gives a guest their latest chat, with its messages', async () => {
+      chat('older', { visitor_hash: 'v1', last_message_at: new Date(Date.now() - 86_400_000).toISOString() });
+      chat('newer', { visitor_hash: 'v1' });
+      saved.messages.push({ conversation_id: 'newer', role: 'user', content: 'Hello' });
+
+      const { conversation } = await chatService.currentConversation(browser('v1'));
+      expect(conversation).toMatchObject({ id: 'newer', messages: [{ role: 'user', content: 'Hello' }] });
+    });
+
+    it('gives a signed-in patient their latest chat from their account', async () => {
+      chat('mine', { profile_id: 'user-1', patient_id: 'p1' });
+      expect((await chatService.currentConversation(patient)).conversation.id).toBe('mine');
+    });
+
+    it('has nothing for a new visitor, someone else’s browser, an old chat or a full one', async () => {
+      chat('g', { visitor_hash: 'v1' });
+      chat('stale', { visitor_hash: 'v3', last_message_at: new Date(Date.now() - 31 * 86_400_000).toISOString() });
+      chat('full', { visitor_hash: 'v4', turn_count: 60 });
+
+      expect(await chatService.currentConversation(browser(null))).toEqual({ conversation: null });
+      expect(await chatService.currentConversation(browser('v2'))).toEqual({ conversation: null });
+      expect(await chatService.currentConversation(browser('v3'))).toEqual({ conversation: null });
+      expect(await chatService.currentConversation(browser('v4'))).toEqual({ conversation: null });
+    });
+  });
+
+  describe('claimVisitorChats (signing in, signing up, booking)', () => {
+    it('moves every ownerless chat of this browser to the patient, and nobody else’s', async () => {
+      findIdentity.mockResolvedValue({ id: 'user-1', role: 'patient', patientId: 'p1' });
+      chat('a', { visitor_hash: 'v1' });
+      chat('b', { visitor_hash: 'v1' });
+      chat('other', { visitor_hash: 'v2' });
+
+      expect(await chatService.claimVisitorChats({ visitorHash: 'v1', profileId: 'user-1' })).toEqual(['a', 'b']);
+      expect(conversations.get('a')).toMatchObject({ profile_id: 'user-1', patient_id: 'p1', visitor_hash: null });
+      expect(conversations.get('other').profile_id).toBeNull();
+    });
+
+    it('gives a team account nothing, and does nothing without a cookie', async () => {
+      findIdentity.mockResolvedValue({ id: 'staff-1', role: 'staff', patientId: null });
+      chat('a', { visitor_hash: 'v1' });
+
+      expect(await chatService.claimVisitorChats({ visitorHash: 'v1', profileId: 'staff-1' })).toEqual([]);
+      expect(await chatService.claimVisitorChats({ visitorHash: null, profileId: 'user-1' })).toEqual([]);
+      expect(conversations.get('a').profile_id).toBeNull();
+    });
   });
 });
