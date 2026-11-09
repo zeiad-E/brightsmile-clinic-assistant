@@ -5,6 +5,13 @@ import { clamp, easeOut, pinProgress, useFrameWhileVisible } from '@/lib/motion'
 import { TOOTH_D } from './icons';
 import styles from './Home.module.css';
 
+// The dark cover with a tooth-shaped hole, as ONE shape: a huge square plus the tooth outline.
+// fill-rule "evenodd" leaves the area inside the tooth empty (inside two outlines = outside again).
+// It used to be an SVG <mask>, and a phone has to rebuild a mask image of the whole screen on every
+// frame of the scroll: that was the lag. The square is in the tooth's own units, so however much the
+// tooth grows, the square grows with it and still covers the screen.
+const HOLE_D = `M-3000 -3000 H3200 V3200 H-3000 Z ${TOOTH_D}`;
+
 /**
  * 3 · Portal: the page is dark, with a tooth-shaped window in it. As you scroll, the window grows
  * until you "fly through" it into the clinic.
@@ -16,6 +23,7 @@ export default function Portal({ t }) {
   const holeRef = useRef(null);
   const ringRef = useRef(null);
   const lastP = useRef(-1);
+  const lastWords = useRef([]);
 
   useFrameWhileVisible(sectionRef, () => {
     const p = pinProgress(sectionRef.current);
@@ -32,6 +40,8 @@ export default function Portal({ t }) {
     sceneRef.current.style.transform = `scale(${1.28 - 0.28 * easeOut(p)})`;
     [...sceneRef.current.querySelectorAll('[data-word]')].forEach((word, i) => {
       const q = easeOut(clamp((p - 0.6 - i * 0.06) / 0.16));
+      if (q === lastWords.current[i]) return; // most of the scroll they sit at 0 or 1: don't touch them
+      lastWords.current[i] = q;
       word.style.opacity = q;
       word.style.transform = `translateY(${(1 - q) * 24}px)`;
     });
@@ -51,13 +61,7 @@ export default function Portal({ t }) {
           </div>
         </div>
         <svg className={styles.portalMask} viewBox="0 0 1000 625" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-          <defs>
-            <mask id="portalHole">
-              <rect x="-2000" y="-2000" width="5000" height="5000" fill="#fff" />
-              <path ref={holeRef} d={TOOTH_D} fill="#000" />
-            </mask>
-          </defs>
-          <rect x="-2000" y="-2000" width="5000" height="5000" fill="#0b2545" mask="url(#portalHole)" />
+          <path ref={holeRef} d={HOLE_D} fill="#0b2545" fillRule="evenodd" />
           <path ref={ringRef} d={TOOTH_D} fill="none" stroke="#5eead4" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
         </svg>
         <div ref={copyRef} className={styles.portalCopy}>

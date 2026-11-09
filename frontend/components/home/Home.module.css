@@ -101,12 +101,14 @@
 .portal { height: 260vh; background: var(--night); }
 .portalScene { position: absolute; inset: 0; padding: 8%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--inside); will-change: transform; }
 .psGlow { position: absolute; top: -10%; right: -10%; width: 60%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgb(94 234 212 / .45), transparent 65%); }
-.portalScene small, .portalScene h2, .psChips { position: relative; opacity: 0; transform: translateY(24px); }
+/* will-change: each word gets its own GPU layer, so fading it in doesn't repaint the whole scene */
+.portalScene small, .portalScene h2, .psChips { position: relative; opacity: 0; transform: translateY(24px); will-change: transform, opacity; }
 .portalScene small { font: 600 12px var(--mono); color: var(--mint-deep); letter-spacing: .1em; text-transform: uppercase; }
 .portalScene h2 { max-width: 15ch; margin: 12px 0 20px; font-size: clamp(32px, 5vw, 62px); letter-spacing: -.04em; line-height: 1.02; }
 .psChips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .psChips span { padding: 9px 13px; border-radius: 99px; background: #fff; border: 1px solid var(--line); font: 600 12px var(--mono); }
-.portalMask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* its own layer: redrawing the growing hole never repaints the scene under it */
+.portalMask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; will-change: transform; }
 .portalCopy { position: absolute; inset: 0; padding-bottom: 7vh; padding-bottom: calc(7vh + 100lvh - 100svh); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: #fff; pointer-events: none; will-change: transform, opacity; }
 .portalCopy span { font: 600 12px var(--mono); color: var(--mint-light); letter-spacing: .2em; text-transform: uppercase; }
 .portalCopy b { font-size: clamp(32px, 5vw, 58px); letter-spacing: -.04em; }
