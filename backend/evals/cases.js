@@ -40,7 +40,7 @@ export const CASES = [
     category: 'facts',
     language: 'ar',
     turns: ['انتو فاتحين يوم الجمعة؟'],
-    expect: { lang: 'ar', says: [/مغلق|مقفول|قافل|إجازة|اجازة|لا\b|مش فاتحين|بنكون قافلين/] },
+    expect: { lang: 'ar', says: [/مغلق|مقفول|مقفلين|قافل|إجازة|اجازة|لا\b|مش فاتحين|بنكون قافلين/] },
   },
   {
     id: 'facts-price-cleaning-en',

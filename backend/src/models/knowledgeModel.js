@@ -8,6 +8,11 @@ const LIST_COLUMNS =
   'id, group_key, language, category, title, source_type, file_name, mime_type, ingest_status, ingest_error, is_published, created_at, updated_at';
 const FULL_COLUMNS = `${LIST_COLUMNS}, content, file_path, created_by`;
 
+/** The text of every published document (the code checks prices in replies against it). */
+export function publishedContents(db) {
+  return unwrap(db.from('knowledge_docs').select('content').eq('is_published', true));
+}
+
 export function list(db, { language, category, status, q, limit, offset }) {
   let query = db.from('knowledge_docs').select(LIST_COLUMNS, { count: 'exact' }).order('group_key').order('language');
   if (language) query = query.eq('language', language);

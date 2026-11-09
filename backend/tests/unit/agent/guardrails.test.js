@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS, looksBroken } from '../../../src/agent/guardrails.js';
+import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS, looksBroken, pricesIn } from '../../../src/agent/guardrails.js';
 import { sendEmailCode, signInWithPhone } from '../../../src/agent/tools/accountTools.js';
 import { createKeyedLock } from '../../../src/utils/keyedLock.js';
 
@@ -141,5 +141,13 @@ describe('escalate_to_human', () => {
     const ctx = { events: { escalated: 'high' }, conversation: { id: 'c1' } };
     const result = await escalateToHuman.run({ reason: 'Tooth pain', summary: 'Patient in pain, wants a visit.', urgency: 'high' }, ctx);
     expect(result).toMatchObject({ escalated: true, alreadyDone: true });
+  });
+});
+
+describe('prices in a reply', () => {
+  it('finds amounts next to the currency, in either digits, with or without commas', () => {
+    expect(pricesIn('Teeth cleaning is 1500 EGP; whitening EGP 4,500.')).toEqual([1500, 4500]);
+    expect(pricesIn('التبييض بـ ٤٥٠٠ جنيه والكشف 400 ج.م')).toEqual([4500, 400]);
+    expect(pricesIn('Call +20 100 555 0123 at 10:00 on 2026-11-11')).toEqual([]);
   });
 });

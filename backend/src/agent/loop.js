@@ -1,7 +1,7 @@
 import { llmClient } from '../llm/LlmClient.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
-import { detectLanguage, LIMITS, looksBroken } from './guardrails.js';
+import { detectLanguage, LIMITS, looksBroken, pricesIn } from './guardrails.js';
 import { maskDeep, unmaskValue } from './masking.js';
 import { clip } from './trace.js';
 import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } from './tools/index.js';
@@ -20,6 +20,9 @@ import { toolDefinitions as defaultDefinitions, toolsByName as defaultTools } fr
  *  - a reply with broken text, or in the wrong language, is sent back once to be rewritten;
  *    broken text that survives the rewrite never reaches the patient (status 'broken')
  *  - the finished reply goes to `review` (a second AI), which can send it back with feedback
+ *  - a price that isn't the clinic's (ctx.knownPrices, this turn's tool results or the patient's
+ *    own message) is sent back once; if it stays, the turn fails rather than quote it
+ *  - while rewriting, the AI may not decline: it was answering a clinic question
  *  - with a `trace` (see agent/trace.js), every step is written down for debugging
  *
  * Once a finished reply exists it is never lost: if a rewrite fails or time runs out, that
@@ -50,13 +53,20 @@ export async function runAgentTurn({
   let usedModel = null;
   let languageFixed = false;
   let cleaned = false;
+  let pricesFixed = false;
+  let rewriting = false;
   let rewrites = 0;
   let draft = null;
   let verdict = null;
   const note = (step) => trace?.note(step);
+  const wrongPrices = (text) => {
+    if (!ctx.knownPrices) return [];
+    const allowed = new Set([...ctx.knownPrices, ...pricesIn(JSON.stringify(ctx.toolLog.map((t) => t.result))), ...pricesIn(messages.at(-1)?.content)]);
+    return pricesIn(text).filter((price) => !allowed.has(price));
+  };
   const finished = (iterations) =>
-    looksBroken(draft)
-      ? { status: 'broken', iterations, toolCalls, usage, model: usedModel }
+    looksBroken(draft) || wrongPrices(draft).length
+      ? { status: looksBroken(draft) ? 'broken' : 'wrong_price', iterations, toolCalls, usage, model: usedModel }
       : { status: 'ok', reply: draft, iterations, toolCalls, usage, model: usedModel, review: verdict };
 
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
@@ -94,7 +104,10 @@ export async function runAgentTurn({
     if (!message.tool_calls?.length) {
       draft = message.content || draft || '';
       const canRewrite = iteration + 1 < maxIterations && Date.now() < deadline;
-      const sendBack = (instruction) => convo.push({ role: 'assistant', content: draft }, { role: 'user', content: instruction });
+      const sendBack = (instruction) => {
+        rewriting = true;
+        convo.push({ role: 'assistant', content: draft }, { role: 'user', content: instruction });
+      };
 
       // Free models sometimes write broken text. One chance to fix it; if it stays broken, the
       // turn fails (the caller retries with a fresh attempt) rather than show it to the patient.
@@ -103,6 +116,16 @@ export async function runAgentTurn({
         if (!canRewrite || cleaned) return finished(iteration);
         cleaned = true;
         sendBack(`That reply has broken text: words in other alphabets, a character repeated many times, or English glued to Arabic. Write it again cleanly, in ${ctx.language === 'ar' ? 'Arabic' : 'English'}.`);
+        continue;
+      }
+
+      // A price the clinic doesn't have (the model guessed it) gets one chance to be fixed.
+      const unknown = wrongPrices(draft);
+      if (unknown.length) {
+        note({ type: 'check', check: 'price', found: unknown, action: !canRewrite || pricesFixed ? 'give_up' : 'rewrite' });
+        if (!canRewrite || pricesFixed) return finished(iteration);
+        pricesFixed = true;
+        sendBack(`That reply quotes a price the clinic does not have (${unknown.join(', ')} EGP). Never guess prices: call list_services or search_knowledge and use only the prices they return. Write the full reply again.`);
         continue;
       }
 
@@ -142,7 +165,7 @@ Write the full reply again with that fixed. Write only what the patient should r
     for (const call of message.tool_calls) {
       ctx.onProgress?.({ stage: 'tool', tool: call.function?.name });
       const toolStarted = Date.now();
-      const result = await runTool(call, { ctx, tools, seen });
+      const result = await runTool(call, { ctx, tools, seen, rewriting });
       toolCalls.push({ name: call.function?.name, ok: !result?.error });
       const forAi = maskDeep(result, ctx.map);
       note({ type: 'tool', name: call.function?.name, ok: !result?.error, ms: Date.now() - toolStarted, args: clip(call.function?.arguments, 1000), result: clip(forAi, 3000) });
@@ -159,8 +182,12 @@ Write the full reply again with that fixed. Write only what the patient should r
   return { status: 'max_iterations', iterations: maxIterations, toolCalls, usage, model: usedModel };
 }
 
-async function runTool(call, { ctx, tools, seen }) {
+async function runTool(call, { ctx, tools, seen, rewriting }) {
   const name = call.function?.name;
+  // A rewrite only fixes how a clinic answer is written; it is never a reason to refuse the patient.
+  if (rewriting && name === 'decline_request') {
+    return { error: 'not_now', message: 'You are rewriting an answer to a clinic question. Do not decline it: write the fixed answer.' };
+  }
   const rawArgs = call.function?.arguments || '{}';
   const signature = `${name}:${rawArgs}`;
   if (seen.has(signature)) return { error: 'duplicate_call', message: 'You already made this exact call this turn.' };

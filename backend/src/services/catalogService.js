@@ -1,9 +1,11 @@
 import { requireAdmin } from '../db/supabase.js';
 import * as clinicModel from '../models/clinicModel.js';
+import * as knowledgeModel from '../models/knowledgeModel.js';
 import * as serviceModel from '../models/serviceModel.js';
 import * as staffModel from '../models/staffModel.js';
 import * as workingHoursModel from '../models/workingHoursModel.js';
 import { AppError } from '../utils/AppError.js';
+import { pricesIn } from '../agent/guardrails.js';
 import { clinicView } from '../views/clinicView.js';
 import { serviceView } from '../views/serviceView.js';
 import { doctorView } from '../views/doctorView.js';
@@ -54,6 +56,21 @@ export async function clinicBranding() {
     brandingAt = Date.now();
   }
   return branding;
+}
+
+// Every price the clinic really has: treatments, plus amounts the knowledge base states
+// (e.g. "installments above 3000 EGP"). The assistant may only quote these. Cached briefly.
+let prices = null;
+let pricesAt = 0;
+
+export async function clinicPrices() {
+  if (!prices || Date.now() - pricesAt > BRANDING_TTL_MS) {
+    const db = requireAdmin();
+    const [services, docs] = await Promise.all([serviceModel.listActive(db), knowledgeModel.publishedContents(db)]);
+    prices = new Set([...services.map((s) => Number(s.price_egp)), ...docs.flatMap((d) => pricesIn(d.content))]);
+    pricesAt = Date.now();
+  }
+  return prices;
 }
 
 export const clinicNameIn = (brand, language) => (language === 'ar' ? brand.nameAr : brand.nameEn);

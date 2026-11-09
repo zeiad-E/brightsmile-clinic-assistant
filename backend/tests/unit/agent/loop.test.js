@@ -185,6 +185,63 @@ describe('trace', () => {
   });
 });
 
+describe('prices', () => {
+  const priced = (extra = {}) => newCtx({ language: 'en', knownPrices: new Set([400, 800, 4500]), ...extra });
+
+  it('sends back a price the clinic does not have, then accepts the corrected reply', async () => {
+    script.push(say('Teeth cleaning is 1500 EGP.'), say('Teeth cleaning is 800 EGP.'));
+    const result = await run(priced());
+
+    expect(result).toMatchObject({ status: 'ok', reply: 'Teeth cleaning is 800 EGP.' });
+    expect(llmClient.chat.mock.calls[1][0].messages.at(-1).content).toContain('1500 EGP');
+  });
+
+  it('never sends a wrong price that survives the rewrite', async () => {
+    script.push(say('Teeth cleaning is 1500 EGP.'), say('It is 1,500 EGP.'));
+    expect((await run(priced())).status).toBe('wrong_price');
+  });
+
+  it('accepts real prices, in any digits, and amounts the patient wrote', async () => {
+    script.push(say('التبييض بـ ٤٥٠٠ جنيه، والكشف 400 ج.م. ميزانيتك 2000 EGP تكفي الكشف.'));
+    const result = await runAgentTurn({ messages: [{ role: 'user', content: 'My budget is 2000 EGP' }], ctx: priced({ language: 'ar' }), tools, definitions });
+
+    expect(result.status).toBe('ok');
+  });
+
+  it('checks nothing when the clinic prices could not be loaded', async () => {
+    script.push(say('Teeth cleaning is 1500 EGP.'));
+    expect((await run(newCtx({ language: 'en' }))).status).toBe('ok');
+  });
+});
+
+describe('rewrites never refuse', () => {
+  const decline = defineTool({
+    name: 'decline_request',
+    description: 'declines',
+    run: async (_a, ctx) => {
+      ctx.endTurn = { kind: 'off_topic' };
+      return { declined: true };
+    },
+  });
+  const withDecline = { tools: new Map([...tools, ['decline_request', decline]]), definitions: [...definitions, toOpenAiDefinition(decline)] };
+
+  it('refuses decline_request while a reply is being rewritten', async () => {
+    script.push(say('Teeth cleaning is 1500 EGP.'), call(['decline_request', {}]), say('Teeth cleaning is 800 EGP.'));
+    const ctx = newCtx({ language: 'en', knownPrices: new Set([800]) });
+    const result = await run(ctx, withDecline);
+
+    expect(ctx.endTurn).toBeFalsy();
+    expect(result).toMatchObject({ status: 'ok', reply: 'Teeth cleaning is 800 EGP.' });
+    expect(toolMessages()).toContainEqual(expect.objectContaining({ error: 'not_now' }));
+  });
+
+  it('still lets the first answer decline an off-topic request', async () => {
+    script.push(call(['decline_request', {}]));
+    const ctx = newCtx();
+    expect((await run(ctx, withDecline)).status).toBe('ended');
+  });
+});
+
 describe('broken text', () => {
   const broken = 'تبيضة الأسنان تكلفتها ٤٥٠٠٠٠٠٠٠٠٠٠٠٠٠ و проверяется';
 

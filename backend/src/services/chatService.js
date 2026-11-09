@@ -13,6 +13,7 @@ import * as agentTraceModel from '../models/agentTraceModel.js';
 import { findIdentity } from '../models/profileModel.js';
 import * as sessions from '../auth/sessions.js';
 import { buildContext } from '../agent/context.js';
+import { clinicPrices } from './catalogService.js';
 import { buildSystemPrompt } from '../agent/systemPrompt.js';
 import { runAgentTurn } from '../agent/loop.js';
 import { reviewReply } from '../agent/reviewer.js';
@@ -193,6 +194,11 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
     safeMode: ctx.safeMode,
     chatModels: config.llm.chatModels,
     reviewModel: config.llm.reviewModel || null,
+  });
+  // The prices a reply may quote (checked by the loop). Without them the check is skipped.
+  ctx.knownPrices = await clinicPrices().catch((err) => {
+    logger.warn(`Clinic prices not loaded: ${err.message}`);
+    return null;
   });
   const toolset = ctx.safeMode ? { tools: safeModeToolsByName, definitions: safeModeDefinitions } : {};
 
