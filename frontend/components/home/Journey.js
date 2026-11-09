@@ -44,6 +44,7 @@ export default function Journey({ t }) {
         svgLeft: br.left,
         k: br.width / 600,
         svgH: br.height,
+        lastP: -1, // measured again: draw the next frame for sure
       });
     };
     measure();
@@ -56,14 +57,21 @@ export default function Journey({ t }) {
     const g = geo.current;
     if (!g.len) return;
     const p = clamp(pinProgress(sectionRef.current) * 1.06);
+    // Not scrolling, and the window has finished panning: nothing to redraw. (The panel's place on screen
+    // counts too: the molar rides the marker while the panel slides in and out.)
+    const panelTop = pinTopScreen(g.absTop, g.height);
+    if (p === g.lastP && panelTop === g.lastTop && Math.abs(pan.current - g.panTarget) < 0.05) return;
+    g.lastP = p;
+    g.lastTop = panelTop;
     progRef.current.style.strokeDashoffset = g.len * (1 - p);
     const pt = progRef.current.getPointAtLength(g.len * p);
     markerRef.current.setAttribute('transform', `translate(${pt.x} ${pt.y})`);
     [...(nodesRef.current?.children ?? [])].forEach((node, i) => node.classList.toggle(styles.on, p >= STOP_AT[i] - 0.005));
-    pan.current = lerp(pan.current, clamp(pt.y * g.k - g.winH / 2, 0, Math.max(0, g.svgH - g.winH)), 0.14);
+    g.panTarget = clamp(pt.y * g.k - g.winH / 2, 0, Math.max(0, g.svgH - g.winH));
+    pan.current = lerp(pan.current, g.panTarget, 0.14);
     svgRef.current.style.transform = `translateY(${-pan.current}px)`;
     journeyMarker.x = g.svgLeft + pt.x * g.k;
-    journeyMarker.y = pinTopScreen(g.absTop, g.height) + g.winTop + pt.y * g.k - pan.current;
+    journeyMarker.y = panelTop + g.winTop + pt.y * g.k - pan.current;
   });
 
   return (

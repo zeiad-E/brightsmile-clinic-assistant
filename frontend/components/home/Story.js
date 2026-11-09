@@ -9,9 +9,12 @@ export default function Story({ beats }) {
   const sectionRef = useRef(null);
   const textRef = useRef(null);
   const railRef = useRef(null);
+  const lastP = useRef(-1);
 
   useFrameWhileVisible(sectionRef, () => {
     const p = pinProgress(sectionRef.current);
+    if (p === lastP.current) return; // not scrolling: nothing to redraw (saves the phone a repaint every frame)
+    lastP.current = p;
     const items = textRef.current.children;
     const n = items.length;
     [...items].forEach((beat, i) => {

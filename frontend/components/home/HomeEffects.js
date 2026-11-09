@@ -76,7 +76,8 @@ function useDarkHeader() {
         return r && r.top < 40 && r.bottom > 40;
       });
       const portalDark = portal && portal.getBoundingClientRect().top < 40 && pinProgress(portal) < 0.55;
-      header.dataset.tone = overDark || portalDark ? 'dark' : 'light';
+      const tone = overDark || portalDark ? 'dark' : 'light';
+      if (header.dataset.tone !== tone) header.dataset.tone = tone; // writing it on every scroll event restyled the header each time
     };
     update();
     window.addEventListener('scroll', update, { passive: true });

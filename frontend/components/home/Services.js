@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { isRtl, lerp, pinProgress, useFrameWhileVisible } from '@/lib/motion';
 import { FallbackServiceIcon, SERVICE_ICONS } from './icons';
 import styles from './Home.module.css';
@@ -13,22 +13,38 @@ export default function Services({ t, services }) {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
   const barRef = useRef(null);
-  const motion = useRef({ last: 0, speed: 0 });
+  const motion = useRef({ last: -1, speed: 0 });
+  // The cards' places on the track, measured once (and again when the window changes size). Reading
+  // them every frame, right after moving the track, made the browser re-check its layout 8 times a frame.
+  const geo = useRef(null);
+  useEffect(() => {
+    const forget = () => (geo.current = null);
+    window.addEventListener('resize', forget);
+    return () => window.removeEventListener('resize', forget);
+  }, []);
 
   useFrameWhileVisible(sectionRef, () => {
     const track = trackRef.current;
+    if (!geo.current) {
+      geo.current = {
+        travel: Math.max(0, track.scrollWidth - window.innerWidth + 48),
+        centres: [...track.children].map((card) => card.offsetLeft + card.offsetWidth / 2),
+        vw: window.innerWidth,
+      };
+    }
+    const g = geo.current;
     const p = pinProgress(sectionRef.current);
-    const travel = Math.max(0, track.scrollWidth - window.innerWidth + 48);
-    const x = (isRtl() ? 1 : -1) * p * travel;
-    track.style.transform = `translateX(${x}px)`;
     const m = motion.current;
+    if (p === m.last && m.speed < 0.0005) return; // still, and the ribbon has relaxed: nothing to redraw
+    const x = (isRtl() ? 1 : -1) * p * g.travel;
+    track.style.transform = `translateX(${x}px)`;
     m.speed = lerp(m.speed, Math.abs(p - m.last) * 60, 0.1);
     m.last = p;
     const bend = 22 + Math.min(m.speed * 600, 26);
-    for (const card of track.children) {
-      const d = (card.offsetLeft + x + card.offsetWidth / 2 - window.innerWidth / 2) / window.innerWidth;
+    [...track.children].forEach((card, i) => {
+      const d = (g.centres[i] + x - g.vw / 2) / g.vw;
       card.style.transform = `rotateY(${-d * bend}deg) translateZ(${-Math.abs(d) * 140}px)`;
-    }
+    });
     barRef.current.style.width = `${p * 100}%`;
   });
 

@@ -15,9 +15,13 @@ export default function Portal({ t }) {
   const copyRef = useRef(null);
   const holeRef = useRef(null);
   const ringRef = useRef(null);
+  const lastP = useRef(-1);
 
   useFrameWhileVisible(sectionRef, () => {
     const p = pinProgress(sectionRef.current);
+    // Not scrolling: skip. Re-setting the mask, even to the same value, repaints the whole dark screen.
+    if (p === lastP.current) return;
+    lastP.current = p;
     const s = 1.1 * Math.pow(56, Math.pow(clamp(p / 0.85), 1.5)); // exponential growth reads as flying at a steady speed
     const transform = `translate(500 270) scale(${s}) translate(-100 -80)`;
     holeRef.current.setAttribute('transform', transform);

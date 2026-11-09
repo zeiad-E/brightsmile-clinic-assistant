@@ -40,6 +40,60 @@ export const MODEL_URL = '/models/molar.glb';
 /** Remembers that the tooth already assembled once (Next.js may hide and re-show the page). */
 export const toothState = { shown: false };
 
+/* ---------- scrolling on phones ----------
+ * A phone scrolls the page on its own fast lane (the "compositor"), separately from our JavaScript.
+ * Our animations read window.scrollY once per frame, and on a phone that number arrives late and
+ * unevenly (and an iPhone 13 Pro scrolls at 120 frames a second while Safari runs our code at 60).
+ * Anything drawn straight from it shakes: that was the molar "vibrating". So on touch screens every
+ * scroll animation follows a smoothed copy of the scroll position instead: each frame it moves part of
+ * the way toward the real one, like a camera on a soft spring. With a mouse nothing changes (the home
+ * page already glides the wheel itself). */
+const SMOOTH_MS = 55; // how soft the spring is: bigger = smoother but a little more behind
+const smoothScroll =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(pointer: coarse)').matches &&
+  !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const scroll = { y: 0, t: -1 };
+
+/** Call once per frame with the frame's time; every loop in the same frame gets the same answer. */
+export function tickScroll(now) {
+  if (now === scroll.t) return scroll.y;
+  const y = window.scrollY;
+  const dt = now - scroll.t;
+  if (!smoothScroll || scroll.t < 0 || dt > 100) {
+    scroll.y = y; // first frame, or after a pause: start from where the page really is
+  } else {
+    scroll.y += (y - scroll.y) * (1 - Math.exp(-dt / SMOOTH_MS)); // the same softness at 60 or 120 frames a second
+    if (Math.abs(y - scroll.y) < 0.3) scroll.y = y;
+  }
+  scroll.t = now;
+  return scroll.y;
+}
+
+/** The scroll position animations should use right now (the smoothed one while frames are running). */
+export const scrollPos = () => (scroll.t >= 0 && performance.now() - scroll.t < 100 ? scroll.y : window.scrollY);
+
+/* The height of 100vh in pixels. A pinned panel is 100vh tall, so this is how long it stays pinned.
+ * window.innerHeight would be wrong on a phone: it changes every time Safari's bar slides in or out,
+ * which made the animations (and the molar) jump a little mid-scroll. 100vh doesn't move. */
+let vhProbe = null;
+let vhDirty = true;
+let vhValue = 0;
+if (typeof window !== 'undefined') window.addEventListener('resize', () => (vhDirty = true), { passive: true });
+export function viewportH() {
+  if (vhDirty) {
+    if (!vhProbe) {
+      vhProbe = document.createElement('div');
+      vhProbe.setAttribute('aria-hidden', 'true');
+      vhProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100vh;visibility:hidden;pointer-events:none';
+      document.body.appendChild(vhProbe);
+    }
+    vhValue = vhProbe.offsetHeight || window.innerHeight;
+    vhDirty = false;
+  }
+  return vhValue;
+}
+
 /* ---------- pinned sections ----------
  * A pinned section is tall (e.g. 300vh) and holds a sticky panel (100vh). While you scroll through
  * it, the panel stays on screen and the animation follows one number: progress 0 → 1. */
@@ -47,17 +101,18 @@ export const toothState = { shown: false };
 /** 0 when the sticky panel locks, 1 when it lets go. */
 export function pinProgress(section) {
   const r = section.getBoundingClientRect();
-  return clamp(-r.top / (r.height - window.innerHeight));
+  const top = r.top + window.scrollY - scrollPos(); // where the section would be at the smoothed scroll
+  return clamp(-top / (r.height - viewportH()));
 }
 
 /** The page scroll position at which a pinned section reaches `at` (0…1). */
 export function pinY(section, at) {
-  return section.getBoundingClientRect().top + window.scrollY + at * (section.offsetHeight - window.innerHeight);
+  return section.getBoundingClientRect().top + window.scrollY + at * (section.offsetHeight - viewportH());
 }
 
 /** Where a sticky panel's top edge is on screen, from cached numbers only (cheap enough for every frame). */
-export function pinTopScreen(absTop, height) {
-  return Math.min(Math.max(absTop - window.scrollY, 0), absTop + height - window.innerHeight - window.scrollY);
+export function pinTopScreen(absTop, height, y = scrollPos()) {
+  return Math.min(Math.max(absTop - y, 0), absTop + height - viewportH() - y);
 }
 
 /* ---------- hooks ---------- */
@@ -75,6 +130,7 @@ export function useFrameWhileVisible(ref, frame, deps = []) {
     let id = 0;
     const tick = (now) => {
       if (!running) return;
+      tickScroll(now);
       frame(now);
       id = requestAnimationFrame(tick);
     };

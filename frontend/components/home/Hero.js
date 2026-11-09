@@ -9,6 +9,7 @@ import SplitText from './SplitText';
 import styles from './Home.module.css';
 
 const cx = (...names) => names.filter(Boolean).join(' ');
+const touchOnly = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
 
 /**
  * 1 · Hero: the whole section is the scene. Depth layers follow the mouse, the headline types in
@@ -61,6 +62,10 @@ export default function Hero({ t, arabic, eyebrow, nextSlot, bookHref, askHref }
   /* depth layers follow the mouse (or drift slowly when the mouse is still) */
   const tilt = useRef({ x: 0, y: 0 });
   useFrameWhileVisible(bgRef, (now) => {
+    // Touch screens have no mouse to follow, only the slow drift, and moving the big blurred layers
+    // every frame costs a phone more than it shows (it competes with the molar and with scrolling).
+    // There the background holds still: same picture.
+    if (touchOnly) return;
     const reduced = prefersReducedMotion();
     const idle = !reduced && Math.abs(MOUSE.x) + Math.abs(MOUSE.y) < 0.001;
     const tx = idle ? Math.sin(now / 1400) * 0.5 : MOUSE.x;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MOUSE, clamp, easeInOut, easeOut, journeyMarker, lerp, pinTopScreen, pinY, prefersReducedMotion, toothState } from '@/lib/motion';
+import { MOUSE, clamp, easeInOut, easeOut, journeyMarker, lerp, pinTopScreen, pinY, prefersReducedMotion, tickScroll, toothState, viewportH } from '@/lib/motion';
 import { Mascot } from '../icons';
 import { MODEL_CY, MODEL_H, STRIDE, getMesh } from './toothMesh';
 
@@ -187,7 +187,7 @@ export default function ToothCompanion() {
         geo[name] = g;
       }
       const absTop = (id) => byId(id).getBoundingClientRect().top + window.scrollY;
-      const centreOf = (name) => geo[name].abs + geo[name].h / 2 - window.innerHeight / 2;
+      const centreOf = (name) => geo[name].abs + geo[name].h / 2 - viewportH() / 2;
       const [story, portal, services, journey, stack] = ['story', 'portal', 'services', 'how', 'stack'].map(byId);
       const TAU = Math.PI * 2;
       KEYS = [
@@ -200,7 +200,7 @@ export default function ToothCompanion() {
         { y: pinY(portal, 1), pose: 'services', rx: 0.15, ry: TAU * 1.6, op: 0 }, // reappears after the portal
         { y: pinY(services, 0.04), pose: 'services', rx: 0.15, ry: TAU * 2, op: 1 },
         { y: pinY(services, 0.96), pose: 'services', rx: 0.15, ry: TAU * 3, op: 1 }, // one full turn while cards pass
-        { y: absTop('xray') - window.innerHeight * 0.2, pose: 'services', rx: 0.15, ry: TAU * 3.2, op: 0 },
+        { y: absTop('xray') - viewportH() * 0.2, pose: 'services', rx: 0.15, ry: TAU * 3.2, op: 0 },
         { y: pinY(journey, 0), pose: 'marker', rx: 0, ry: TAU * 3, op: 0 },
         { y: pinY(journey, 0.04), pose: 'marker', rx: 0.1, ry: TAU * 3.1, op: 1 },
         { y: pinY(journey, 0.97), pose: 'marker', rx: 0.1, ry: TAU * 5, op: 1 }, // spins as it rides the path
@@ -215,14 +215,19 @@ export default function ToothCompanion() {
       });
     }
     const fit = (w, h) => Math.min(h, w / 0.82);
-    function pose(name) {
+    function pose(name, s) {
       if (name === 'marker') return { x: journeyMarker.x, y: journeyMarker.y, size: window.innerWidth < 860 ? 64 : 96 };
       const g = geo[name];
-      const top = g.pinAbs !== undefined ? pinTopScreen(g.pinAbs, g.pinH) + g.off : g.abs - window.scrollY;
+      const top = g.pinAbs !== undefined ? pinTopScreen(g.pinAbs, g.pinH, s) + g.off : g.abs - s;
       return { x: g.left + g.w / 2, y: top + g.h / 2, size: fit(g.w, g.h) };
     }
     measure();
-    window.addEventListener('resize', measure);
+    // Safari's bar sliding in and out fires "resize" too, but changes neither 100vw nor 100vh, so
+    // nothing to re-measure: skipping it keeps the molar from jumping mid-scroll.
+    const onResize = () => {
+      if (canvas.clientWidth !== VW || canvas.clientHeight !== VH) measure();
+    };
+    window.addEventListener('resize', onResize);
     document.fonts?.ready.then(() => alive && measure());
     // Images and late fonts can shift the layout after the first measure; measure again shortly after.
     const remeasure = setTimeout(measure, 1200);
@@ -236,12 +241,13 @@ export default function ToothCompanion() {
       if (!start) start = now + 150; // the clock starts once the mesh is ready, so no part of the flight is skipped
       const t = reduced || toothState.shown ? 2 : Math.max(0, (now - start) / DURATION);
       if (t >= 2) toothState.shown = true; // assembled once; don't replay it when coming back to the page
-      const s = window.scrollY;
+      // the smoothed scroll position (on phones: see tickScroll in lib/motion), shared with the sections
+      const s = tickScroll(now);
       let i = 0;
       while (i < KEYS.length - 2 && s >= KEYS[i + 1].y) i++;
       const A = KEYS[i], B = KEYS[i + 1];
       const f = easeInOut(clamp((s - A.y) / (B.y - A.y)));
-      const pa = pose(A.pose), pb = A.pose === B.pose ? pa : pose(B.pose);
+      const pa = pose(A.pose, s), pb = A.pose === B.pose ? pa : pose(B.pose, s);
       let x = lerp(pa.x, pb.x, f), y = lerp(pa.y, pb.y, f);
       const size = lerp(pa.size, pb.size, f);
       let rx = lerp(A.rx, B.rx, f), ry = lerp(A.ry, B.ry, f);
@@ -281,7 +287,7 @@ export default function ToothCompanion() {
       alive = false;
       cancelAnimationFrame(frameId);
       clearTimeout(remeasure);
-      window.removeEventListener('resize', measure);
+      window.removeEventListener('resize', onResize);
       gl.deleteBuffer(buffer);
       gl.deleteProgram(prog);
     };
