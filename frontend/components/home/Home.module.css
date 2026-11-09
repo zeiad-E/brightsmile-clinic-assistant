@@ -99,6 +99,8 @@
 
 /* ---------- 2 portal (stands alone) ---------- */
 .portal { height: 260vh; background: var(--night); }
+/* Phones: a shorter run, so the welcome words don't sit there for a long scroll before Services */
+@media (max-width: 860px) { .portal { height: 200vh; } }
 .portalScene { position: absolute; inset: 0; padding: 8%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--inside); will-change: transform; }
 .psGlow { position: absolute; top: -10%; right: -10%; width: 60%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgb(94 234 212 / .45), transparent 65%); }
 /* will-change: each word gets its own GPU layer, so fading it in doesn't repaint the whole scene */

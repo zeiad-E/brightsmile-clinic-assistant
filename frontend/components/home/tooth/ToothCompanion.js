@@ -174,6 +174,8 @@ export default function ToothCompanion() {
     const SPOTS = { hero: null, story: 'story', services: 'services', assistant: null, book: null }; // spot → its pinned section
     const geo = {};
     let KEYS = [];
+    let stillsDrawn = false;
+    let drewLast = true; // did the last frame leave anything on the big canvas?
     const byId = (id) => document.getElementById(id);
     function measure() {
       resize();
@@ -217,11 +219,23 @@ export default function ToothCompanion() {
         { y: absTop('xray') - viewportH() * 0.2, pose: 'services', rx: 0.15, ry: TAU * 3.2, op: 0 },
         { y: pinY(journey, 0), pose: 'marker', rx: 0, ry: TAU * 3, op: 0 },
         { y: pinY(journey, 0.04), pose: 'marker', rx: 0.1, ry: TAU * 3.1, op: 1 },
-        { y: pinY(journey, 0.97), pose: 'marker', rx: 0.1, ry: TAU * 5, op: 1 }, // spins as it rides the path
-        { y: centreOf('assistant'), pose: 'assistant', rx: 0.1, ry: TAU * 5 - 0.65, op: 1 }, // turns to look at the chat
-        { y: pinY(stack, 0), pose: 'assistant', rx: 0.1, ry: TAU * 5 - 0.65, op: 0 },
-        { y: centreOf('book'), pose: 'book', rx: -0.1, ry: TAU * 6 + 0.35, op: 1 },
+        ...(touch
+          ? [
+              // Touch screens: the floating molar bows out while the journey panel is still pinned. The
+              // assistant and booking sections scroll freely, and a drawing that chases the scroll can't
+              // keep up with a phone's scrolling, so there the molar is a still picture inside the
+              // section instead (see drawStills below): it scrolls with the page, perfectly smooth.
+              { y: pinY(journey, 0.92), pose: 'marker', rx: 0.1, ry: TAU * 4.8, op: 1 },
+              { y: pinY(journey, 0.99), pose: 'marker', rx: 0.1, ry: TAU * 5, op: 0 },
+            ]
+          : [
+              { y: pinY(journey, 0.97), pose: 'marker', rx: 0.1, ry: TAU * 5, op: 1 }, // spins as it rides the path
+              { y: centreOf('assistant'), pose: 'assistant', rx: 0.1, ry: TAU * 5 - 0.65, op: 1 }, // turns to look at the chat
+              { y: pinY(stack, 0), pose: 'assistant', rx: 0.1, ry: TAU * 5 - 0.65, op: 0 },
+              { y: centreOf('book'), pose: 'book', rx: -0.1, ry: TAU * 6 + 0.35, op: 1 },
+            ]),
       ];
+      stillsDrawn = false; // sizes may have changed: draw the still pictures again
       const max = document.documentElement.scrollHeight - window.innerHeight;
       KEYS.forEach((k, i) => {
         k.y = Math.min(k.y, max);
@@ -235,6 +249,40 @@ export default function ToothCompanion() {
       const top = g.pinAbs !== undefined ? pinTopScreen(g.pinAbs, g.pinH, s) + g.off : g.abs - s;
       return { x: g.left + g.w / 2, y: top + g.h / 2, size: fit(g.w, g.h) };
     }
+    /* ---------- still pictures (touch screens): the assistant and booking sections ----------
+       Draw the molar once in the big canvas, copy it into a small canvas placed inside the section's
+       spot, then wipe the big canvas, all inside one frame, so nobody ever sees the copy being made. */
+    const STILLS = touch ? { assistant: { rx: 0.1, ry: -0.65 }, book: { rx: -0.1, ry: 0.35 } } : {};
+    const stillCanvases = [];
+    function drawStills() {
+      for (const [name, angle] of Object.entries(STILLS)) {
+        const g = geo[name], spot = document.querySelector(`[data-spot="${name}"]`);
+        if (!g || !spot || !g.w || !g.h) continue;
+        let still = spot.querySelector('canvas');
+        if (!still) {
+          still = document.createElement('canvas');
+          still.setAttribute('aria-hidden', 'true');
+          still.style.cssText = 'display:block;width:100%;height:100%;filter:drop-shadow(0 8px 10px rgba(8,52,58,.22))';
+          spot.appendChild(still);
+          stillCanvases.push(still);
+        }
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.uniform1f(U.u_t, 2); // fully assembled
+        gl.uniform1f(U.u_alpha, 1);
+        gl.uniform1f(U.u_px, fit(g.w, g.h) / MODEL_H);
+        gl.uniform2f(U.u_center, g.w / 2, g.h / 2); // in the top-left corner of the big canvas, spot-sized
+        gl.uniform2f(U.u_view, VW, VH);
+        gl.uniformMatrix3fv(U.u_rot, false, rotMat(angle.rx, angle.ry));
+        gl.drawArrays(gl.TRIANGLES, 0, COUNT);
+        still.width = Math.round(g.w * RES);
+        still.height = Math.round(g.h * RES);
+        still.getContext('2d').drawImage(canvas, 0, 0, still.width, still.height, 0, 0, still.width, still.height);
+      }
+      stillsDrawn = true;
+      drewLast = true; // the big canvas still holds the last copy: make the frame below wipe it
+    }
+
     measure();
     // Safari's bar sliding in and out fires "resize" too, but changes neither 100vw nor 100vh, so
     // nothing to re-measure: skipping it keeps the molar from jumping mid-scroll.
@@ -248,10 +296,11 @@ export default function ToothCompanion() {
 
     /* ---------- the frame loop ---------- */
     const reduced = prefersReducedMotion();
-    let start = 0, mx = 0, my = 0, frameId = 0, drewLast = true;
+    let start = 0, mx = 0, my = 0, frameId = 0;
     function frame(now) {
       frameId = requestAnimationFrame(frame);
       if (!COUNT || KEYS.length < 2) return; // still building
+      if (!stillsDrawn) drawStills();
       if (!start) start = now + 150; // the clock starts once the mesh is ready, so no part of the flight is skipped
       const t = reduced || toothState.shown ? 2 : Math.max(0, (now - start) / DURATION);
       if (t >= 2) toothState.shown = true; // assembled once; don't replay it when coming back to the page
@@ -310,6 +359,7 @@ export default function ToothCompanion() {
       cancelAnimationFrame(frameId);
       clearTimeout(remeasure);
       window.removeEventListener('resize', onResize);
+      stillCanvases.forEach((still) => still.remove());
       gl.deleteBuffer(buffer);
       gl.deleteProgram(prog);
     };
