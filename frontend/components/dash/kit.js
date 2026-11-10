@@ -227,7 +227,7 @@ export function Toggle({ checked, onChange, label, disabled }) {
   return (
     <label className={cx(s.toggle, disabled && s.disabled)}>
       <input type="checkbox" checked={Boolean(checked)} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span aria-hidden="true" />
+      <span className={s.track} aria-hidden="true" />
       {label}
     </label>
   );
