@@ -55,7 +55,7 @@ export default function TimePicker({ serviceId, staffId, locale, t, picked, onPi
 
   const part = (date, options) => new Intl.DateTimeFormat(tag, { timeZone: 'UTC', ...options }).format(new Date(`${date}T12:00:00Z`));
   return (
-    <div>
+    <div className={styles.picker}>
       <p className={styles.label}>{t.pickDay}</p>
       <div className={styles.days}>
         {days.map(({ date }) => (

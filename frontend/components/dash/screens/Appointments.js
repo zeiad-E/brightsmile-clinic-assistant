@@ -159,21 +159,32 @@ function Week({ rows, first, doctors, onOpen }) {
               {placed.map(({ a, lane }) => {
                 const top = ((toMinutes(a.starts_at) - from) / 60) * hourPx;
                 const height = Math.max(22, ((toMinutes(a.ends_at) - toMinutes(a.starts_at)) / 60) * hourPx - 2);
+                // Two lines need about 38px; a shorter booking (30 min = 26px) gets one line instead.
+                const short = height < 38;
                 return (
                   <button
                     key={a.id}
                     type="button"
                     className={s.weekBlock}
+                    data-short={short || undefined}
                     data-status={a.status}
                     data-doctor={doctorIndex.get(a.doctor.id) ?? 0}
                     style={{ top, height, insetInlineStart: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
                     onClick={() => onOpen(a)}
                     title={`${fmt.time(a.starts_at)} · ${a.patient.full_name} · ${pick(a.service, 'name')} · ${pick(a.doctor, 'full_name')}`}
                   >
-                    <strong>{a.patient.full_name}</strong>
-                    <small>
-                      {fmt.time(a.starts_at)} · {pick(a.service, 'name')}
-                    </small>
+                    {short ? (
+                      <span>
+                        <small>{fmt.time(a.starts_at)}</small> <strong>{a.patient.full_name}</strong>
+                      </span>
+                    ) : (
+                      <>
+                        <strong>{a.patient.full_name}</strong>
+                        <small>
+                          {fmt.time(a.starts_at)} · {pick(a.service, 'name')}
+                        </small>
+                      </>
+                    )}
                   </button>
                 );
               })}

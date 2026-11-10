@@ -115,6 +115,9 @@
 .weekBlock[data-status="no_show"] { background: #fff0ee; border-color: #d6453b; }
 .weekBlock[data-status="completed"] { opacity: .75; }
 .weekBlock strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weekBlock { line-height: 1.3; }
+.weekBlock[data-short] { align-content: center; padding-block: 0; }
+.weekBlock[data-short] > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekBlock small { color: var(--color-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekBlock[data-doctor="0"], .weekLegend [data-doctor="0"] { --doc: #0f9e8e; }
 .weekBlock[data-doctor="1"], .weekLegend [data-doctor="1"] { --doc: #3b6fd6; }
