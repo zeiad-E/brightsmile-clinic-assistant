@@ -18,7 +18,8 @@ import styles from './Chat.module.css';
  *   assistant works ("Checking free times…").
  * - The assistant can attach cards: free times (tap one to ask for it), a details form (DetailsForm.js:
  *   name, birth date, phone, email, checked while typing), a booking summary (confirm or change),
- *   a confirmation, or your appointments.
+ *   a confirmation, or your appointments. Cards arrive WITH the finished reply (never while the
+ *   assistant is still working), and speak the chat's language, not the page's (`words` has both).
  * - If the assistant signs you in during the chat, the whole site learns it (useSession().signInWithTicket).
  * - Coming back: the server remembers the chat (GET /api/chat/current) — a guest's through a private
  *   cookie on this browser, a patient's in their account — so closing the site loses nothing.
@@ -40,7 +41,7 @@ function load() {
   }
 }
 
-export default function Chat({ t, locale, variant = 'page', ask = null }) {
+export default function Chat({ t, words = null, locale, variant = 'page', ask = null }) {
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -141,7 +142,6 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
             conversationId.current = id;
           },
           onStatus: (s) => setStatus(s.text),
-          onCard: (card) => updateLast((m) => ({ cards: [...(m.cards ?? []), card] })),
           onToken: (piece) => {
             setStatus(null);
             updateLast((m) => ({ content: m.content + piece }));
@@ -155,7 +155,8 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
               setMessages((all) => all.slice(0, -1));
               return;
             }
-            updateLast(() => ({ content: result.reply, streaming: false }));
+            // the cards come with the finished reply, below it (the server sends only the final ones)
+            updateLast(() => ({ content: result.reply, cards: result.cards ?? [], streaming: false }));
           },
           onError: (err) => {
             const fieldErrors = form && err.error === 'validation_error' ? fieldErrorsOf(err.details) : null;
@@ -266,7 +267,7 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
               </Bubble>
             )}
             {m.cards?.map((card, i) => (
-              <Card key={i} card={card} t={t} locale={locale} name={user?.full_name} reply={m.content} active={m.id === lastId && !busy} onSend={send} />
+              <Card key={i} card={card} t={t} words={words} locale={locale} name={user?.full_name} reply={m.content} active={m.id === lastId && !busy} onSend={send} />
             ))}
           </div>
         ))}
@@ -381,14 +382,27 @@ export function chatLanguage(text) {
   return arabic >= latin ? 'ar' : 'en';
 }
 
-function Card({ card, t, locale, name, reply, active, onSend }) {
+function Card({ card, words, reply, ...page }) {
+  // A card speaks the CHAT's language (the reply it came with), not the page's: an Arabic chat on
+  // the English page gets Arabic free times, form and summary, and a tapped time sends Arabic text,
+  // so the assistant keeps answering in Arabic.
+  const locale = chatLanguage(reply) ?? page.locale;
+  const t = words?.[locale] ?? page.t;
+  return (
+    <div className={styles.cardLang} lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+      <CardBody card={card} t={t} locale={locale} name={page.name} active={page.active} onSend={page.onSend} />
+    </div>
+  );
+}
+
+function CardBody({ card, t, locale, name, active, onSend }) {
   const ar = locale === 'ar';
   if (card.type === 'slots') {
     const doctors = card.doctors.filter((d) => d.days.length);
     if (!doctors.length) return null;
     return (
       <div className={styles.card}>
-        <p className={styles.cardTitle}>{t.slotsTitle.replace('{service}', card.service)}</p>
+        <p className={styles.cardTitle}>{t.slotsTitle.replace('{service}', (ar && card.service_ar) || card.service)}</p>
         {doctors.map((d) => {
           const doctor = (ar && d.doctor_ar) || d.doctor;
           return (
@@ -427,7 +441,6 @@ function Card({ card, t, locale, name, reply, active, onSend }) {
   }
 
   if (card.type === 'details_form') {
-    const lang = chatLanguage(reply) ?? locale;
     return (
       <DetailsForm
         card={card}
@@ -436,7 +449,7 @@ function Card({ card, t, locale, name, reply, active, onSend }) {
         active={active}
         className={styles.card}
         when={card.booking && `${dayLabel(card.booking.date, locale)} · ${timeLabel(card.booking.time, locale)}`}
-        onSubmit={(form) => onSend(CARD_PROMPTS[lang].form[form.purpose], { form })}
+        onSubmit={(form) => onSend(CARD_PROMPTS[locale].form[form.purpose], { form })}
       />
     );
   }
@@ -505,10 +518,10 @@ function Card({ card, t, locale, name, reply, active, onSend }) {
         ) : (
           active && (
             <div className={styles.cardActions}>
-              <button type="button" className={styles.primary} onClick={() => onSend(CARD_PROMPTS[chatLanguage(reply) ?? locale].confirm)}>
+              <button type="button" className={styles.primary} onClick={() => onSend(CARD_PROMPTS[locale].confirm)}>
                 {t.confirm}
               </button>
-              <button type="button" onClick={() => onSend(CARD_PROMPTS[chatLanguage(reply) ?? locale].change)}>
+              <button type="button" onClick={() => onSend(CARD_PROMPTS[locale].change)}>
                 {t.change}
               </button>
             </div>

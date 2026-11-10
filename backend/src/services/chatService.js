@@ -42,6 +42,20 @@ import { safeModeDefinitions, safeModeToolsByName } from '../agent/tools/index.j
 
 const withConversationLock = createKeyedLock();
 
+/**
+ * Cards (free times, the details form, the booking summary…) reach the screen WITH the finished
+ * reply, never while the AI is still working: a rewrite or a retry could make them wrong or show
+ * them twice. What a failed attempt showed is dropped, except cards that record something that
+ * really happened (a booking made, a personal code issued).
+ */
+const LASTING_CARDS = new Set(['booking_confirmed', 'personal_code']);
+const lastingOnly = (cards) => cards.filter((card) => LASTING_CARDS.has(card.type));
+/** One card of each kind per reply (the latest), so a tool called twice never shows two forms. */
+function onePerKind(cards) {
+  const last = new Map(cards.map((card, i) => [card.type, i]));
+  return cards.filter((card, i) => last.get(card.type) === i);
+}
+
 const notFound = () => AppError.notFound('conversation_not_found', 'Conversation not found.');
 
 /**
@@ -183,10 +197,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, f
     endTurn: null,
     // Every step of this turn, written down for debugging (agent/trace.js).
     trace: startTrace({ turn: turnNumber, language: lang, message: maskedMessage }),
-    emit: (card) => {
-      ctx.cards.push(card);
-      notify('card', card);
-    },
+    emit: (card) => ctx.cards.push(card), // sent with the reply (see LASTING_CARDS above)
     onProgress: (progress) => notify('status', progressEvent(progress, lang)),
     // Called by sign-in and booking tools: the conversation now belongs to this patient. Only a
     // patient is ever signed in here. The browser gets a one-time ticket, because a chat reply
@@ -268,6 +279,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, f
       let retries = 0;
       const failures = [];
       for (let attempt = 0; attempt < 2; attempt += 1) {
+        ctx.cards = lastingOnly(ctx.cards); // a retry starts with a clean screen
         const attemptTrace = startAttempt(ctx.trace, {
           model: attempt === 0 ? 'chain' : (config.llm.chatModels[1] ?? 'chain'),
           historyMessages: attempt === 0 ? history.length : Math.min(LIMITS.retryHistoryMessages, history.length),
@@ -322,6 +334,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, f
       urgency: 'normal',
     });
     patch.status = 'needs_attention';
+    ctx.cards = lastingOnly(ctx.cards);
     reply = fixedReply('failure', lang);
     ctx.trace.notes.push('no usable reply after both attempts: apology sent, staff alerted');
     outcome = 'fallback';
@@ -407,7 +420,7 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
   return {
     conversation_id: conversationId,
     reply: restoreForPatient(reply, ctx.map),
-    cards: ctx.cards,
+    cards: onePerKind(ctx.cards),
     sign_in_ticket: ctx.signInTicket,
     status: update.status ?? ctx.conversation.status,
   };

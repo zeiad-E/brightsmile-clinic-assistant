@@ -21,7 +21,9 @@ export const FORM_PURPOSES = Object.keys(FORM_FIELDS);
 /**
  * Puts the form on the patient's screen and tells the AI what to write next.
  * `booking` (optional) is the chosen time, shown at the top of the form so the patient sees what
- * the details are for. `notice` is a short code the page turns into a sentence (e.g. 'not_matched').
+ * the details are for. `notice` is a short code the page turns into a sentence:
+ *   'not_matched'   — signing in: the details match no patient file;
+ *   'file_mismatch' — booking: this phone/email is on a patient file, but the name or birth date isn't.
  */
 export function showDetailsForm(ctx, purpose, { booking = null, notice = null } = {}) {
   const known = patientDetails(ctx.state, ctx.map);
@@ -42,6 +44,8 @@ export function showDetailsForm(ctx, purpose, { booking = null, notice = null } 
     next:
       notice === 'not_matched'
         ? 'Those details did not match a patient file. The form is back on their screen: in one kind line, ask them to check the phone number and date of birth they gave the clinic, or offer staff help.'
-        : 'The details form is now on the patient’s screen, filled in with what you already know. Write ONE short, warm line inviting them to check it and fill in the rest (for example "Just a few details and your booking is ready."). Do not ask for the details in your text and do not list them. Then wait for them to send it.',
+        : notice === 'file_mismatch'
+          ? 'This phone number or email is already on a patient file, but the full name or date of birth does not match that file, so it can’t be booked on it. The form is back on their screen: in one kind line, ask them to check their name and date of birth exactly as the clinic has them, or to sign in with the personal code from their email; offer staff help if it still fails. Never say which detail is wrong.'
+          : 'The details form is now on the patient’s screen, filled in with what you already know. Write ONE short, warm line inviting them to check it and fill in the rest (for example "Just a few details and your booking is ready."). Do not ask for the details in your text and do not list them. Then wait for them to send it.',
   };
 }

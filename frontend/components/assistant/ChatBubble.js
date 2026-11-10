@@ -19,7 +19,7 @@ const GREET_FOR = 12000; // ms before it leaves on its own
  * Once per visit a small pill appears beside it, with one ready question to tap: the real
  * assistant answers it right there, so a visitor sees what it can do without typing anything.
  */
-export default function ChatBubble({ t, locale }) {
+export default function ChatBubble({ t, words, locale }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [opened, setOpened] = useState(false); // keep the chat alive after closing, so it remembers
@@ -121,7 +121,7 @@ export default function ChatBubble({ t, locale }) {
       )}
       {opened && (
         <div className={`${styles.panel} ${open ? styles.panelOpen : ''}`} role="dialog" aria-label={t.botName} aria-hidden={!open}>
-          <Chat t={t} locale={locale} variant="panel" ask={ask} />
+          <Chat t={t} words={words} locale={locale} variant="panel" ask={ask} />
           <Link className={styles.full} href={localePath(locale, '/assistant')} onClick={() => setOpen(false)}>
             {t.openFull} <span aria-hidden="true">↗</span>
           </Link>

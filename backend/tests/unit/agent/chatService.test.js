@@ -139,7 +139,7 @@ describe('chatService.sendMessage', () => {
     expect(trace.notes.join()).toContain('apology sent');
   });
 
-  it('reports progress and cards to a streaming caller while the turn runs', async () => {
+  it('reports progress while the turn runs, and gives the cards only with the finished reply', async () => {
     runAgentTurn.mockImplementation(async ({ ctx }) => {
       ctx.onProgress({ stage: 'tool', tool: 'check_availability' });
       ctx.emit({ type: 'slots', doctors: [] });
@@ -149,13 +149,45 @@ describe('chatService.sendMessage', () => {
 
     const res = await chatService.sendMessage({ ...guest, onEvent: (type, data) => events.push([type, data]) }, { message: 'Free on Sunday?' });
 
+    // no card while the AI is still working: a rewrite or a retry could change it
     expect(events).toEqual([
       ['conversation', { conversation_id: res.conversation_id }],
       ['status', { stage: 'thinking', text: 'Thinking…' }],
       ['status', { stage: 'tool', text: 'Checking free times…' }],
-      ['card', { type: 'slots', doctors: [] }],
     ]);
     expect(res.cards).toEqual([{ type: 'slots', doctors: [] }]);
+  });
+
+  it('drops the cards of a failed attempt, so a retry never shows the form twice', async () => {
+    runAgentTurn
+      .mockImplementationOnce(async ({ ctx }) => {
+        ctx.emit({ type: 'details_form', purpose: 'booking', try: 1 });
+        return { status: 'unbacked_done', toolCalls: [], usage: {} };
+      })
+      .mockImplementationOnce(async ({ ctx }) => {
+        ctx.emit({ type: 'details_form', purpose: 'booking', try: 2 });
+        return ok('Just a few details and your booking is ready.');
+      });
+    const res = await chatService.sendMessage(guest, { message: 'Saturday at 10:00 please' });
+
+    expect(res.cards).toEqual([{ type: 'details_form', purpose: 'booking', try: 2 }]);
+  });
+
+  it('shows one card of each kind per reply, but keeps a booking that really happened', async () => {
+    runAgentTurn
+      .mockImplementationOnce(async ({ ctx }) => {
+        ctx.emit({ type: 'booking_confirmed', appointment_id: 'a1' });
+        ctx.emit({ type: 'slots', n: 1 });
+        throw new Error('model down');
+      })
+      .mockImplementationOnce(async ({ ctx }) => {
+        ctx.emit({ type: 'slots', n: 2 });
+        ctx.emit({ type: 'slots', n: 3 });
+        return ok('Booked!');
+      });
+    const res = await chatService.sendMessage(guest, { message: 'yes' });
+
+    expect(res.cards).toEqual([{ type: 'booking_confirmed', appointment_id: 'a1' }, { type: 'slots', n: 3 }]);
   });
 
   it('never stores one-time codes, even in the conversation state', async () => {

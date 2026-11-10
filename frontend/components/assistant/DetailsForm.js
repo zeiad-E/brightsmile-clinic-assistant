@@ -69,6 +69,7 @@ export default function DetailsForm({ card, t, locale, active, when, className =
     email: emailProblem(values.email, optional.has('email')),
   };
   const ready = keys.every((key) => !problems[key]);
+  const notice = { not_matched: f.notMatched, file_mismatch: f.fileMismatch }[card.notice] ?? null;
   const locked = !active || state !== 'idle';
 
   const touch = (key) => setTouched((all) => (all.has(key) ? all : new Set([...all, key])));
@@ -247,7 +248,7 @@ export default function DetailsForm({ card, t, locale, active, when, className =
           {when && <span>{when}</span>}
         </p>
       )}
-      {card.notice === 'not_matched' && <p className={styles.notice}>{f.notMatched}</p>}
+      {notice && <p className={styles.notice}>{notice}</p>}
 
       <fieldset className={styles.fields} disabled={locked}>
         {keys.map((key) => field[key])}

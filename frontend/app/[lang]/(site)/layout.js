@@ -1,7 +1,7 @@
 import Header from '@/components/site/Header';
 import Footer from '@/components/site/Footer';
 import ChatBubble from '@/components/assistant/ChatBubble';
-import { getDictionary, getLocale } from '@/i18n/dictionaries';
+import { getChatWords, getDictionary, getLocale } from '@/i18n/dictionaries';
 
 /**
  * Layout for the public website: header on top, footer at the bottom, the page in between, and the
@@ -18,7 +18,7 @@ export default async function SiteLayout({ children }) {
         {children}
       </main>
       <Footer />
-      <ChatBubble t={assistantPage} locale={locale} />
+      <ChatBubble t={assistantPage} words={await getChatWords()} locale={locale} />
     </>
   );
 }

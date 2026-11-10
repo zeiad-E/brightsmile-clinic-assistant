@@ -11,6 +11,11 @@ vi.mock('../../../src/services/catalogService.js', () => ({
 // 10:00 Cairo on 1 Dec 2026 is free
 vi.mock('../../../src/models/availabilityModel.js', () => ({ slotsFor: vi.fn(async () => [{ slot_start: '2026-12-01T08:00:00.000Z' }]) }));
 vi.mock('../../../src/services/availabilityService.js', () => ({ nextFreeSlots: vi.fn(async () => []), forRange: vi.fn() }));
+vi.mock('../../../src/models/patientModel.js', () => ({ findById: vi.fn(), findByPhone: vi.fn(async () => null), findByEmail: vi.fn(async () => null) }));
+vi.mock('../../../src/services/authService.js', () => ({ phoneLogin: vi.fn() }));
+const patientModel = await import('../../../src/models/patientModel.js');
+const authService = await import('../../../src/services/authService.js');
+const { AppError } = await import('../../../src/utils/AppError.js');
 
 const { describeNotebook, note, noteFromMessage, patientDetails } = await import('../../../src/agent/notebook.js');
 const { proposeBooking } = await import('../../../src/agent/tools/bookingTools.js');
@@ -154,6 +159,58 @@ describe('propose_booking with the notebook', () => {
     expect(ctx.state.pending).toBeUndefined();
     // the form opens with the number as typed (tidied), so the patient sees what to fix
     expect(cardOf(ctx, 'details_form').values).toMatchObject({ full_name: 'Mona Ali', phone: '+2010000000000' });
+  });
+
+  describe('a guest who already has a file (same phone or email)', () => {
+    const FILE = { id: 'p1', full_name: 'Mona Ali', date_of_birth: '1990-03-15', phone: '+201001234567', email: 'mona@example.com', preferred_language: 'en' };
+    const filledIn = () => {
+      const ctx = chat({ firstVisit: true, notebook: { patient: { full_name: 'Mona Ali', date_of_birth: '[DOB_1]', phone: '[PHONE_1]' }, booking: {} } });
+      Object.assign(ctx.map, { '[DOB_1]': '1990-03-15', '[PHONE_1]': '01001234567' });
+      ctx.signIn = vi.fn(async () => {
+        Object.assign(ctx, { isPatient: true, user: { patientId: 'p1' } });
+        return { fullName: 'Mona Ali' };
+      });
+      return ctx;
+    };
+    const book = (ctx) => proposeBooking.run({ service: 'check-up', doctor: 'Sarah', date: '2026-12-01', time: '10:00' }, ctx);
+
+    it('signs them in when name, birth date and phone match the file, and books on their account', async () => {
+      patientModel.findByPhone.mockResolvedValueOnce(FILE);
+      patientModel.findById.mockResolvedValueOnce(FILE);
+      authService.phoneLogin.mockResolvedValueOnce({ profile: { id: 'u1' }, method: 'phone' });
+      const ctx = filledIn();
+
+      const result = await book(ctx);
+
+      expect(authService.phoneLogin).toHaveBeenCalledWith({ phone: '+201001234567', full_name: 'Mona Ali', date_of_birth: '1990-03-15' }, expect.anything());
+      expect(ctx.signIn).toHaveBeenCalled();
+      expect(result).toMatchObject({ pending: true, signed_in: true });
+      expect(ctx.state.pending.input).toMatchObject({ full_name: 'Mona Ali', email: 'mona@example.com' }); // the file's own details
+    });
+
+    it('brings the form back at once (not at "yes, book it") when the birth date or name does not match', async () => {
+      patientModel.findByPhone.mockResolvedValueOnce(FILE);
+      authService.phoneLogin.mockRejectedValueOnce(new AppError(401, 'invalid_credentials', "These details don't match our records."));
+      const ctx = filledIn();
+
+      const result = await book(ctx);
+
+      expect(result).toMatchObject({ form_shown: true, on_file: true });
+      expect(result.next).toMatch(/Never say which detail is wrong/);
+      expect(cardOf(ctx, 'details_form')).toMatchObject({ notice: 'file_mismatch' });
+      expect(ctx.signIn).not.toHaveBeenCalled();
+      expect(ctx.state.pending).toBeUndefined();
+    });
+
+    it('never treats an email on someone else’s file as proof', async () => {
+      patientModel.findByEmail.mockResolvedValueOnce({ ...FILE, id: 'p2' });
+      const ctx = filledIn();
+      ctx.state.notebook.patient.email = '[EMAIL_1]';
+      ctx.map['[EMAIL_1]'] = 'mona@example.com';
+
+      expect(await book(ctx)).toMatchObject({ form_shown: true, on_file: true });
+      expect(authService.phoneLogin).not.toHaveBeenCalled();
+    });
   });
 
   it('asks a returning guest to sign in to their own file instead', async () => {

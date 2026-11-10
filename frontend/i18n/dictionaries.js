@@ -23,6 +23,15 @@ export async function getDictionary() {
   return dictionaries[await getLocale()]();
 }
 
+/**
+ * The assistant's words in BOTH languages, for the chat's cards: a card follows the language of the
+ * chat, not of the page (an Arabic chat on the English page still gets Arabic free times and forms).
+ */
+export async function getChatWords() {
+  const [en, ar] = await Promise.all([dictionaries.en(), dictionaries.ar()]);
+  return { en: en.assistantPage, ar: ar.assistantPage };
+}
+
 // The team dashboards have their own (long) word lists, so the public pages never carry them.
 const dashDictionaries = {
   en: () => import('./dash/en.json').then((module) => module.default),

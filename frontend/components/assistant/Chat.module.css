@@ -39,6 +39,8 @@
 @keyframes dot { 0%, 60%, 100% { translate: 0 0; opacity: .4; } 30% { translate: 0 -4px; opacity: 1; } }
 
 /* ---------- cards ---------- */
+/* the card's language box (dir/lang of the chat): no box of its own, so the card lines up as before */
+.cardLang { display: contents; }
 .card { align-self: flex-start; width: min(100%, 420px); padding: 16px; border-radius: 18px; background: #fff; border: 1px solid var(--color-line); box-shadow: 0 10px 30px rgb(11 37 69 / .06); animation: cardIn .5s cubic-bezier(.2, .8, .2, 1) both; transform-origin: top; }
 @keyframes cardIn { from { opacity: 0; transform: perspective(700px) rotateX(-18deg) translateY(8px); } to { opacity: 1; transform: none; } }
 .cardTitle { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: 750; }

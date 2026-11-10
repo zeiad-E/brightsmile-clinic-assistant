@@ -494,7 +494,8 @@
         "phoneLong": "That number looks too long. Please check it.",
         "emailMissing": "Please add your email address.",
         "emailInvalid": "That email doesn’t look right (like name@example.com)."
-      }
+      },
+      "fileMismatch": "This phone number is already on a patient file, but the name or date of birth doesn’t match it. Please check them exactly as the clinic has them, or sign in with the personal code from your email."
     }
   },
   "loginPage": {

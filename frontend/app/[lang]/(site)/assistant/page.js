@@ -1,4 +1,4 @@
-import { getDictionary, getLocale } from '@/i18n/dictionaries';
+import { getChatWords, getDictionary, getLocale } from '@/i18n/dictionaries';
 import Chat from '@/components/assistant/Chat';
 import styles from '@/components/assistant/AssistantPage.module.css';
 
@@ -29,7 +29,7 @@ export default async function AssistantPage() {
           <p className={`${styles.lead} fade-up [animation-delay:240ms]`}>{t.lead}</p>
         </div>
         <div className="fade-up [animation-delay:200ms]">
-          <Chat t={t} locale={locale} />
+          <Chat t={t} words={await getChatWords()} locale={locale} />
         </div>
       </div>
     </div>

@@ -10,6 +10,8 @@ vi.mock('../../../src/services/catalogService.js', () => ({
   listDoctors: vi.fn(async () => [{ id: 'd', full_name_en: 'Sarah Mansour', full_name_ar: 'سارة منصور', service_ids: ['s'] }]),
 }));
 vi.mock('../../../src/models/availabilityModel.js', () => ({ slotsFor: vi.fn(async () => [{ slot_start: '2026-12-01T09:00:00.000Z' }]) }));
+// a new patient: no file with this phone or email yet
+vi.mock('../../../src/models/patientModel.js', () => ({ findById: vi.fn(), findByPhone: vi.fn(async () => null), findByEmail: vi.fn(async () => null) }));
 
 const bookingService = await import('../../../src/services/bookingService.js');
 const appointmentService = await import('../../../src/services/appointmentService.js');

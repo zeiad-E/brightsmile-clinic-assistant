@@ -8,6 +8,7 @@ import * as catalogService from '../../services/catalogService.js';
 import * as availabilityService from '../../services/availabilityService.js';
 import * as bookingService from '../../services/bookingService.js';
 import * as appointmentService from '../../services/appointmentService.js';
+import * as authService from '../../services/authService.js';
 import * as memoryService from '../../services/memoryService.js';
 import * as waitlistService from '../../services/waitlistService.js';
 import { AppError } from '../../utils/AppError.js';
@@ -96,7 +97,7 @@ export const checkAvailability = defineTool({
         })),
     }));
 
-    ctx.emit({ type: 'slots', service: match.name_en, doctors: doctorsOut });
+    ctx.emit({ type: 'slots', service: match.name_en, service_ar: match.name_ar, doctors: doctorsOut });
     const any = doctorsOut.some((d) => d.days.length);
     return {
       service: match.name_en,
@@ -117,6 +118,33 @@ export async function nextAlternatives(ctx, { serviceId, staffId, after }) {
 export async function isFree(ctx, { serviceId, staffId, day, startsAt }) {
   const slots = await availabilityModel.slotsFor(ctx.db, { serviceId, staffId, day });
   return slots.some((s) => new Date(s.slot_start).getTime() === new Date(startsAt).getTime());
+}
+
+/**
+ * A guest whose phone or email is already on a patient file. The file is theirs only if the full
+ * name and date of birth match it too: the same check as signing in with the phone, so knowing
+ * someone's number is never enough. Then they are signed in and the booking goes on their own
+ * account. If the details don't match, the form comes back NOW with a note (instead of the booking
+ * failing at "yes, book it"). Returns null for a new patient: booking creates their file.
+ */
+async function signInToFile(ctx, guest, booking) {
+  const db = requireAdmin();
+  const byPhone = guest.phone ? await patientModel.findByPhone(db, guest.phone) : null;
+  const byEmail = guest.email ? await patientModel.findByEmail(db, guest.email) : null;
+  if (!byPhone && !byEmail) return null;
+  const mismatch = () => ({ ...showDetailsForm(ctx, 'booking', { booking, notice: 'file_mismatch' }), on_file: true });
+  // The email is on a file but the phone isn't that file's: only the phone check can prove whose it is.
+  if (!byPhone || (byEmail && byEmail.id !== byPhone.id)) return mismatch();
+  try {
+    const verified = await authService.phoneLogin({ phone: guest.phone, full_name: guest.full_name, date_of_birth: guest.date_of_birth }, { visitor: ctx.visitor });
+    if (!(await ctx.signIn(verified))) return toolError('login_unavailable', 'This patient has a file but can’t be signed in online. Offer to connect them with staff.');
+    return { signed_in: true };
+  } catch (err) {
+    if (!(err instanceof AppError)) throw err;
+    if (err.code === 'account_locked') return toolError('locked', 'Too many wrong tries: this patient file is locked for 15 minutes. Offer staff help.');
+    if (err.code === 'invalid_credentials') return mismatch();
+    return toolError(err.code, err.message);
+  }
 }
 
 /** The same action is already waiting from an earlier turn (so the patient has replied to it since). */
@@ -164,11 +192,10 @@ export const proposeBooking = defineTool({
     // next turns have them even if this booking can't be prepared yet.
     note(ctx.state, { patient: ctx.isPatient ? {} : args, booking: { service: service.name_en, doctor: doctor.full_name_en, date: args.date, time: args.time } }, ctx.map);
 
+    const booking = { service: service.name_en, service_ar: service.name_ar, doctor: doctor.full_name_en, doctor_ar: doctor.full_name_ar, date: args.date, weekday: weekdayName(args.date), time: args.time };
     let person;
-    if (ctx.isPatient) {
-      const patient = await patientModel.findById(requireAdmin(), ctx.user.patientId);
-      person = { full_name: patient.full_name, email: patient.email, phone: patient.phone, preferred_language: patient.preferred_language };
-    } else {
+    let welcomedBack = false;
+    if (!ctx.isPatient) {
       // Whatever the AI left out comes from the notebook, so the patient never repeats themselves.
       const details = patientDetails(ctx.state, ctx.map);
       const name = FullName.safeParse(details.full_name ?? '');
@@ -179,10 +206,17 @@ export const proposeBooking = defineTool({
       if (!name.success || !dob.success || !contactOk) {
         // Missing or wrong: the form asks for it, filled in with what we have and showing what is
         // wrong, instead of the AI asking again. A returning patient signs in to their own file.
-        const booking = { service: service.name_en, service_ar: service.name_ar, doctor: doctor.full_name_en, doctor_ar: doctor.full_name_ar, date: args.date, weekday: weekdayName(args.date), time: args.time };
         return showDetailsForm(ctx, ctx.state.firstVisit === false ? 'sign_in' : 'booking', { booking });
       }
-      person = { full_name: name.data, date_of_birth: dob.data, email: email?.data, phone: phone?.data, preferred_language: ctx.language };
+      const guest = { full_name: name.data, date_of_birth: dob.data, email: email?.data, phone: phone?.data, preferred_language: ctx.language };
+      const onFile = await signInToFile(ctx, guest, booking);
+      if (!onFile) person = guest;
+      else if (onFile.signed_in) welcomedBack = true;
+      else return onFile; // the details don't match the file: the form is back, or staff help
+    }
+    if (ctx.isPatient) {
+      const patient = await patientModel.findById(requireAdmin(), ctx.user.patientId);
+      person = { full_name: patient.full_name, email: patient.email, phone: patient.phone, preferred_language: patient.preferred_language };
     }
 
     const summary = {
@@ -206,7 +240,12 @@ export const proposeBooking = defineTool({
     // The card also shows a guest's own details, so they check everything in one place. These go to
     // their screen only, never into the AI's result below.
     ctx.emit({ type: 'booking_summary', ...summary, ...(!ctx.isPatient && { patient_phone: person.phone, patient_email: person.email, patient_dob: person.date_of_birth }) });
-    return { pending: true, summary, next: 'Read this back and ask the patient to confirm. Do not call confirm_pending_action until they reply yes.' };
+    return {
+      pending: true,
+      summary,
+      ...(welcomedBack && { signed_in: true, note: 'This patient already had a file with the clinic: they are now signed in and the booking goes on their account. Welcome them back by first name, in one short line.' }),
+      next: 'Read this back and ask the patient to confirm. Do not call confirm_pending_action until they reply yes.',
+    };
   },
 });
 
