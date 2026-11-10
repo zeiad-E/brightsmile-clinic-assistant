@@ -158,6 +158,17 @@ select test.assert(
   (select count(*) from public.get_available_slots('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.day(5))) = 0,
   'clinic-wide time off removes all slots that day');
 
+-- One doctor off: only that doctor loses the day, the other doctor keeps every slot.
+insert into public.time_off (staff_id, starts_at, ends_at, reason)
+values ('00000000-0000-0000-0000-0000000000b1', test.at('00:00', 8), test.at('00:00', 9), 'Dr. Amal off');
+select test.assert(
+  (select count(*) from public.get_available_slots('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', test.day(8))) = 0,
+  'a doctor''s time off removes that doctor''s slots');
+select test.assert(
+  (select count(*) from public.get_available_slots('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b2', test.day(8))) = 31,
+  'a doctor''s time off leaves the other doctor free');
+delete from public.time_off where reason = 'Dr. Amal off';
+
 -- ---------- Arabic name, phone only ----------
 select public.book_appointment('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b2', test.at('12:00'),
   'أحمد  محمود', '1985-05-05', p_phone => '+20 100 123 4567');

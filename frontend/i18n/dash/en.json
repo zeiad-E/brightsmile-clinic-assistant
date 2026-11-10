@@ -395,6 +395,7 @@
     "noneUpcoming": "No time off planned.",
     "nonePast": "No time off in the past year.",
     "who": "Who",
+    "chooseWho": "Choose a doctor, or the whole clinic",
     "when": "When",
     "reason": "Reason",
     "reasonHint": "Optional, e.g. “Conference” or “Public holiday”.",

@@ -170,6 +170,11 @@ function MonthGrid({ month, rows, name }) {
   );
 }
 
+// The "Who" value for the whole clinic (saved as staff_id = null). A new time off starts with
+// nothing chosen: it used to start on the whole clinic, so time off meant for one doctor could
+// close the clinic for every doctor without anyone noticing.
+const CLINIC = 'clinic';
+
 function TimeOffForm({ row, doctors, onCancel, onSaved }) {
   const { w, pick, api, toast } = useDash();
   const t = w.timeOff;
@@ -178,7 +183,7 @@ function TimeOffForm({ row, doctors, onCancel, onSaved }) {
   const b = row.id ? clinicParts(row.ends_at) : { day: clinicDay(), time: '17:00' };
   const wasAllDay = !row.id || (a.time === '00:00' && b.time === '00:00');
   const [form, setForm] = useState({
-    staff_id: row.staff_id ?? '',
+    staff_id: row.id ? (row.staff_id ?? CLINIC) : '',
     allDay: wasAllDay,
     fromDay: a.day,
     toDay: wasAllDay && row.id ? addDays(b.day, -1) : b.day,
@@ -203,7 +208,7 @@ function TimeOffForm({ row, doctors, onCancel, onSaved }) {
       } else {
         const result = await api('/staff/time-off', {
           method: 'POST',
-          body: { staff_id: form.staff_id || null, starts_at, ends_at, ...(form.reason.trim() && { reason: form.reason.trim() }) },
+          body: { staff_id: form.staff_id === CLINIC ? null : form.staff_id, starts_at, ends_at, ...(form.reason.trim() && { reason: form.reason.trim() }) },
         });
         toast(t.added);
         onSaved(result.clashing_bookings);
@@ -224,7 +229,7 @@ function TimeOffForm({ row, doctors, onCancel, onSaved }) {
           disabled={editing}
           value={form.staff_id}
           onChange={set('staff_id')}
-          options={[['', `${w.common.clinicWide} — ${t.clinicClosed}`], ...doctors.map((d) => [d.id, pick(d, 'full_name')])]}
+          options={[['', t.chooseWho], ...doctors.map((d) => [d.id, pick(d, 'full_name')]), [CLINIC, `${w.common.clinicWide} — ${t.clinicClosed}`]]}
         />
       </FormGrid>
       <Toggle checked={form.allDay} onChange={set('allDay')} label={t.allDay} />
@@ -244,7 +249,7 @@ function TimeOffForm({ row, doctors, onCancel, onSaved }) {
       {error && <Notice tone="error">{error}</Notice>}
       <div className={s.rowEnd}>
         <Button onClick={onCancel}>{w.common.cancel}</Button>
-        <Button kind="primary" busy={busy} disabled={!form.allDay && form.toTime <= form.fromTime} onClick={save}>
+        <Button kind="primary" busy={busy} disabled={!form.staff_id || (!form.allDay && form.toTime <= form.fromTime)} onClick={save}>
           {w.common.save}
         </Button>
       </div>
