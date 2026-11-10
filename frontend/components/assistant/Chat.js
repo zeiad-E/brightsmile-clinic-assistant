@@ -251,7 +251,7 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
               </Bubble>
             )}
             {m.cards?.map((card, i) => (
-              <Card key={i} card={card} t={t} locale={locale} name={user?.full_name} active={m.id === lastId && !busy} onSend={send} />
+              <Card key={i} card={card} t={t} locale={locale} name={user?.full_name} reply={m.content} active={m.id === lastId && !busy} onSend={send} />
             ))}
           </div>
         ))}
@@ -330,7 +330,25 @@ const timeLabel = (time, locale) => {
 };
 
 /** The cards the assistant attaches to a reply. Buttons only work on the latest reply. */
-function Card({ card, t, locale, name, active, onSend }) {
+/**
+ * What the booking card's buttons send. It follows the CHAT's language (the reply the card came
+ * with), not the page's: on the English page an Arabic chat must still get Arabic, or the next
+ * reply switches to English. Egyptian wording, like the patient would type it.
+ */
+const CARD_PROMPTS = {
+  en: { confirm: 'Yes, please confirm the booking.', change: "I'd like to change something." },
+  ar: { confirm: 'أيوه، أكّد الحجز من فضلك.', change: 'عاوز أغيّر حاجة.' },
+};
+
+/** 'ar' or 'en' by which letters the text mostly uses; null when it has no letters. */
+export function chatLanguage(text) {
+  const arabic = (String(text ?? '').match(/[؀-ۿ]/g) ?? []).length;
+  const latin = (String(text ?? '').match(/[A-Za-z]/g) ?? []).length;
+  if (!arabic && !latin) return null;
+  return arabic >= latin ? 'ar' : 'en';
+}
+
+function Card({ card, t, locale, name, reply, active, onSend }) {
   const ar = locale === 'ar';
   if (card.type === 'slots') {
     const doctors = card.doctors.filter((d) => d.days.length);
@@ -420,10 +438,10 @@ function Card({ card, t, locale, name, active, onSend }) {
         ) : (
           active && (
             <div className={styles.cardActions}>
-              <button type="button" className={styles.primary} onClick={() => onSend(t.confirmPrompt)}>
+              <button type="button" className={styles.primary} onClick={() => onSend(CARD_PROMPTS[chatLanguage(reply) ?? locale].confirm)}>
                 {t.confirm}
               </button>
-              <button type="button" onClick={() => onSend(t.changePrompt)}>
+              <button type="button" onClick={() => onSend(CARD_PROMPTS[chatLanguage(reply) ?? locale].change)}>
                 {t.change}
               </button>
             </div>

@@ -432,8 +432,6 @@
     "patient": "Patient",
     "confirm": "Yes, book it",
     "change": "Change something",
-    "confirmPrompt": "Yes, please confirm the booking.",
-    "changePrompt": "I'd like to change something.",
     "confirmedTitle": "Booked",
     "reminder": "We'll remind you the day before.",
     "appointmentsTitle": "Your appointments",

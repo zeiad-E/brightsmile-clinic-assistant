@@ -432,8 +432,6 @@
     "patient": "المريض",
     "confirm": "نعم، احجز",
     "change": "أريد تغيير شيء",
-    "confirmPrompt": "نعم، من فضلك أكّد الحجز.",
-    "changePrompt": "أريد تغيير شيء.",
     "confirmedTitle": "تم الحجز",
     "reminder": "سنذكّرك قبل الموعد بيوم.",
     "appointmentsTitle": "مواعيدك",
