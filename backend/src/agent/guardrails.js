@@ -76,9 +76,12 @@ const FOREIGN_SCRIPT = /[\p{Script=Cyrillic}\p{Script=Han}\p{Script=Hiragana}\p{
 const RUNAWAY = /(\p{N})\1{8,}|(\S)\2{19,}/u;
 const GLUED = /(?:(?=\p{Script=Arabic})\p{L})(?:(?=\p{Script=Latin})\p{L})|(?:(?=\p{Script=Latin})\p{L})(?:(?=\p{Script=Arabic})\p{L})/u;
 
+// No word at all ("…", "", an emoji): a model answered with nothing on 2026-11-10.
+const NO_WORDS = (value) => !/\p{L}/u.test(value);
+
 export const looksBroken = (text) => {
   const value = String(text ?? '');
-  return FOREIGN_SCRIPT.test(value) || RUNAWAY.test(value) || GLUED.test(value);
+  return NO_WORDS(value) || FOREIGN_SCRIPT.test(value) || RUNAWAY.test(value) || GLUED.test(value);
 };
 
 /**

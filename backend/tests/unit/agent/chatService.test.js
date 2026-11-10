@@ -46,10 +46,17 @@ vi.mock('../../../src/models/profileModel.js', () => ({ findIdentity: vi.fn(), n
 vi.mock('../../../src/agent/context.js', () => ({
   buildContext: vi.fn(async () => ({ clinicName: 'BrightSmile', today: { date: '2026-10-26', weekday: 'Monday', time: '10:00' }, openingHours: 'x', patient: null })),
 }));
-vi.mock('../../../src/agent/loop.js', () => ({ runAgentTurn: vi.fn() }));
+vi.mock('../../../src/agent/loop.js', () => ({
+  runAgentTurn: vi.fn(),
+  // what the code's own tool call returns: the AI's two messages, with a made-up result per tool
+  runPlannedCall: vi.fn(async ({ name, args }) => [
+    { role: 'assistant', content: '', tool_calls: [{ id: `planned_${name}`, function: { name, arguments: JSON.stringify(args) } }] },
+    { role: 'tool', tool_call_id: `planned_${name}`, content: JSON.stringify(name === 'sign_in_with_phone' ? { signed_in: true } : { pending: true }) },
+  ]),
+}));
 vi.mock('../../../src/services/memoryService.js', () => ({ scheduleSummaries: vi.fn(async () => {}) }));
 
-const { runAgentTurn } = await import('../../../src/agent/loop.js');
+const { runAgentTurn, runPlannedCall } = await import('../../../src/agent/loop.js');
 const chatService = await import('../../../src/services/chatService.js');
 const { getSettings } = await import('../../../src/models/clinicModel.js');
 const { buildContext } = await import('../../../src/agent/context.js');
@@ -243,6 +250,46 @@ describe('chatService.sendMessage', () => {
     expect(first).toHaveLength(22); // system + 20 + this message
     expect(retry).toHaveLength(14); // system + 12 + this message
     expect(retry[1].content).toBe('m8');
+  });
+
+  describe('after the details form, the code takes the next step itself', () => {
+    const choice = { service: 'Check-up', doctor: 'Sarah Mansour', date: '2026-12-01', time: '10:00' };
+    const form = (purpose) => ({ purpose, full_name: 'Mona Ali', date_of_birth: '1990-03-15', phone: '+201001234567', email: 'mona@example.com' });
+    const startWith = async (state) => {
+      runAgentTurn.mockResolvedValue(ok('Hi'));
+      const { conversation_id: id } = await chatService.sendMessage(guest, { message: 'hi' });
+      conversations.get(id).state = { ...conversations.get(id).state, ...state };
+      vi.clearAllMocks();
+      return id;
+    };
+
+    it('prepares the booking from the notebook, and the AI replies to that result', async () => {
+      const id = await startWith({ notebook: { patient: {}, booking: choice } });
+      runAgentTurn.mockResolvedValue(ok('Here is your booking.'));
+      await chatService.sendMessage(guest, { conversationId: id, message: 'Here are my details.', form: form('booking') });
+
+      expect(runPlannedCall).toHaveBeenCalledTimes(1);
+      expect(runPlannedCall.mock.calls[0][0]).toEqual({ name: 'propose_booking', args: choice });
+      const sent = runAgentTurn.mock.calls[0][0].messages;
+      expect(sent.at(-3)).toMatchObject({ role: 'user', content: 'Here are my details.' });
+      expect(sent.at(-2).tool_calls[0].function.name).toBe('propose_booking');
+    });
+
+    it('signs a returning patient in, then prepares the time they had picked', async () => {
+      const id = await startWith({ notebook: { patient: {}, booking: choice } });
+      runAgentTurn.mockResolvedValue(ok('Welcome back!'));
+      await chatService.sendMessage(guest, { conversationId: id, message: 'Here are my sign-in details.', form: form('sign_in') });
+
+      expect(runPlannedCall.mock.calls.map(([c]) => c.name)).toEqual(['sign_in_with_phone', 'propose_booking']);
+    });
+
+    it('leaves it to the AI when no time was picked yet', async () => {
+      const id = await startWith({});
+      runAgentTurn.mockResolvedValue(ok('Which day suits you?'));
+      await chatService.sendMessage(guest, { conversationId: id, message: 'Here are my details.', form: form('booking') });
+
+      expect(runPlannedCall).not.toHaveBeenCalled();
+    });
   });
 
   describe('the notebook and the details form', () => {

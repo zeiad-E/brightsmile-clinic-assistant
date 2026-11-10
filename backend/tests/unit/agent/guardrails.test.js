@@ -77,6 +77,9 @@ describe('language and fixed replies', () => {
     'التغطية بتتأكد و проверяется في الاستقبل',
     'لو عاوز ت预约 كشف مبكر',
     'إذا حضرتك عاوز تbindings أو ت want معلومات',
+    '…', // a model answered the details form with this on 2026-11-10
+    '',
+    ' 🙂 ',
   ])('spots broken text from a free model: %s', (text) => {
     expect(looksBroken(text)).toBe(true);
   });

@@ -103,10 +103,11 @@ INTAKE
 `;
 
 /** What to do right after the patient sent the details form. */
+// The code already takes the next step itself (chatService followFormUp); these say what to do with it.
 const FORM_SENT = {
-  booking: 'The patient has just sent the details form: their details are checked and in the NOTEBOOK. Now call propose_booking with the NOTEBOOK’s booking choice (leave the personal details out).',
-  sign_in: 'The patient has just sent the sign-in form: the details are in the NOTEBOOK. Now call sign_in_with_phone (leave the arguments out). Once signed in, if the NOTEBOOK has a booking choice, call propose_booking.',
-  sign_up: 'The patient has just sent the sign-up form: the details are checked and in the NOTEBOOK. Now call start_sign_up (leave the arguments out).',
+  booking: 'The patient has just sent the details form: their details are checked and in the NOTEBOOK, and the booking was prepared from it (the propose_booking result follows the message). Reply to that result. If no result follows, call propose_booking with the NOTEBOOK’s booking choice.',
+  sign_in: 'The patient has just sent the sign-in form: the sign-in was tried for you (the sign_in_with_phone result follows the message, and propose_booking’s if they are now signed in and had picked a time). Reply to those results.',
+  sign_up: 'The patient has just sent the sign-up form: the code was sent for you (the start_sign_up result follows the message). Ask them to type the code from their email here.',
 };
 
 function renderContext(c) {

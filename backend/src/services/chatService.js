@@ -17,7 +17,7 @@ import { VISITOR_MAX_AGE_MS } from '../auth/visitorCookie.js';
 import { buildContext } from '../agent/context.js';
 import { clinicPrices } from './catalogService.js';
 import { buildSystemPrompt } from '../agent/systemPrompt.js';
-import { runAgentTurn } from '../agent/loop.js';
+import { runAgentTurn, runPlannedCall } from '../agent/loop.js';
 import { reviewReply } from '../agent/reviewer.js';
 import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../agent/guardrails.js';
 import { maskText, restoreForPatient, withoutCodes } from '../agent/masking.js';
@@ -50,6 +50,25 @@ const withConversationLock = createKeyedLock();
  */
 const LASTING_CARDS = new Set(['booking_confirmed', 'personal_code']);
 const lastingOnly = (cards) => cards.filter((card) => LASTING_CARDS.has(card.type));
+
+/**
+ * The details form just arrived: the next step is certain, so the code takes it instead of trusting
+ * the AI to (agent/loop.js runPlannedCall). Booking: prepare it from the notebook's choice. Signing
+ * in: sign in, then prepare the booking if a time was already picked. Signing up: send the code.
+ */
+const choiceOf = (state) => {
+  const { service, doctor, date, time } = state.notebook?.booking ?? {};
+  return service && doctor && date && time ? { service, doctor, date, time } : null;
+};
+async function followFormUp(purpose, ctx) {
+  const run = (name, args = {}) => runPlannedCall({ name, args }, ctx);
+  const choice = choiceOf(ctx.state);
+  if (purpose === 'sign_up') return run('start_sign_up');
+  if (purpose === 'booking') return choice ? run('propose_booking', choice) : [];
+  const signIn = await run('sign_in_with_phone');
+  const signedIn = JSON.parse(signIn[1].content).signed_in === true;
+  return signedIn && choice ? [...signIn, ...(await run('propose_booking', choice))] : signIn;
+}
 /**
  * What the reply shows: one card of each kind (the latest), so a tool called twice never shows two
  * forms; and no free times once the reply moved on to the form, the summary or the booking (the
@@ -274,6 +293,9 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, f
     return null;
   });
   const toolset = ctx.safeMode ? { tools: safeModeToolsByName, definitions: safeModeDefinitions } : {};
+  const planned = form && !ctx.safeMode ? await followFormUp(form.purpose, ctx) : [];
+  if (planned.length) ctx.trace.notes.push(`details form sent: the code called ${planned.filter((m) => m.tool_calls).map((m) => m.tool_calls[0].function.name).join(', ')} itself`);
+  const plannedCards = new Set(ctx.cards); // what those calls showed belongs to every attempt
 
   // Wait for a free slot at the AI (bounded line), then try — and on failure try once more
   // with another model and a shorter history. Why an attempt failed is kept in agent_runs.
@@ -285,14 +307,14 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, f
       let retries = 0;
       const failures = [];
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        ctx.cards = lastingOnly(ctx.cards); // a retry starts with a clean screen
+        ctx.cards = ctx.cards.filter((card) => plannedCards.has(card) || LASTING_CARDS.has(card.type)); // a retry starts clean
         const attemptTrace = startAttempt(ctx.trace, {
           model: attempt === 0 ? 'chain' : (config.llm.chatModels[1] ?? 'chain'),
           historyMessages: attempt === 0 ? history.length : Math.min(LIMITS.retryHistoryMessages, history.length),
         });
         try {
           result = await runAgentTurn({
-            messages: attempt === 0 ? [system, ...history, userTurn] : [system, ...history.slice(-LIMITS.retryHistoryMessages), userTurn],
+            messages: [system, ...(attempt === 0 ? history : history.slice(-LIMITS.retryHistoryMessages)), userTurn, ...planned],
             ctx,
             model: attempt === 0 ? undefined : config.llm.chatModels[1],
             timeoutMs: config.agent.turnTimeoutMs,

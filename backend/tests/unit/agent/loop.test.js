@@ -11,7 +11,7 @@ vi.mock('../../../src/llm/LlmClient.js', () => ({
 }));
 
 const { llmClient } = await import('../../../src/llm/LlmClient.js');
-const { runAgentTurn } = await import('../../../src/agent/loop.js');
+const { runAgentTurn, runPlannedCall } = await import('../../../src/agent/loop.js');
 const { defineTool, toOpenAiDefinition } = await import('../../../src/agent/tools/define.js');
 
 const say = (content) => ({ model: 'fake', usage: { prompt_tokens: 10, completion_tokens: 5 }, choices: [{ message: { content } }] });
@@ -52,6 +52,25 @@ beforeEach(() => {
   script.length = 0;
   seen.length = 0;
   vi.clearAllMocks();
+});
+
+describe('a call the code makes itself (after the details form)', () => {
+  it('runs like an AI call (placeholders swapped, result masked, logged) and comes back as the two messages', async () => {
+    const ctx = newCtx();
+    const messages = await runPlannedCall({ name: 'echo', args: { phone: '[PHONE_1]' } }, ctx, tools);
+
+    expect(seen).toEqual([{ phone: '+201001234567' }]); // the tool got the real value
+    expect(messages[0]).toMatchObject({ role: 'assistant', tool_calls: [{ function: { name: 'echo' } }] });
+    expect(messages[1]).toMatchObject({ role: 'tool', tool_call_id: messages[0].tool_calls[0].id });
+    expect(messages[1].content).not.toContain('secret@example.com'); // what the AI reads is masked
+    expect(ctx.toolLog).toEqual([expect.objectContaining({ name: 'echo' })]);
+  });
+
+  it('still checks the arguments', async () => {
+    const messages = await runPlannedCall({ name: 'echo', args: {} }, newCtx(), tools);
+    expect(JSON.parse(messages[1].content)).toMatchObject({ error: 'invalid_arguments' });
+    expect(seen).toEqual([]);
+  });
 });
 
 describe('reviewer', () => {

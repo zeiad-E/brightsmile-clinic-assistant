@@ -205,6 +205,24 @@ Write the full reply again with that fixed. Write only what the patient should r
   return { status: 'max_iterations', iterations: maxIterations, toolCalls, usage, model: usedModel };
 }
 
+/**
+ * A tool call the CODE makes before the AI's turn, when the next step is certain (the patient just
+ * sent the details form: prepare the booking, sign in, or sign up). It runs exactly like a call the
+ * AI asked for (same checks, masking and log), and comes back as the two messages the AI would have
+ * written, so the AI only replies to its result. On 2026-11-10 a model answered the form with "…"
+ * and did nothing.
+ */
+export async function runPlannedCall({ name, args }, ctx, tools = defaultTools) {
+  const call = { id: `planned_${name}`, type: 'function', function: { name, arguments: JSON.stringify(args) } };
+  const result = await runTool(call, { ctx, tools, seen: new Set(), rewriting: false });
+  const forAi = maskDeep(result, ctx.map);
+  ctx.toolLog.push({ name, args, result: truncate(forAi) });
+  return [
+    { role: 'assistant', content: '', tool_calls: [call] },
+    { role: 'tool', tool_call_id: call.id, content: JSON.stringify(forAi) },
+  ];
+}
+
 async function runTool(call, { ctx, tools, seen, rewriting }) {
   const name = call.function?.name;
   // A rewrite only fixes how a clinic answer is written; it is never a reason to refuse the patient.
