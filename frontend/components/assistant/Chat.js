@@ -112,10 +112,22 @@ export default function Chat({ t, words = null, locale, variant = 'page', ask = 
     }
   }, [messages, busy]);
 
-  // follow the conversation down, unless the visitor scrolled up to read
+  // Follow the conversation down, unless the visitor scrolled up to read. "Were they at the bottom?"
+  // is judged by the height BEFORE this update: a reply arrives with its card (a tall form) in one go,
+  // and measured afterwards it would always look as if they had scrolled away. Down to the bottom, but
+  // never past the start of the newest reply, so a tall card can't push the reply out of sight.
+  const shownHeight = useRef(0);
+  const follow = useRef(false); // set when the visitor sends: their own message is always shown
   useEffect(() => {
     const list = listRef.current;
-    if (list && list.scrollHeight - list.scrollTop - list.clientHeight < 160) list.scrollTop = list.scrollHeight;
+    if (!list) return;
+    const wasAtBottom = follow.current || shownHeight.current - list.scrollTop - list.clientHeight < 160;
+    shownHeight.current = list.scrollHeight;
+    follow.current = false;
+    if (!wasAtBottom) return;
+    const latest = list.querySelector('[data-latest]');
+    const replyTop = latest ? list.scrollTop + latest.getBoundingClientRect().top - list.getBoundingClientRect().top - 12 : Infinity;
+    list.scrollTop = Math.min(list.scrollHeight, replyTop);
   }, [messages, status]);
 
   const updateLast = (change) => setMessages((all) => [...all.slice(0, -1), { ...all.at(-1), ...change(all.at(-1)) }]);
@@ -130,6 +142,7 @@ export default function Chat({ t, words = null, locale, variant = 'page', ask = 
       // chip or slot: on a phone that would pop the keyboard up over the answer.
       const typing = document.activeElement === inputRef.current;
       setInput('');
+      follow.current = true;
       setBusy(true);
       setStatus(team ? null : t.thinking);
       setMessages((all) => [...all, { id: nextId++, role: 'user', content: message }, { id: nextId++, role: 'assistant', content: '', cards: [], streaming: true }]);
@@ -262,7 +275,7 @@ export default function Chat({ t, words = null, locale, variant = 'page', ask = 
             )}
             {m.role === 'staff' && !m.event && <span className={styles.staffName}>{t.teamLabel.replace('{name}', m.author)}</span>}
             {!(m.role === 'staff' && m.event) && (m.content || m.role === 'user' || m.error) && (
-              <Bubble role={m.role} error={m.error} streaming={m.streaming}>
+              <Bubble role={m.role} error={m.error} streaming={m.streaming} latest={m.id === lastId && m.role !== 'user'}>
                 {m.content}
               </Bubble>
             )}
@@ -328,10 +341,10 @@ export default function Chat({ t, words = null, locale, variant = 'page', ask = 
 }
 
 /** One message. Replies may use **bold**; everything else is plain text. */
-function Bubble({ role, error, streaming, children }) {
+function Bubble({ role, error, streaming, latest = false, children }) {
   const parts = String(children).split(/(\*\*[^*]+\*\*)/g);
   return (
-    <p className={`${styles.bubble} ${styles[role]} ${error ? styles.error : ''} ${streaming ? styles.streaming : ''}`} dir="auto">
+    <p className={`${styles.bubble} ${styles[role]} ${error ? styles.error : ''} ${streaming ? styles.streaming : ''}`} dir="auto" data-latest={latest || undefined}>
       {parts.map((part, i) => (part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part))}
     </p>
   );
