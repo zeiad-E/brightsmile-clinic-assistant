@@ -1,0 +1,415 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "06 · Booking in the chat: propose, then confirm",
+    "locale": "en",
+    "output": ".archify/06-booking-propose-confirm/booking-propose-confirm.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "participants": [
+    {
+      "id": "patient",
+      "type": "frontend",
+      "label": "Patient",
+      "sublabel": "chat in the browser",
+      "sources": [
+        {
+          "path": "frontend/components/assistant/Chat.js",
+          "line": 1,
+          "end_line": 462
+        }
+      ]
+    },
+    {
+      "id": "turn",
+      "type": "backend",
+      "label": "Chat turn",
+      "sublabel": "chatService",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 133,
+          "end_line": 191,
+          "label": "ctx + signIn"
+        },
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 361,
+          "end_line": 403,
+          "label": "save state + reply"
+        }
+      ]
+    },
+    {
+      "id": "ai",
+      "type": "backend",
+      "label": "AI",
+      "sublabel": "agent loop",
+      "sources": [
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 39,
+          "end_line": 202
+        }
+      ]
+    },
+    {
+      "id": "tool",
+      "type": "security",
+      "label": "Booking tools",
+      "sublabel": "propose · confirm",
+      "sources": [
+        {
+          "path": "backend/src/agent/tools/bookingTools.js",
+          "line": 117,
+          "end_line": 201,
+          "label": "propose_booking"
+        },
+        {
+          "path": "backend/src/agent/tools/bookingTools.js",
+          "line": 300,
+          "end_line": 360,
+          "label": "confirm_pending_action"
+        }
+      ]
+    },
+    {
+      "id": "booking",
+      "type": "backend",
+      "label": "bookingService",
+      "sublabel": "same as the website",
+      "sources": [
+        {
+          "path": "backend/src/services/bookingService.js",
+          "line": 14,
+          "end_line": 51
+        },
+        {
+          "path": "backend/src/services/bookingService.js",
+          "line": 54,
+          "end_line": 91,
+          "label": "afterBooking"
+        },
+        {
+          "path": "backend/src/services/bookingService.js",
+          "line": 122,
+          "end_line": 170,
+          "label": "bookAsVisitor"
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "slots · book_appointment",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000400_bookings.sql",
+          "line": 3,
+          "end_line": 30,
+          "label": "no-overlap constraints"
+        },
+        {
+          "path": "supabase/migrations/20261104000200_backend_auth_contract.sql",
+          "line": 56,
+          "end_line": 225,
+          "label": "book_appointment"
+        },
+        {
+          "path": "backend/src/models/availabilityModel.js",
+          "line": 8,
+          "end_line": 18
+        }
+      ]
+    },
+    {
+      "id": "email",
+      "type": "external",
+      "label": "Email",
+      "sublabel": "Brevo",
+      "sources": [
+        {
+          "path": "backend/src/services/email/emailService.js",
+          "line": 11,
+          "end_line": 69
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 145,
+      "to": 520,
+      "label": "Turn N · propose (nothing is booked yet)"
+    },
+    {
+      "from": 540,
+      "to": 1110,
+      "label": "Turn N+1 · the patient says yes"
+    }
+  ],
+  "messages": [
+    {
+      "id": "ask-book",
+      "from": "patient",
+      "to": "turn",
+      "y": 160,
+      "label": "“cleaning, Tue 10:00”",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-ai-1",
+      "from": "turn",
+      "to": "ai",
+      "y": 190,
+      "label": "masked chat + tools",
+      "variant": "default"
+    },
+    {
+      "id": "propose",
+      "from": "ai",
+      "to": "tool",
+      "y": 220,
+      "label": "propose_booking",
+      "variant": "emphasis",
+      "note": "checks service, doctor and date; guests also give name, birth date, email or phone"
+    },
+    {
+      "id": "slot-free",
+      "from": "tool",
+      "to": "db",
+      "y": 285,
+      "label": "is the time free?",
+      "variant": "default"
+    },
+    {
+      "id": "slot-yes",
+      "from": "db",
+      "to": "tool",
+      "y": 315,
+      "label": "free",
+      "variant": "return"
+    },
+    {
+      "id": "pending",
+      "from": "tool",
+      "to": "turn",
+      "y": 345,
+      "label": "state.pending + card",
+      "variant": "security",
+      "note": "pending = book, proposedAtTurn = N · the summary card shows at once"
+    },
+    {
+      "id": "pending-ai",
+      "from": "tool",
+      "to": "ai",
+      "y": 405,
+      "label": "pending: true",
+      "variant": "return"
+    },
+    {
+      "id": "draft-1",
+      "from": "ai",
+      "to": "turn",
+      "y": 435,
+      "label": "“Shall I book it?”",
+      "variant": "return"
+    },
+    {
+      "id": "save-pending",
+      "from": "turn",
+      "to": "db",
+      "y": 465,
+      "label": "save conversation state",
+      "variant": "default"
+    },
+    {
+      "id": "show-summary",
+      "from": "turn",
+      "to": "patient",
+      "y": 495,
+      "label": "summary + question",
+      "variant": "return"
+    },
+    {
+      "id": "yes",
+      "from": "patient",
+      "to": "turn",
+      "y": 555,
+      "label": "“yes”",
+      "variant": "emphasis",
+      "note": "the prompt's CONTEXT shows the pending booking"
+    },
+    {
+      "id": "to-ai-2",
+      "from": "turn",
+      "to": "ai",
+      "y": 605,
+      "label": "masked chat + pending",
+      "variant": "default"
+    },
+    {
+      "id": "confirm",
+      "from": "ai",
+      "to": "tool",
+      "y": 635,
+      "label": "confirm_pending_action",
+      "variant": "emphasis",
+      "note": "refused if proposed in this same turn: the yes must come later"
+    },
+    {
+      "id": "book",
+      "from": "tool",
+      "to": "booking",
+      "y": 695,
+      "label": "bookAsVisitor(input, key)",
+      "variant": "emphasis",
+      "note": "key = hash of chat id + details, so a retry never books twice"
+    },
+    {
+      "id": "rpc",
+      "from": "booking",
+      "to": "db",
+      "y": 755,
+      "label": "rpc book_appointment",
+      "variant": "emphasis",
+      "note": "one transaction · overlap impossible · loser gets slot_taken + next free times"
+    },
+    {
+      "id": "booked",
+      "from": "db",
+      "to": "booking",
+      "y": 835,
+      "label": "appointment · is_new_patient",
+      "variant": "return"
+    },
+    {
+      "id": "confirm-email",
+      "from": "booking",
+      "to": "email",
+      "y": 865,
+      "label": "confirmation email",
+      "variant": "dashed",
+      "note": "new patient: personal code made · waitlist wish closed"
+    },
+    {
+      "id": "sign-in",
+      "from": "booking",
+      "to": "tool",
+      "y": 940,
+      "label": "booking + signIn (new guest)",
+      "variant": "return"
+    },
+    {
+      "id": "ticket",
+      "from": "tool",
+      "to": "turn",
+      "y": 970,
+      "label": "ctx.signIn → ticket",
+      "variant": "security",
+      "note": "a session with a 2-minute ticket · the AI never sees it"
+    },
+    {
+      "id": "booked-ai",
+      "from": "tool",
+      "to": "ai",
+      "y": 1030,
+      "label": "booked: true",
+      "variant": "return"
+    },
+    {
+      "id": "draft-2",
+      "from": "ai",
+      "to": "turn",
+      "y": 1060,
+      "label": "“Booked for Tue 10:00”",
+      "variant": "return"
+    },
+    {
+      "id": "done",
+      "from": "turn",
+      "to": "patient",
+      "y": 1090,
+      "label": "reply + sign_in_ticket",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "turn",
+      "from": 155,
+      "to": 500,
+      "type": "backend"
+    },
+    {
+      "participant": "tool",
+      "from": 215,
+      "to": 410,
+      "type": "security"
+    },
+    {
+      "participant": "turn",
+      "from": 550,
+      "to": 1095,
+      "type": "backend"
+    },
+    {
+      "participant": "tool",
+      "from": 630,
+      "to": 1035,
+      "type": "security"
+    },
+    {
+      "participant": "booking",
+      "from": 690,
+      "to": 945,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Why two turns",
+      "items": [
+        "The AI can only prepare a booking; the code books it",
+        "The yes must arrive in a later message than the proposal",
+        "A reply saying 'booked' with no successful confirm is sent back (diagram 05)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Race-safe in the database",
+      "items": [
+        "book_appointment checks the slot and inserts in one transaction",
+        "Exclusion constraints: no doctor or patient can be double-booked",
+        "The second person gets 409 slot_taken with the next free times"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Who gets signed in",
+      "items": [
+        "A guest who becomes a new patient: signed in at once (method 'booking')",
+        "A guest matching an existing patient: booked, but not signed in",
+        "The browser swaps the ticket at POST /auth/ticket for its own cookie (diagram 03)"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Same rules on the website",
+      "items": [
+        "POST /api/appointments calls the same bookAsVisitor",
+        "The browser sends its own Idempotency-Key header",
+        "Cancel and reschedule follow the same propose → confirm pattern in the chat"
+      ]
+    }
+  ]
+}

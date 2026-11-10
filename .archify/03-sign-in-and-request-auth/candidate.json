@@ -1,0 +1,398 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "03 · Sign-in and request auth",
+    "locale": "en",
+    "output": ".archify/03-sign-in-and-request-auth/sign-in-and-request-auth.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Browser",
+      "sublabel": "SessionProvider",
+      "sources": [
+        {
+          "path": "frontend/components/providers/SessionProvider.js",
+          "line": 45,
+          "end_line": 130,
+          "label": "token in memory, refresh, retry"
+        },
+        {
+          "path": "frontend/lib/auth/sessionStore.js",
+          "line": 1,
+          "end_line": 12,
+          "label": "only a signed-in flag is stored"
+        }
+      ]
+    },
+    {
+      "id": "authApi",
+      "type": "backend",
+      "label": "/api/auth",
+      "sublabel": "controller + services",
+      "sources": [
+        {
+          "path": "backend/src/routes/auth.js",
+          "line": 26,
+          "end_line": 53
+        },
+        {
+          "path": "backend/src/controllers/authController.js",
+          "line": 38,
+          "end_line": 109
+        },
+        {
+          "path": "backend/src/services/authService.js",
+          "line": 90,
+          "end_line": 157,
+          "label": "email code start + verify"
+        }
+      ]
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "authenticate",
+      "sublabel": "+ requirePermission",
+      "sources": [
+        {
+          "path": "backend/src/middlewares/authenticate.js",
+          "line": 6,
+          "end_line": 37
+        },
+        {
+          "path": "backend/src/auth/sessions.js",
+          "line": 139,
+          "end_line": 163,
+          "label": "identityFor"
+        },
+        {
+          "path": "backend/src/middlewares/requirePermission.js",
+          "line": 1,
+          "end_line": 26
+        }
+      ]
+    },
+    {
+      "id": "route",
+      "type": "backend",
+      "label": "Route handler",
+      "sublabel": "e.g. /api/me",
+      "sources": [
+        {
+          "path": "backend/src/routes/me.js",
+          "line": 12,
+          "end_line": 36
+        },
+        {
+          "path": "backend/src/models/query.js",
+          "line": 21,
+          "end_line": 26,
+          "label": "plain or _masked view"
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "auth_sessions · login_codes",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104000100_backend_auth.sql",
+          "line": 58,
+          "end_line": 97
+        },
+        {
+          "path": "backend/src/models/sessionModel.js",
+          "line": 18,
+          "end_line": 30
+        }
+      ]
+    },
+    {
+      "id": "email",
+      "type": "external",
+      "label": "Brevo",
+      "sublabel": "email",
+      "sources": [
+        {
+          "path": "backend/src/services/email/adapters/brevo.js",
+          "line": 1,
+          "end_line": 21
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 145,
+      "to": 495,
+      "label": "1 · Sign in with an emailed code"
+    },
+    {
+      "from": 515,
+      "to": 785,
+      "label": "2 · Every signed-in request"
+    },
+    {
+      "from": 805,
+      "to": 950,
+      "label": "3 · Token nearly expired: refresh"
+    },
+    {
+      "from": 970,
+      "to": 1055,
+      "label": "4 · Sign out"
+    }
+  ],
+  "messages": [
+    {
+      "id": "email-start",
+      "from": "browser",
+      "to": "authApi",
+      "y": 160,
+      "label": "POST /auth/email/start",
+      "variant": "emphasis",
+      "note": "csrfGuard: needs the X-BrightSmile-Client header and our own Origin"
+    },
+    {
+      "id": "save-code",
+      "from": "authApi",
+      "to": "db",
+      "y": 220,
+      "label": "save code fingerprint",
+      "variant": "default",
+      "note": "patients only · HMAC, never the code · valid 10 min"
+    },
+    {
+      "id": "send-code",
+      "from": "authApi",
+      "to": "email",
+      "y": 275,
+      "label": "email 6-digit code",
+      "variant": "dashed"
+    },
+    {
+      "id": "same-answer",
+      "from": "authApi",
+      "to": "browser",
+      "y": 305,
+      "label": "same answer either way",
+      "variant": "return"
+    },
+    {
+      "id": "email-verify",
+      "from": "browser",
+      "to": "authApi",
+      "y": 335,
+      "label": "POST /auth/email/verify",
+      "variant": "emphasis"
+    },
+    {
+      "id": "use-code",
+      "from": "authApi",
+      "to": "db",
+      "y": 365,
+      "label": "check + use up code",
+      "variant": "security"
+    },
+    {
+      "id": "new-session",
+      "from": "authApi",
+      "to": "db",
+      "y": 395,
+      "label": "insert auth_sessions row",
+      "variant": "emphasis",
+      "note": "refresh token = session id + random secret; the table keeps only its SHA-256"
+    },
+    {
+      "id": "tokens-out",
+      "from": "authApi",
+      "to": "browser",
+      "y": 460,
+      "label": "access token + cookie",
+      "variant": "return",
+      "note": "JWT HS256 {sub, sid, role}, 15 min · cookie bs_rt: HttpOnly, Strict, /api/auth"
+    },
+    {
+      "id": "bearer-call",
+      "from": "browser",
+      "to": "guard",
+      "y": 555,
+      "label": "GET … · Bearer JWT",
+      "variant": "emphasis",
+      "note": "signature, issuer, audience, expiry: checked in memory"
+    },
+    {
+      "id": "identity",
+      "from": "guard",
+      "to": "db",
+      "y": 610,
+      "label": "session + profile",
+      "variant": "security",
+      "note": "one lookup: refuses an ended session, a changed role or a disabled account"
+    },
+    {
+      "id": "allowed",
+      "from": "guard",
+      "to": "route",
+      "y": 685,
+      "label": "req.user + req.db",
+      "variant": "security",
+      "note": "requirePermission: 401 unknown caller · 403 not allowed"
+    },
+    {
+      "id": "query",
+      "from": "route",
+      "to": "db",
+      "y": 740,
+      "label": "query",
+      "variant": "default"
+    },
+    {
+      "id": "answer",
+      "from": "route",
+      "to": "browser",
+      "y": 770,
+      "label": "200 JSON",
+      "variant": "return"
+    },
+    {
+      "id": "refresh",
+      "from": "browser",
+      "to": "authApi",
+      "y": 820,
+      "label": "POST /auth/refresh",
+      "variant": "emphasis",
+      "note": "under 60 s left or a 401 · one tab at a time · cookie sent by itself"
+    },
+    {
+      "id": "rotate",
+      "from": "authApi",
+      "to": "db",
+      "y": 880,
+      "label": "swap the secret",
+      "variant": "security",
+      "note": "old secret reused after 30 s = stolen: session ended"
+    },
+    {
+      "id": "fresh",
+      "from": "authApi",
+      "to": "browser",
+      "y": 935,
+      "label": "new token + new cookie",
+      "variant": "return"
+    },
+    {
+      "id": "logout",
+      "from": "browser",
+      "to": "authApi",
+      "y": 985,
+      "label": "POST /auth/logout",
+      "variant": "default"
+    },
+    {
+      "id": "revoke",
+      "from": "authApi",
+      "to": "db",
+      "y": 1015,
+      "label": "set revoked_at",
+      "variant": "default"
+    },
+    {
+      "id": "cleared",
+      "from": "authApi",
+      "to": "browser",
+      "y": 1045,
+      "label": "204 · cookies cleared",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "authApi",
+      "from": 155,
+      "to": 310,
+      "type": "backend"
+    },
+    {
+      "participant": "authApi",
+      "from": 330,
+      "to": 465,
+      "type": "backend"
+    },
+    {
+      "participant": "guard",
+      "from": 525,
+      "to": 690,
+      "type": "security"
+    },
+    {
+      "participant": "route",
+      "from": 680,
+      "to": 775,
+      "type": "backend"
+    },
+    {
+      "participant": "authApi",
+      "from": 815,
+      "to": 940,
+      "type": "backend"
+    },
+    {
+      "participant": "authApi",
+      "from": 980,
+      "to": 1050,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Two keys, kept apart",
+      "items": [
+        "Access token: a 15-minute pass, kept only in the tab's memory",
+        "Refresh token: in an HttpOnly cookie that page scripts can't read",
+        "Changing JWT_SECRET only makes browsers refresh: sessions live in the database"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Every way in",
+      "items": [
+        "Team (owner, staff, viewer): email + password (+ the read-only demo button)",
+        "Patients: emailed code, phone + name + date of birth, or personal code",
+        "Also: sign-up, booking as a new patient, or signing in inside the chat",
+        "sessions.issue refuses a method that doesn't fit the role"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "The chat can't set a cookie",
+      "items": [
+        "A sign-in inside the chat makes a session with a 2-minute ticket",
+        "The browser swaps it at POST /auth/ticket for the normal cookie",
+        "The guest's chats (visitor cookie bs_vid) then move to the account"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "How long a session lasts",
+      "items": [
+        "patient: 7 days idle · 30 days at most",
+        "staff and owner: 12 hours idle · 7 days at most",
+        "viewer (demo): 2 hours idle · 1 day at most"
+      ]
+    }
+  ]
+}

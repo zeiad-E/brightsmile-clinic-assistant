@@ -1,0 +1,476 @@
+{
+  "schema_version": 1,
+  "diagram_type": "tree",
+  "meta": {
+    "title": "10 · Frontend page map",
+    "locale": "en",
+    "output": ".archify/10-frontend-page-map/frontend-page-map.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "layout": {
+    "direction": "right"
+  },
+  "nodes": [
+    {
+      "id": "root",
+      "label": "/[lang]",
+      "sublabel": "/en or /ar · proxy.js picks the language",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/layout.js",
+          "line": 1,
+          "end_line": 61
+        },
+        {
+          "path": "frontend/proxy.js",
+          "line": 4,
+          "end_line": 22
+        }
+      ]
+    },
+    {
+      "id": "site",
+      "label": "(site) public website",
+      "parent": "root",
+      "sublabel": "header · footer · chat bubble on every page",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/layout.js",
+          "line": 1,
+          "end_line": 24
+        }
+      ]
+    },
+    {
+      "id": "home",
+      "label": "/",
+      "parent": "site",
+      "sublabel": "hero · services · assistant demo · book",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "about",
+      "label": "/about",
+      "parent": "site",
+      "sublabel": "the clinic · visiting hours",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/about/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "label": "/services",
+      "parent": "site",
+      "sublabel": "the price list",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/services/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "serviceDetail",
+      "label": "/services/[slug]",
+      "parent": "services",
+      "sublabel": "one service, step by step",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/services/[slug]/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "book",
+      "label": "/book",
+      "parent": "site",
+      "sublabel": "booking wizard · guest or patient",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/book/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "assistant",
+      "label": "/assistant",
+      "parent": "site",
+      "sublabel": "full-page chat",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/assistant/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "login",
+      "label": "/login",
+      "parent": "site",
+      "sublabel": "every way to sign in · demo button",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/login/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "register",
+      "label": "/register",
+      "parent": "site",
+      "sublabel": "patient sign-up with an email code",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/register/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "privacy",
+      "label": "/privacy",
+      "parent": "site",
+      "sublabel": "privacy policy",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/privacy/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "missing",
+      "label": "/[...missing]",
+      "parent": "site",
+      "sublabel": "not-found page",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/[...missing]/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "account",
+      "label": "/account/*",
+      "parent": "site",
+      "sublabel": "patients only · signed out → /login",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/account/layout.js",
+          "line": 1,
+          "end_line": 22
+        },
+        {
+          "path": "frontend/components/account/AccountShell.js",
+          "line": 1,
+          "end_line": 66
+        }
+      ]
+    },
+    {
+      "id": "accountHome",
+      "label": "/account",
+      "parent": "account",
+      "sublabel": "my bookings · cancel · move",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/account/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "accountChats",
+      "label": "/account/chats",
+      "parent": "account",
+      "sublabel": "my past chats",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/account/chats/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "accountProfile",
+      "label": "/account/profile",
+      "parent": "account",
+      "sublabel": "details · contact change · forget me",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(site)/account/profile/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "team",
+      "label": "(team) team area",
+      "parent": "root",
+      "sublabel": "sign-in required · hidden from search engines",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/layout.js",
+          "line": 1,
+          "end_line": 39
+        },
+        {
+          "path": "frontend/components/dash/DashShell.js",
+          "line": 40,
+          "end_line": 100
+        }
+      ]
+    },
+    {
+      "id": "dashboard",
+      "label": "/dashboard/*",
+      "parent": "team",
+      "sublabel": "staff · owner · read-only viewer"
+    },
+    {
+      "id": "today",
+      "label": "/dashboard",
+      "parent": "dashboard",
+      "sublabel": "today at the clinic",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "dAppointments",
+      "label": "/dashboard/appointments",
+      "parent": "dashboard",
+      "sublabel": "book · cancel · move · status",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/appointments/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "dPatients",
+      "label": "/dashboard/patients",
+      "parent": "dashboard",
+      "sublabel": "search patients",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/patients/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "dPatient",
+      "label": "/dashboard/patients/[id]",
+      "parent": "dPatients",
+      "sublabel": "one patient · unlock · send code",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/patients/[id]/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "inbox",
+      "label": "/dashboard/inbox",
+      "parent": "dashboard",
+      "sublabel": "handovers from the assistant",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/inbox/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "dConversations",
+      "label": "/dashboard/conversations",
+      "parent": "dashboard",
+      "sublabel": "chats · take over · reply",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/conversations/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "timeOff",
+      "label": "/dashboard/time-off",
+      "parent": "dashboard",
+      "sublabel": "doctors away · clinic closed",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/time-off/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "myProfile",
+      "label": "/dashboard/profile",
+      "parent": "dashboard",
+      "sublabel": "my name · password",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/dashboard/profile/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "owner",
+      "label": "/owner/*",
+      "parent": "team",
+      "sublabel": "owner · viewer reads (staff get a link back)"
+    },
+    {
+      "id": "overview",
+      "label": "/owner",
+      "parent": "owner",
+      "sublabel": "numbers for any period",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "activity",
+      "label": "/owner/activity",
+      "parent": "owner",
+      "sublabel": "audit log · sent emails",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/activity/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "oAssistant",
+      "label": "/owner/assistant",
+      "parent": "owner",
+      "sublabel": "assistant health · reports · notes · intake",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/assistant/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "knowledge",
+      "label": "/owner/knowledge",
+      "parent": "owner",
+      "sublabel": "knowledge base · gaps",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/knowledge/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "oServices",
+      "label": "/owner/services",
+      "parent": "owner",
+      "sublabel": "services and prices",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/services/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "doctors",
+      "label": "/owner/doctors",
+      "parent": "owner",
+      "sublabel": "doctors · hours · services",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/doctors/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "label": "/owner/settings",
+      "parent": "owner",
+      "sublabel": "clinic settings · assistant on/off",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/settings/page.js",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "teamPage",
+      "label": "/owner/team",
+      "parent": "owner",
+      "sublabel": "team accounts and roles",
+      "sources": [
+        {
+          "path": "frontend/app/[lang]/(team)/owner/team/page.js",
+          "line": 1
+        }
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "How the URLs work",
+      "items": [
+        "Every page lives under /en or /ar; proxy.js redirects / to your language (cookie, then browser)",
+        "(site) and (team) are route groups: they pick the frame (header vs. sidebar) without adding to the URL",
+        "Public pages are built on the server; account and team pages load their data in the browser after sign-in"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Who can open what",
+      "items": [
+        "Anyone: the public pages, /book and /assistant (the chat works for guests)",
+        "/account/*: signed-in patients",
+        "/dashboard/*: staff, owner and the read-only demo viewer",
+        "/owner/*: the owner; the viewer sees it with personal data masked; staff are sent back"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "The buttons are not the lock",
+      "items": [
+        "The frontend only hides what you may not use (it reads permissions from /api/auth/me)",
+        "The real check is requirePermission on every backend route (diagram 03)"
+      ]
+    }
+  ]
+}

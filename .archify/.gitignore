@@ -1,0 +1,11 @@
+# Check results and screenshots: archify makes them again on every run,
+# and they hold paths from this computer.
+*.browser-check.json
+*.delivery.json
+*.finalize.json
+*.finalize-summary.json
+review-*/
+visual-check/
+
+# The October 2026 diagrams: out of date, replaced by 01-10.
+_archive/

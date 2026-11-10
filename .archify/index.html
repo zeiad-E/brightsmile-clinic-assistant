@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BrightSmile Diagrams</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --card: #ffffff; --ink: #17202c; --ink-2: #4a5566; --line: #e2e6ec;
+    --accent: #0f8f7e; --chip: #eef6f4; --chip-ink: #0b6b5e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10141a; --card: #171d25; --ink: #e8edf3; --ink-2: #a3aebb; --line: #2a323d;
+      --accent: #3cc7b2; --chip: #1c2a29; --chip-ink: #7fe0d0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10141a; --card: #171d25; --ink: #e8edf3; --ink-2: #a3aebb; --line: #2a323d;
+    --accent: #3cc7b2; --chip: #1c2a29; --chip-ink: #7fe0d0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  .lede { color: var(--ink-2); margin: 0 0 28px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 32px 0 10px; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  li a { display: grid; grid-template-columns: 44px 1fr auto; gap: 4px 14px; align-items: start; padding: 14px 16px;
+         background: var(--card); border: 1px solid var(--line); border-radius: 12px; color: inherit; text-decoration: none; }
+  li a:hover, li a:focus-visible { border-color: var(--accent); outline: none; }
+  .num { font: 600 20px/1.2 ui-monospace, "Cascadia Mono", monospace; color: var(--accent); grid-row: span 2; }
+  .title { font-weight: 600; }
+  .what { color: var(--ink-2); grid-column: 2 / 4; font-size: 15px; }
+  .kind { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--chip); color: var(--chip-ink); white-space: nowrap; }
+  .notes { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; color: var(--ink-2); font-size: 15px; }
+  .notes p { margin: 6px 0; }
+  code { font-size: 14px; }
+  @media (max-width: 560px) {
+    li a { grid-template-columns: 34px 1fr; }
+    .kind { grid-column: 2; justify-self: start; }
+    .what { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>BrightSmile: how it works, in 10 diagrams</h1>
+  <p class="lede">Start at 01 and go down: each diagram zooms in on one part of the one before it. All 10 were drawn from the code at commit <code>84a7b06</code> (10 Nov 2026). Each box lists the source files and lines it was drawn from.</p>
+
+  <h2>The big picture</h2>
+  <ol>
+    <li><a href="01-system-overview/system-overview.html">
+      <span class="num">01</span><span class="title">System overview</span><span class="kind">architecture</span>
+      <span class="what">Every running piece: browser → Next.js on Vercel (<code>/api</code> rewrite) → Express on Render (plus the private LLM engine) → Supabase, Brevo, GitHub, keep-warm.</span></a></li>
+    <li><a href="02-backend-layers/backend-layers.html">
+      <span class="num">02</span><span class="title">Backend layers</span><span class="kind">architecture</span>
+      <span class="what">One request's path through the backend: middleware → 7 routers (113 endpoints) → controllers → services → models → Postgres.</span></a></li>
+  </ol>
+
+  <h2>How people get in</h2>
+  <ol>
+    <li><a href="03-sign-in-and-request-auth/sign-in-and-request-auth.html">
+      <span class="num">03</span><span class="title">Sign-in and request auth</span><span class="kind">sequence</span>
+      <span class="what">Emailed-code sign-in, the 15-minute JWT and the refresh cookie, the checks on every request (token → session → permission), refresh and sign-out.</span></a></li>
+  </ol>
+
+  <h2>The patient assistant</h2>
+  <ol>
+    <li><a href="04-assistant-parts/assistant-parts.html">
+      <span class="num">04</span><span class="title">The assistant: its parts</span><span class="kind">architecture</span>
+      <span class="what">Chat API, capacity gates, agent loop, reviewer AI, tool sandbox, knowledge and memory, team take-over, and what each one saves.</span></a></li>
+    <li><a href="05-chat-turn/chat-turn.html">
+      <span class="num">05</span><span class="title">One chat turn, step by step</span><span class="kind">workflow</span>
+      <span class="what">From one message to the reply: early checks, masking, AI + tools (up to 8 rounds), the reply checks and reviewer, the retry, and the fixed-reply and handover paths.</span></a></li>
+    <li><a href="06-booking-propose-confirm/booking-propose-confirm.html">
+      <span class="num">06</span><span class="title">Booking: propose, then confirm</span><span class="kind">sequence</span>
+      <span class="what">Why a chat booking takes two messages: <code>propose_booking</code> saves it as pending, and the patient's "yes" then runs <code>confirm_pending_action</code> → <code>book_appointment</code>.</span></a></li>
+  </ol>
+
+  <h2>Work that runs on its own</h2>
+  <ol>
+    <li><a href="07-background-jobs/background-jobs.html">
+      <span class="num">07</span><span class="title">Background jobs</span><span class="kind">dataflow</span>
+      <span class="what">What puts work in the <code>jobs</code> table, the 30-second runner, and the handlers: chat summaries, knowledge ingest, waitlist emails, reminders, the nightly clean-up.</span></a></li>
+  </ol>
+
+  <h2>The database</h2>
+  <ol>
+    <li><a href="08-database-erd/database-erd.html">
+      <span class="num">08</span><span class="title">Database: all 27 tables</span><span class="kind">ERD</span>
+      <span class="what">Every table and every column, grouped by area (clinic setup, bookings, people, assistant chats, assistant knowledge, system), with the main links.</span></a></li>
+    <li><a href="09-database-functions/database-functions.html">
+      <span class="num">09</span><span class="title">Database functions</span><span class="kind">architecture</span>
+      <span class="what">The 20 database functions and triggers: which backend code calls each one, and which tables and views it touches.</span></a></li>
+  </ol>
+
+  <h2>The website</h2>
+  <ol>
+    <li><a href="10-frontend-page-map/frontend-page-map.html">
+      <span class="num">10</span><span class="title">Frontend page map</span><span class="kind">tree</span>
+      <span class="what">Every page under <code>/en</code> and <code>/ar</code>: public site, patient <code>/account</code>, team <code>/dashboard</code> and owner <code>/owner</code>, and who can open each.</span></a></li>
+  </ol>
+
+  <h2>Notes</h2>
+  <div class="notes">
+    <p><strong>Folders:</strong> each diagram has its own numbered folder. Inside it, <code>candidate.json</code> is the source you edit and the <code>.html</code> file is what you open. The other files are check receipts.</p>
+    <p><strong>Updating one:</strong> edit its <code>candidate.json</code>, then run archify's <code>finalize</code> again with <code>--repo-root .</code> and a new commit in <code>meta.repository.revision</code>.</p>
+    <p><strong>Old versions:</strong> the diagrams from October are in <code>_archive/</code> and are out of date. You can delete that folder.</p>
+  </div>
+</main>
+</body>
+</html>

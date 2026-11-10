@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "02 · Backend layers: from request to database",
+    "locale": "en",
+    "output": ".archify/02-backend-layers/backend-layers.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "components": [
+    { "id": "client", "type": "frontend", "label": "Next.js website", "sublabel": "/api/* forwarded", "pos": [40, 436], "size": [130, 64],
+      "sources": [{ "path": "frontend/lib/api/client.js", "line": 21, "end_line": 31 }] },
+    { "id": "pipeline", "type": "security", "label": "Express app", "sublabel": "pipeline, in order", "tag": "rate limit · authenticate", "pos": [270, 160], "size": [160, 616],
+      "sources": [
+        { "path": "backend/src/app.js", "line": 20, "end_line": 56, "label": "middleware order" },
+        { "path": "backend/src/routes/index.js", "line": 18, "end_line": 34, "label": "/api routers" },
+        { "path": "backend/src/middlewares/authenticate.js", "line": 22, "end_line": 37, "label": "authenticate" }
+      ] },
+
+    { "id": "engine", "type": "backend", "label": "LLM engine", "sublabel": "via LlmClient", "pos": [930, 40], "size": [170, 64],
+      "sources": [{ "path": "backend/src/llm/LlmClient.js", "line": 7, "end_line": 33 }] },
+
+    { "id": "rChat", "type": "backend", "label": "/api/chat", "sublabel": "4 endpoints · send · stream", "tag": "visitors + patients", "pos": [480, 160], "size": [170, 64],
+      "sources": [{ "path": "backend/src/routes/chat.js", "line": 20, "end_line": 31 }] },
+    { "id": "rAuth", "type": "backend", "label": "/api/auth", "sublabel": "16 endpoints · sign in", "tag": "csrfGuard · no-store", "pos": [480, 252], "size": [170, 64],
+      "sources": [{ "path": "backend/src/routes/auth.js", "line": 26, "end_line": 53 }] },
+    { "id": "rPublic", "type": "backend", "label": "/api (public)", "sublabel": "7 · clinic · services · slots", "tag": "anyone", "pos": [480, 344], "size": [170, 64],
+      "sources": [{ "path": "backend/src/routes/public.js", "line": 9, "end_line": 21 }] },
+    { "id": "rAppt", "type": "backend", "label": "/api/appointments", "sublabel": "1 · book on the website", "tag": "Idempotency-Key", "pos": [480, 436], "size": [170, 64],
+      "sources": [{ "path": "backend/src/routes/appointments.js", "line": 8, "end_line": 14 }] },
+    { "id": "rMe", "type": "backend", "label": "/api/me", "sublabel": "12 · patient's own data", "tag": "self.* permissions", "pos": [480, 528], "size": [170, 64],
+      "sources": [{ "path": "backend/src/routes/me.js", "line": 12, "end_line": 36 }] },
+    { "id": "rStaff", "type": "backend", "label": "/api/staff", "sublabel": "30 · the day's work", "tag": "staff · owner · viewer", "pos": [480, 620], "size": [170, 64],
+      "sources": [{ "path": "backend/src/routes/staff.js", "line": 36, "end_line": 78 }] },
+    { "id": "rAdmin", "type": "backend", "label": "/api/admin", "sublabel": "43 · clinic settings", "tag": "owner · viewer reads", "pos": [480, 712], "size": [170, 64],
+      "sources": [{ "path": "backend/src/routes/admin.js", "line": 52, "end_line": 114 }] },
+
+    { "id": "cChat", "type": "backend", "label": "chatController", "sublabel": "JSON or live SSE", "pos": [700, 160], "size": [170, 64],
+      "sources": [{ "path": "backend/src/controllers/chatController.js", "line": 1, "end_line": 74 }] },
+    { "id": "cAuth", "type": "backend", "label": "authController", "sublabel": "session · cookie · token", "pos": [700, 252], "size": [170, 64],
+      "sources": [{ "path": "backend/src/controllers/authController.js", "line": 38, "end_line": 117 }] },
+    { "id": "cPublic", "type": "backend", "label": "catalog + availability", "sublabel": "2 controllers · GET only", "pos": [700, 344], "size": [170, 64],
+      "sources": [
+        { "path": "backend/src/controllers/catalogController.js", "line": 1, "end_line": 24 },
+        { "path": "backend/src/controllers/availabilityController.js", "line": 1, "end_line": 14 }
+      ] },
+    { "id": "cAppt", "type": "backend", "label": "appointmentController", "sublabel": "book → session if new", "pos": [700, 436], "size": [170, 64],
+      "sources": [{ "path": "backend/src/controllers/appointmentController.js", "line": 1, "end_line": 10 }] },
+    { "id": "cMe", "type": "backend", "label": "meController", "sublabel": "bookings · code · contact", "pos": [700, 528], "size": [170, 64],
+      "sources": [{ "path": "backend/src/controllers/meController.js", "line": 1, "end_line": 52 }] },
+    { "id": "cStaff", "type": "backend", "label": "staff/* (7)", "sublabel": "appts · patients · chats", "pos": [700, 620], "size": [170, 64],
+      "sources": [
+        { "path": "backend/src/controllers/staff/staffAppointmentController.js", "line": 1, "end_line": 30 },
+        { "path": "backend/src/controllers/staff/staffPatientController.js", "line": 1, "end_line": 37 },
+        { "path": "backend/src/controllers/staff/conversationController.js", "line": 1, "end_line": 28 }
+      ] },
+    { "id": "cAdmin", "type": "backend", "label": "admin/* (10)", "sublabel": "catalog · team · knowledge", "pos": [700, 712], "size": [170, 64],
+      "sources": [
+        { "path": "backend/src/controllers/admin/adminStaffController.js", "line": 1, "end_line": 29 },
+        { "path": "backend/src/controllers/admin/teamController.js", "line": 1, "end_line": 32 },
+        { "path": "backend/src/controllers/admin/knowledgeController.js", "line": 1, "end_line": 41 }
+      ] },
+
+    { "id": "sChat", "type": "backend", "label": "chatService", "sublabel": "one assistant turn", "tag": "diagrams 04-05", "pos": [920, 160], "size": [190, 64],
+      "sources": [{ "path": "backend/src/services/chatService.js", "line": 104, "end_line": 131 }] },
+    { "id": "sAuth", "type": "backend", "label": "auth services", "sublabel": "login · sign-up · codes", "tag": "+ auth/sessions.js", "pos": [920, 252], "size": [190, 64],
+      "sources": [
+        { "path": "backend/src/services/authService.js", "line": 44, "end_line": 271 },
+        { "path": "backend/src/services/registrationService.js", "line": 1, "end_line": 82 },
+        { "path": "backend/src/auth/sessions.js", "line": 56, "end_line": 119, "label": "issue + rotate" }
+      ] },
+    { "id": "sPublic", "type": "backend", "label": "catalog + availability", "sublabel": "free slots · any doctor", "pos": [920, 344], "size": [190, 64],
+      "sources": [
+        { "path": "backend/src/services/catalogService.js", "line": 1, "end_line": 76 },
+        { "path": "backend/src/services/availabilityService.js", "line": 1, "end_line": 60 }
+      ] },
+    { "id": "sBook", "type": "backend", "label": "bookingService", "sublabel": "race-safe · idempotent", "tag": "diagram 06", "pos": [920, 436], "size": [190, 64],
+      "sources": [{ "path": "backend/src/services/bookingService.js", "line": 14, "end_line": 186 }] },
+    { "id": "sMe", "type": "backend", "label": "appointment + patient", "sublabel": "cancel · move · memory", "pos": [920, 528], "size": [190, 64],
+      "sources": [
+        { "path": "backend/src/services/appointmentService.js", "line": 1, "end_line": 147 },
+        { "path": "backend/src/services/patientService.js", "line": 1, "end_line": 200 },
+        { "path": "backend/src/services/memoryService.js", "line": 1, "end_line": 253 }
+      ] },
+    { "id": "sStaff", "type": "backend", "label": "staff services", "sublabel": "schedule · handovers · stats", "pos": [920, 620], "size": [190, 64],
+      "sources": [
+        { "path": "backend/src/services/scheduleService.js", "line": 1, "end_line": 67 },
+        { "path": "backend/src/services/escalationService.js", "line": 1, "end_line": 21 },
+        { "path": "backend/src/services/reportService.js", "line": 1, "end_line": 165 }
+      ] },
+    { "id": "sAdmin", "type": "backend", "label": "owner services", "sublabel": "admin · team · knowledge", "pos": [920, 712], "size": [190, 64],
+      "sources": [
+        { "path": "backend/src/services/adminService.js", "line": 1, "end_line": 74 },
+        { "path": "backend/src/services/teamService.js", "line": 1, "end_line": 111 },
+        { "path": "backend/src/services/knowledge/knowledgeService.js", "line": 1, "end_line": 178 }
+      ] },
+    { "id": "sEmail", "type": "backend", "label": "emailService", "sublabel": "EN / AR templates", "tag": "used by auth · booking · jobs", "pos": [920, 830], "size": [190, 64],
+      "sources": [
+        { "path": "backend/src/services/email/emailService.js", "line": 11, "end_line": 69 },
+        { "path": "backend/src/services/email/templates.js", "line": 1 }
+      ] },
+
+    { "id": "models", "type": "backend", "label": "Models (28)", "sublabel": "one table or RPC each", "tag": "plain or _masked view", "pos": [1160, 160], "size": [150, 616],
+      "sources": [
+        { "path": "backend/src/models/query.js", "line": 1, "end_line": 26, "label": "unwrap + viewName" },
+        { "path": "backend/src/models/appointmentModel.js", "line": 1 },
+        { "path": "backend/src/db/supabase.js", "line": 40, "end_line": 71, "label": "audited client per caller" }
+      ] },
+    { "id": "postgres", "type": "database", "label": "Supabase Postgres", "sublabel": "tables · RPC · views", "tag": "audit triggers", "pos": [1420, 160], "size": [170, 616],
+      "sources": [
+        { "path": "supabase/migrations/20261104000200_backend_auth_contract.sql", "line": 598, "end_line": 625, "label": "service role only" },
+        { "path": "supabase/migrations/20261104000100_backend_auth.sql", "line": 260, "end_line": 350, "label": "masked views" }
+      ] },
+    { "id": "brevo", "type": "external", "label": "Brevo", "sublabel": "email API", "pos": [1200, 830], "size": [150, 64],
+      "sources": [{ "path": "backend/src/services/email/adapters/brevo.js", "line": 1, "end_line": 21 }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Render web service · Node 20", "wraps": ["pipeline", "rChat", "rAuth", "rPublic", "rAppt", "rMe", "rStaff", "rAdmin", "cChat", "cAuth", "cPublic", "cAppt", "cMe", "cStaff", "cAdmin", "sChat", "sAuth", "sPublic", "sBook", "sMe", "sStaff", "sAdmin", "sEmail", "models"] }
+  ],
+  "connections": [
+    { "id": "client-pipeline", "from": "client", "to": "pipeline", "label": "Bearer JWT", "variant": "emphasis" },
+
+    { "id": "p-chat", "from": "pipeline", "to": "rChat" },
+    { "id": "p-auth", "from": "pipeline", "to": "rAuth" },
+    { "id": "p-public", "from": "pipeline", "to": "rPublic" },
+    { "id": "p-appt", "from": "pipeline", "to": "rAppt", "variant": "emphasis" },
+    { "id": "p-me", "from": "pipeline", "to": "rMe" },
+    { "id": "p-staff", "from": "pipeline", "to": "rStaff" },
+    { "id": "p-admin", "from": "pipeline", "to": "rAdmin" },
+
+    { "id": "r-c-chat", "from": "rChat", "to": "cChat" },
+    { "id": "r-c-auth", "from": "rAuth", "to": "cAuth" },
+    { "id": "r-c-public", "from": "rPublic", "to": "cPublic" },
+    { "id": "r-c-appt", "from": "rAppt", "to": "cAppt", "variant": "emphasis" },
+    { "id": "r-c-me", "from": "rMe", "to": "cMe" },
+    { "id": "r-c-staff", "from": "rStaff", "to": "cStaff" },
+    { "id": "r-c-admin", "from": "rAdmin", "to": "cAdmin" },
+
+    { "id": "c-s-chat", "from": "cChat", "to": "sChat" },
+    { "id": "c-s-auth", "from": "cAuth", "to": "sAuth" },
+    { "id": "c-s-public", "from": "cPublic", "to": "sPublic" },
+    { "id": "c-s-appt", "from": "cAppt", "to": "sBook", "variant": "emphasis" },
+    { "id": "c-s-me", "from": "cMe", "to": "sMe" },
+    { "id": "c-s-staff", "from": "cStaff", "to": "sStaff" },
+    { "id": "c-s-admin", "from": "cAdmin", "to": "sAdmin" },
+
+    { "id": "chat-engine", "from": "sChat", "to": "engine", "label": "agent loop", "variant": "dashed" },
+
+    { "id": "s-m-chat", "from": "sChat", "to": "models" },
+    { "id": "s-m-auth", "from": "sAuth", "to": "models" },
+    { "id": "s-m-public", "from": "sPublic", "to": "models" },
+    { "id": "s-m-book", "from": "sBook", "to": "models", "variant": "emphasis" },
+    { "id": "s-m-me", "from": "sMe", "to": "models" },
+    { "id": "s-m-staff", "from": "sStaff", "to": "models" },
+    { "id": "s-m-admin", "from": "sAdmin", "to": "models" },
+
+    { "id": "models-postgres", "from": "models", "to": "postgres", "label": "service role", "variant": "security" },
+    { "id": "email-brevo", "from": "sEmail", "to": "brevo", "label": "HTTPS API", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Pipeline, in order", "items": [
+      "llmAdminDoor → requestContext (request id, real visitor IP) → evalPass",
+      "helmet → CORS → JSON body ≤ 100 kb",
+      "/api: rate limit 300 per 15 min → authenticate (JWT + session, diagram 03)",
+      "Per route: csrfGuard on cookie routes → tighter limit → requirePermission → validate (zod) → Idempotency-Key on bookings",
+      "No match → notFound; any error → errorHandler, one JSON shape { error, message }"
+    ] },
+    { "dot": "rose", "title": "Who may enter", "items": [
+      "401 = we don't know you (sign in); 403 = we know you, and you may not",
+      "Routes ask for a permission ('patients.write'), never a role",
+      "auth/permissions.js lists each role's permissions: patient, viewer, staff, owner",
+      "A temporary password opens only the change-password route"
+    ] },
+    { "dot": "emerald", "title": "Controller → service → model", "items": [
+      "Controller: read req.valid → call one service → send JSON (views/ shape it)",
+      "Service: the clinic's rules (who owns what, what may change)",
+      "Model: one table or one database function, errors thrown by unwrap()"
+    ] },
+    { "dot": "amber", "title": "Database side", "items": [
+      "Every query uses the service role: Postgres has no other door",
+      "Callers with pii.read get the plain view, everyone else the _masked twin",
+      "Writes send x-actor-id and x-change-via, so the audit log knows who did it",
+      "Knowledge files go to Supabase Storage straight from knowledgeService"
+    ] },
+    { "dot": "slate", "title": "Rate limits per IP", "items": [
+      "sign-in 10 · codes 5 · refresh 120 per 15 min",
+      "bookings 20 per hour · chat 20 per minute",
+      "The agent evals (x-eval-key) skip these limits"
+    ] }
+  ]
+}

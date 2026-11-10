@@ -1,0 +1,524 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "04 · The patient assistant: its parts",
+    "locale": "en",
+    "output": ".archify/04-assistant-parts/assistant-parts.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Chat page + bubble",
+      "sublabel": "live progress (SSE)",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "frontend/components/assistant/Chat.js",
+          "line": 1,
+          "end_line": 462
+        },
+        {
+          "path": "frontend/components/assistant/ChatBubble.js",
+          "line": 1,
+          "end_line": 151
+        },
+        {
+          "path": "frontend/lib/api/chat.js",
+          "line": 1,
+          "end_line": 68
+        }
+      ]
+    },
+    {
+      "id": "chatApi",
+      "type": "backend",
+      "label": "/api/chat",
+      "sublabel": "visitor cookie · stream",
+      "tag": "csrfGuard",
+      "pos": [
+        290,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/routes/chat.js",
+          "line": 20,
+          "end_line": 31
+        },
+        {
+          "path": "backend/src/controllers/chatController.js",
+          "line": 1,
+          "end_line": 74
+        },
+        {
+          "path": "backend/src/auth/visitorCookie.js",
+          "line": 1,
+          "end_line": 45
+        }
+      ]
+    },
+    {
+      "id": "gates",
+      "type": "security",
+      "label": "Gates & capacity",
+      "sublabel": "budgets · breaker · queue",
+      "tag": "safe mode at 90 %",
+      "pos": [
+        540,
+        40
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/capacity/index.js",
+          "line": 25,
+          "end_line": 47
+        },
+        {
+          "path": "backend/src/services/capacity/budget.js",
+          "line": 38,
+          "end_line": 51
+        },
+        {
+          "path": "backend/src/services/capacity/circuitBreaker.js",
+          "line": 1,
+          "end_line": 25
+        }
+      ]
+    },
+    {
+      "id": "turn",
+      "type": "backend",
+      "label": "Chat turn",
+      "sublabel": "chatService.runTurn",
+      "tag": "lock · mask · save",
+      "pos": [
+        540,
+        200
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 104,
+          "end_line": 131,
+          "label": "sendMessage + per-chat lock"
+        },
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 133,
+          "end_line": 359,
+          "label": "runTurn"
+        },
+        {
+          "path": "backend/src/agent/masking.js",
+          "line": 1,
+          "end_line": 30,
+          "label": "placeholders"
+        }
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "security",
+      "label": "Reviewer AI",
+      "sublabel": "approve or send back",
+      "tag": "own model",
+      "pos": [
+        810,
+        40
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/agent/reviewer.js",
+          "line": 1,
+          "end_line": 60
+        }
+      ]
+    },
+    {
+      "id": "loop",
+      "type": "backend",
+      "label": "Agent loop",
+      "sublabel": "≤ 8 tool rounds",
+      "tag": "reply checks",
+      "pos": [
+        810,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 9,
+          "end_line": 77,
+          "label": "limits + rules"
+        },
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 108,
+          "end_line": 191,
+          "label": "checks + review"
+        },
+        {
+          "path": "backend/src/agent/systemPrompt.js",
+          "line": 1,
+          "end_line": 12
+        }
+      ]
+    },
+    {
+      "id": "engine",
+      "type": "backend",
+      "label": "LLM engine",
+      "sublabel": "model chain · 20 s each",
+      "pos": [
+        1080,
+        200
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/llm/LlmClient.js",
+          "line": 54,
+          "end_line": 100
+        }
+      ]
+    },
+    {
+      "id": "team",
+      "type": "frontend",
+      "label": "Team dashboard",
+      "sublabel": "take over · reply · review",
+      "pos": [
+        290,
+        370
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/routes/staff.js",
+          "line": 68,
+          "end_line": 75
+        },
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 496,
+          "end_line": 556
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "security",
+      "label": "Tool sandbox (23)",
+      "sublabel": "zod checks · sign-in",
+      "pos": [
+        810,
+        370
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/agent/tools/index.js",
+          "line": 16,
+          "end_line": 55
+        },
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 206,
+          "end_line": 245,
+          "label": "runTool"
+        }
+      ]
+    },
+    {
+      "id": "knowledge",
+      "type": "backend",
+      "label": "Knowledge + memory",
+      "sublabel": "RAG search · patient notes",
+      "pos": [
+        1080,
+        370
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/rag/retrieve.js",
+          "line": 1,
+          "end_line": 25
+        },
+        {
+          "path": "backend/src/services/memoryService.js",
+          "line": 16,
+          "end_line": 23
+        },
+        {
+          "path": "backend/src/agent/tools/memoryTools.js",
+          "line": 1,
+          "end_line": 66
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "type": "backend",
+      "label": "Clinic services",
+      "sublabel": "booking · bookings · waitlist",
+      "tag": "same as the website",
+      "pos": [
+        810,
+        530
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/agent/tools/bookingTools.js",
+          "line": 306,
+          "end_line": 360,
+          "label": "confirm_pending_action"
+        },
+        {
+          "path": "backend/src/services/bookingService.js",
+          "line": 120,
+          "end_line": 170
+        },
+        {
+          "path": "backend/src/services/waitlistService.js",
+          "line": 32,
+          "end_line": 60
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Supabase Postgres",
+      "sublabel": "conversations · messages · agent_runs · agent_traces · knowledge_chunks (pgvector)",
+      "pos": [
+        290,
+        690
+      ],
+      "size": [
+        950,
+        64
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 1,
+          "end_line": 105
+        },
+        {
+          "path": "supabase/migrations/20261107000100_agent_traces.sql",
+          "line": 1,
+          "end_line": 25
+        },
+        {
+          "path": "supabase/migrations/20261109000100_visitor_sessions.sql",
+          "line": 1,
+          "end_line": 14
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-api",
+      "from": "browser",
+      "to": "chatApi",
+      "label": "message · SSE",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-turn",
+      "from": "chatApi",
+      "to": "turn",
+      "label": "one turn",
+      "variant": "emphasis"
+    },
+    {
+      "id": "turn-gates",
+      "from": "turn",
+      "to": "gates",
+      "label": "may the AI run?",
+      "variant": "security"
+    },
+    {
+      "id": "turn-loop",
+      "from": "turn",
+      "to": "loop",
+      "label": "masked chat",
+      "variant": "emphasis"
+    },
+    {
+      "id": "loop-engine",
+      "from": "loop",
+      "to": "engine",
+      "label": "tool calling",
+      "variant": "emphasis"
+    },
+    {
+      "id": "loop-reviewer",
+      "from": "loop",
+      "to": "reviewer",
+      "label": "finished draft",
+      "variant": "security"
+    },
+    {
+      "id": "reviewer-engine",
+      "from": "reviewer",
+      "to": "engine",
+      "label": "verdict call",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "loop-tools",
+      "from": "loop",
+      "to": "tools",
+      "label": "tool calls"
+    },
+    {
+      "id": "tools-knowledge",
+      "from": "tools",
+      "to": "knowledge",
+      "label": "search · notes"
+    },
+    {
+      "id": "knowledge-engine",
+      "from": "knowledge",
+      "to": "engine",
+      "label": "embeddings",
+      "variant": "dashed"
+    },
+    {
+      "id": "tools-services",
+      "from": "tools",
+      "to": "services",
+      "label": "after a yes"
+    },
+    {
+      "id": "team-turn",
+      "from": "team",
+      "to": "turn",
+      "label": "take over",
+      "fromSide": "right",
+      "toSide": "bottom"
+    },
+    {
+      "id": "team-db",
+      "from": "team",
+      "to": "db",
+      "label": "knowledge · notes"
+    },
+    {
+      "id": "turn-db",
+      "from": "turn",
+      "to": "db",
+      "label": "save turn + run + trace"
+    },
+    {
+      "id": "services-db",
+      "from": "services",
+      "to": "db",
+      "label": "RPC + SQL"
+    },
+    {
+      "id": "knowledge-db",
+      "from": "knowledge",
+      "to": "db",
+      "label": "vector search"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What each part does",
+      "items": [
+        "Chat turn: one turn at a time per chat; checks, privacy masking, saving",
+        "Agent loop: asks the AI, runs the tools it asks for, checks the reply",
+        "Reviewer: a second AI reads the reply before the patient does",
+        "Tools: the only things the AI can do; they call the same services as the website"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Safety rails",
+      "items": [
+        "Emergency words: a fixed reply and an urgent handover, the AI is skipped",
+        "The AI never sees phones, emails, birth dates or codes: only [PHONE_1]-style labels",
+        "Bookings and changes need the patient's yes in a later message (diagram 06)",
+        "A reply with broken text, an unknown price or a fake 'done' is sent back"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "When the AI can't",
+      "items": [
+        "Busy: 8 turns at once, 50 waiting, 30 s at most in line",
+        "5 failed turns in 5 min open the breaker for 3 min",
+        "90 % of the daily clinic budget: safe mode, knowledge and handover only",
+        "Two failed attempts: a fixed apology and a staff handover"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Memory, in three layers",
+      "items": [
+        "Last 20 messages + a rolling summary of older ones",
+        "Short notes about the patient (owner corrections win)",
+        "Past chats: a summary + embedding each, recalled on demand",
+        "Summaries and clean-ups run as background jobs (diagram 07)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "09 · Database functions: who calls what",
+    "locale": "en",
+    "output": ".archify/09-database-functions/database-functions.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "components": [
+    { "id": "cBooking", "type": "backend", "label": "Booking models", "sublabel": "availability · appointments", "pos": [40, 40], "size": [180, 60],
+      "sources": [
+        { "path": "backend/src/models/availabilityModel.js", "line": 8, "end_line": 18 },
+        { "path": "backend/src/models/appointmentModel.js", "line": 18, "end_line": 48 }
+      ] },
+    { "id": "fBooking", "type": "backend", "label": "Booking functions", "sublabel": "slots · book · cancel · move", "tag": "one transaction each", "pos": [330, 40], "size": [210, 60],
+      "sources": [
+        { "path": "supabase/migrations/20261023000600_functions.sql", "line": 72, "end_line": 131, "label": "get_available_slots" },
+        { "path": "supabase/migrations/20261104000200_backend_auth_contract.sql", "line": 56, "end_line": 222, "label": "book_appointment" },
+        { "path": "supabase/migrations/20261104000200_backend_auth_contract.sql", "line": 358, "end_line": 448, "label": "cancel + reschedule" }
+      ] },
+    { "id": "tAppointments", "type": "database", "label": "appointments", "sublabel": "no-overlap constraints", "pos": [690, 40], "size": [190, 60],
+      "sources": [{ "path": "supabase/migrations/20261023000400_bookings.sql", "line": 3, "end_line": 30 }] },
+
+    { "id": "cSchedule", "type": "backend", "label": "Owner schedule edits", "sublabel": "admin API · models", "pos": [40, 160], "size": [180, 60],
+      "sources": [
+        { "path": "backend/src/models/workingHoursModel.js", "line": 12, "end_line": 16 },
+        { "path": "backend/src/models/staffModel.js", "line": 40, "end_line": 43 }
+      ] },
+    { "id": "fSchedule", "type": "backend", "label": "Schedule functions", "sublabel": "hours · doctor services", "tag": "replace all at once", "pos": [330, 160], "size": [210, 60],
+      "sources": [{ "path": "supabase/migrations/20261104000200_backend_auth_contract.sql", "line": 451, "end_line": 509 }] },
+    { "id": "tSchedule", "type": "database", "label": "working_hours", "sublabel": "+ staff_services", "pos": [690, 160], "size": [190, 60],
+      "sources": [{ "path": "supabase/migrations/20261023000300_clinic_setup.sql", "line": 46, "end_line": 71 }] },
+
+    { "id": "cSearch", "type": "backend", "label": "Assistant search", "sublabel": "knowledge · past chats", "pos": [40, 280], "size": [180, 60],
+      "sources": [
+        { "path": "backend/src/rag/retrieve.js", "line": 8, "end_line": 25 },
+        { "path": "backend/src/models/conversationModel.js", "line": 77, "end_line": 88 }
+      ] },
+    { "id": "fSearch", "type": "backend", "label": "Vector search", "sublabel": "match chunks · summaries", "pos": [330, 280], "size": [210, 60],
+      "sources": [
+        { "path": "supabase/migrations/20261023000600_functions.sql", "line": 429, "end_line": 465 },
+        { "path": "supabase/migrations/20261026000100_part2a_chatbot.sql", "line": 165, "end_line": 183 }
+      ] },
+    { "id": "tVectors", "type": "database", "label": "knowledge_chunks", "sublabel": "+ conversation summaries", "pos": [690, 280], "size": [190, 60],
+      "sources": [
+        { "path": "supabase/migrations/20261023000500_ai.sql", "line": 94, "end_line": 102 },
+        { "path": "supabase/migrations/20261026000100_part2a_chatbot.sql", "line": 6, "end_line": 20 }
+      ] },
+
+    { "id": "cJobs", "type": "messagebus", "label": "Job runner", "sublabel": "every 30 s", "pos": [40, 400], "size": [180, 60],
+      "sources": [
+        { "path": "backend/src/models/jobModel.js", "line": 28, "end_line": 32 },
+        { "path": "backend/src/models/maintenanceModel.js", "line": 1, "end_line": 13 }
+      ] },
+    { "id": "fJobs", "type": "backend", "label": "Job functions", "sublabel": "claim · reminders · purge", "tag": "skip locked", "pos": [330, 400], "size": [210, 60],
+      "sources": [
+        { "path": "supabase/migrations/20261026000100_part2a_chatbot.sql", "line": 146, "end_line": 162, "label": "claim_jobs" },
+        { "path": "supabase/migrations/20261104000100_backend_auth.sql", "line": 602, "end_line": 643, "label": "queue_due_reminders" },
+        { "path": "supabase/migrations/20261026000200_part2a_jobs.sql", "line": 81, "end_line": 108, "label": "purge_expired_conversations" }
+      ] },
+    { "id": "tJobs", "type": "database", "label": "jobs", "sublabel": "+ appointments · chats", "pos": [690, 400], "size": [190, 60],
+      "sources": [{ "path": "supabase/migrations/20261026000100_part2a_chatbot.sql", "line": 128, "end_line": 140 }] },
+
+    { "id": "cWrites", "type": "database", "label": "Table writes", "sublabel": "insert · update · delete", "pos": [40, 520], "size": [180, 60],
+      "sources": [{ "path": "supabase/migrations/20261023000700_audit.sql", "line": 70, "end_line": 85 }] },
+    { "id": "fTriggers", "type": "backend", "label": "Triggers", "sublabel": "times · new profile · audit", "tag": "automatic", "pos": [330, 520], "size": [210, 60],
+      "sources": [
+        { "path": "supabase/migrations/20261023000400_bookings.sql", "line": 36, "end_line": 55, "label": "set_appointment_end" },
+        { "path": "supabase/migrations/20261026000200_part2a_jobs.sql", "line": 5, "end_line": 26, "label": "reset_reminder_on_move" },
+        { "path": "supabase/migrations/20261104000200_backend_auth_contract.sql", "line": 33, "end_line": 51, "label": "create_patient_profile" }
+      ] },
+    { "id": "tAudit", "type": "database", "label": "audit_log", "sublabel": "who · via · before/after", "pos": [690, 520], "size": [190, 60],
+      "sources": [
+        { "path": "supabase/migrations/20261104000200_backend_auth_contract.sql", "line": 511, "end_line": 566, "label": "audit_row_change" },
+        { "path": "supabase/migrations/20261023000500_ai.sql", "line": 48, "end_line": 58 }
+      ] },
+
+    { "id": "cViews", "type": "security", "label": "Model reads", "sublabel": "viewName(db, view)", "tag": "pii.read or not", "pos": [40, 640], "size": [180, 60],
+      "sources": [
+        { "path": "backend/src/models/query.js", "line": 21, "end_line": 26 },
+        { "path": "backend/src/db/supabase.js", "line": 7, "end_line": 17 }
+      ] },
+    { "id": "fMask", "type": "security", "label": "Mask helpers", "sublabel": "email · phone · text · name", "pos": [330, 640], "size": [210, 60],
+      "sources": [
+        { "path": "supabase/migrations/20261023000600_functions.sql", "line": 21, "end_line": 65 },
+        { "path": "supabase/migrations/20261023000900_views.sql", "line": 7, "end_line": 22, "label": "mask_person_name" }
+      ] },
+    { "id": "tViews", "type": "database", "label": "v_*_masked views", "sublabel": "same columns, masked", "pos": [690, 640], "size": [190, 60],
+      "sources": [{ "path": "supabase/migrations/20261104000100_backend_auth.sql", "line": 260, "end_line": 350 }] }
+  ],
+  "connections": [
+    { "id": "e1", "from": "cBooking", "to": "fBooking", "label": "db.rpc", "variant": "emphasis" },
+    { "id": "e2", "from": "fBooking", "to": "tAppointments", "label": "lock + insert", "variant": "emphasis" },
+    { "id": "e3", "from": "cSchedule", "to": "fSchedule", "label": "db.rpc" },
+    { "id": "e4", "from": "fSchedule", "to": "tSchedule", "label": "replace all" },
+    { "id": "e5", "from": "cSearch", "to": "fSearch", "label": "db.rpc" },
+    { "id": "e6", "from": "fSearch", "to": "tVectors", "label": "cosine similarity" },
+    { "id": "e7", "from": "cJobs", "to": "fJobs", "label": "db.rpc", "variant": "dashed" },
+    { "id": "e8", "from": "fJobs", "to": "tJobs", "label": "claim · queue · delete", "variant": "dashed" },
+    { "id": "e9", "from": "cWrites", "to": "fTriggers", "label": "fires" },
+    { "id": "e10", "from": "fTriggers", "to": "tAudit", "label": "before / after" },
+    { "id": "e11", "from": "cViews", "to": "fMask", "label": "no pii.read", "variant": "security" },
+    { "id": "e12", "from": "fMask", "to": "tViews", "label": "used by", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "How to read it", "items": [
+      "Left: the backend code (or table write) that uses a function",
+      "Middle: the functions, grouped by job",
+      "Right: the tables and views they read or change",
+      "20 functions today; docs/07_DB_FUNCTIONS.md describes each one"
+    ] },
+    { "dot": "rose", "title": "Why logic lives in the database", "items": [
+      "Booking checks and writes happen in one transaction: no double booking",
+      "Every change to clinic data is audited, whoever made it",
+      "Only the service role may run functions or touch tables; the public keys have no rights"
+    ] },
+    { "dot": "amber", "title": "Removed when sign-in moved to the backend", "items": [
+      "verify_patient_by_phone, find_patient_by_code, normalize_person_name",
+      "is_owner, is_staff, can_view_all, current_user_role (RLS role checks)",
+      "handle_new_user / handle_deleted_user (the auth.users triggers)",
+      "Who may do what is now decided in the backend (auth/permissions.js)"
+    ] },
+    { "dot": "emerald", "title": "The triggers", "items": [
+      "set_updated_at on most tables · set_appointment_end from the service length",
+      "reset_reminder_on_move: a moved booking gets a new reminder",
+      "create_patient_profile: every new patient gets a profile",
+      "audit_row_change on 10 clinic tables, actor from x-actor-id / x-change-via"
+    ] }
+  ]
+}

@@ -1,0 +1,2097 @@
+{
+  "schema_version": 1,
+  "diagram_type": "erd",
+  "meta": {
+    "title": "08 · Database: all 27 tables",
+    "locale": "en",
+    "output": ".archify/08-database-erd/database-erd.html",
+    "quality_profile": "standard",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "layout": {
+    "mode": "grid"
+  },
+  "entities": [
+    {
+      "id": "services",
+      "label": "services",
+      "sublabel": "the price list",
+      "tag": "Clinic setup",
+      "row": 0,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "key": "uk"
+        },
+        {
+          "name": "name_en",
+          "type": "text"
+        },
+        {
+          "name": "name_ar",
+          "type": "text"
+        },
+        {
+          "name": "description_en",
+          "type": "text"
+        },
+        {
+          "name": "description_ar",
+          "type": "text"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "integer"
+        },
+        {
+          "name": "price_egp",
+          "type": "numeric(10,2)"
+        },
+        {
+          "name": "is_active",
+          "type": "boolean"
+        },
+        {
+          "name": "sort_order",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "details_en",
+          "type": "text"
+        },
+        {
+          "name": "details_ar",
+          "type": "text"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000300_clinic_setup.sql",
+          "line": 26,
+          "end_line": 39
+        },
+        {
+          "path": "supabase/migrations/20261029000100_service_details.sql",
+          "line": 4,
+          "end_line": 6
+        }
+      ]
+    },
+    {
+      "id": "staff",
+      "label": "staff",
+      "sublabel": "doctors and hygienists",
+      "tag": "Clinic setup",
+      "row": 1,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "profile_id",
+          "type": "uuid",
+          "key": [
+            "fk",
+            "uk"
+          ],
+          "references": "profiles.id"
+        },
+        {
+          "name": "full_name_en",
+          "type": "text"
+        },
+        {
+          "name": "full_name_ar",
+          "type": "text"
+        },
+        {
+          "name": "title",
+          "type": "staff_title"
+        },
+        {
+          "name": "bio_en",
+          "type": "text"
+        },
+        {
+          "name": "bio_ar",
+          "type": "text"
+        },
+        {
+          "name": "photo_url",
+          "type": "text"
+        },
+        {
+          "name": "is_active",
+          "type": "boolean"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000200_people.sql",
+          "line": 31,
+          "end_line": 43
+        }
+      ]
+    },
+    {
+      "id": "staff_services",
+      "label": "staff_services",
+      "sublabel": "which doctor does which service",
+      "tag": "Clinic setup",
+      "row": 2,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "staff_id",
+          "type": "uuid",
+          "key": [
+            "pk",
+            "fk"
+          ],
+          "references": "staff.id"
+        },
+        {
+          "name": "service_id",
+          "type": "uuid",
+          "key": [
+            "pk",
+            "fk"
+          ],
+          "references": "services.id"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000300_clinic_setup.sql",
+          "line": 46,
+          "end_line": 51
+        }
+      ]
+    },
+    {
+      "id": "working_hours",
+      "label": "working_hours",
+      "sublabel": "weekly hours per doctor",
+      "tag": "Clinic setup",
+      "row": 3,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "staff_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "staff.id"
+        },
+        {
+          "name": "weekday",
+          "type": "smallint"
+        },
+        {
+          "name": "start_time",
+          "type": "time"
+        },
+        {
+          "name": "end_time",
+          "type": "time"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000300_clinic_setup.sql",
+          "line": 57,
+          "end_line": 71
+        }
+      ]
+    },
+    {
+      "id": "time_off",
+      "label": "time_off",
+      "sublabel": "null staff_id = clinic closed",
+      "tag": "Clinic setup",
+      "row": 4,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "staff_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "staff.id"
+        },
+        {
+          "name": "starts_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "ends_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "reason",
+          "type": "text"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000300_clinic_setup.sql",
+          "line": 77,
+          "end_line": 88
+        }
+      ]
+    },
+    {
+      "id": "clinic_settings",
+      "label": "clinic_settings",
+      "sublabel": "one row (id = 1)",
+      "tag": "Clinic setup",
+      "row": 5,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "smallint",
+          "key": "pk"
+        },
+        {
+          "name": "name_en",
+          "type": "text"
+        },
+        {
+          "name": "name_ar",
+          "type": "text"
+        },
+        {
+          "name": "timezone",
+          "type": "text"
+        },
+        {
+          "name": "phone",
+          "type": "text"
+        },
+        {
+          "name": "email",
+          "type": "text"
+        },
+        {
+          "name": "address_en",
+          "type": "text"
+        },
+        {
+          "name": "address_ar",
+          "type": "text"
+        },
+        {
+          "name": "currency",
+          "type": "text"
+        },
+        {
+          "name": "slot_step_minutes",
+          "type": "integer"
+        },
+        {
+          "name": "min_lead_minutes",
+          "type": "integer"
+        },
+        {
+          "name": "booking_horizon_days",
+          "type": "integer"
+        },
+        {
+          "name": "cancellation_window_hours",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "assistant_enabled",
+          "type": "boolean"
+        },
+        {
+          "name": "chat_retention_days",
+          "type": "integer"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000300_clinic_setup.sql",
+          "line": 4,
+          "end_line": 20
+        },
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 36,
+          "end_line": 38
+        }
+      ],
+      "width": 275
+    },
+    {
+      "id": "appointments",
+      "label": "appointments",
+      "sublabel": "no overlaps (exclusion constraints)",
+      "tag": "Bookings",
+      "row": 0,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "patient_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "patients.id"
+        },
+        {
+          "name": "staff_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "staff.id"
+        },
+        {
+          "name": "service_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "services.id"
+        },
+        {
+          "name": "starts_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "ends_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "status",
+          "type": "appointment_status"
+        },
+        {
+          "name": "source",
+          "type": "booking_source"
+        },
+        {
+          "name": "notes",
+          "type": "text"
+        },
+        {
+          "name": "cancelled_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "cancel_reason",
+          "type": "text"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "key": "uk"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "reminder_sent_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000400_bookings.sql",
+          "line": 3,
+          "end_line": 30
+        },
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 44,
+          "end_line": 44
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "label": "notifications",
+      "sublabel": "every email sent, logged",
+      "tag": "Bookings",
+      "row": 1,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "patient_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "patients.id"
+        },
+        {
+          "name": "appointment_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "appointments.id"
+        },
+        {
+          "name": "channel",
+          "type": "text"
+        },
+        {
+          "name": "template",
+          "type": "text"
+        },
+        {
+          "name": "to_address",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "type": "notification_status"
+        },
+        {
+          "name": "error",
+          "type": "text"
+        },
+        {
+          "name": "sent_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000400_bookings.sql",
+          "line": 82,
+          "end_line": 93
+        }
+      ]
+    },
+    {
+      "id": "waitlist",
+      "label": "waitlist",
+      "sublabel": "wishes for a freed time",
+      "tag": "Bookings",
+      "row": 2,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "patient_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "patients.id"
+        },
+        {
+          "name": "service_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "services.id"
+        },
+        {
+          "name": "staff_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "staff.id"
+        },
+        {
+          "name": "date_from",
+          "type": "date"
+        },
+        {
+          "name": "date_to",
+          "type": "date"
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "notified_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 109,
+          "end_line": 122
+        }
+      ]
+    },
+    {
+      "id": "patients",
+      "label": "patients",
+      "sublabel": "the clinic record",
+      "tag": "People & accounts",
+      "row": 0,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "profile_id",
+          "type": "uuid",
+          "key": [
+            "fk",
+            "uk"
+          ],
+          "references": "profiles.id"
+        },
+        {
+          "name": "full_name",
+          "type": "text"
+        },
+        {
+          "name": "date_of_birth",
+          "type": "date"
+        },
+        {
+          "name": "email",
+          "type": "citext",
+          "key": "uk"
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "key": "uk"
+        },
+        {
+          "name": "code_hmac",
+          "type": "text",
+          "key": "uk"
+        },
+        {
+          "name": "login_failed_attempts",
+          "type": "integer"
+        },
+        {
+          "name": "login_locked_until",
+          "type": "timestamptz"
+        },
+        {
+          "name": "preferred_language",
+          "type": "lang"
+        },
+        {
+          "name": "notes",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "intake",
+          "type": "jsonb"
+        },
+        {
+          "name": "code_ciphertext",
+          "type": "text"
+        },
+        {
+          "name": "code_key_id",
+          "type": "text"
+        },
+        {
+          "name": "code_issued_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000200_people.sql",
+          "line": 51,
+          "end_line": 66
+        },
+        {
+          "path": "supabase/migrations/20261104000100_backend_auth.sql",
+          "line": 52,
+          "end_line": 56
+        },
+        {
+          "path": "supabase/migrations/20261104000200_backend_auth_contract.sql",
+          "line": 24,
+          "end_line": 30
+        }
+      ],
+      "width": 275
+    },
+    {
+      "id": "profiles",
+      "label": "profiles",
+      "sublabel": "one per account (any role)",
+      "tag": "People & accounts",
+      "row": 1,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "role",
+          "type": "user_role"
+        },
+        {
+          "name": "full_name",
+          "type": "text"
+        },
+        {
+          "name": "email",
+          "type": "citext"
+        },
+        {
+          "name": "phone",
+          "type": "text"
+        },
+        {
+          "name": "preferred_language",
+          "type": "lang"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "password_hash",
+          "type": "text"
+        },
+        {
+          "name": "password_changed_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "must_change_password",
+          "type": "boolean"
+        },
+        {
+          "name": "failed_login_attempts",
+          "type": "integer"
+        },
+        {
+          "name": "locked_until",
+          "type": "timestamptz"
+        },
+        {
+          "name": "disabled_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "last_sign_in_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000200_people.sql",
+          "line": 15,
+          "end_line": 24
+        },
+        {
+          "path": "supabase/migrations/20261104000100_backend_auth.sql",
+          "line": 1,
+          "end_line": 38
+        },
+        {
+          "path": "supabase/migrations/20261104000200_backend_auth_contract.sql",
+          "line": 24,
+          "end_line": 25
+        }
+      ],
+      "width": 260
+    },
+    {
+      "id": "auth_sessions",
+      "label": "auth_sessions",
+      "sublabel": "one per signed-in device",
+      "tag": "People & accounts",
+      "row": 2,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "profile_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "refresh_hash",
+          "type": "text"
+        },
+        {
+          "name": "previous_hash",
+          "type": "text"
+        },
+        {
+          "name": "rotated_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "method",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "last_used_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "redeem_by",
+          "type": "timestamptz"
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "revoke_reason",
+          "type": "text"
+        },
+        {
+          "name": "user_agent",
+          "type": "text"
+        },
+        {
+          "name": "ip",
+          "type": "text"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104000100_backend_auth.sql",
+          "line": 58,
+          "end_line": 78
+        }
+      ]
+    },
+    {
+      "id": "login_codes",
+      "label": "login_codes",
+      "sublabel": "emailed 6-digit codes",
+      "tag": "People & accounts",
+      "row": 3,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "purpose",
+          "type": "text"
+        },
+        {
+          "name": "email",
+          "type": "citext"
+        },
+        {
+          "name": "profile_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "code_hmac",
+          "type": "text"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb"
+        },
+        {
+          "name": "attempts",
+          "type": "integer"
+        },
+        {
+          "name": "send_count",
+          "type": "integer"
+        },
+        {
+          "name": "window_started_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104000100_backend_auth.sql",
+          "line": 80,
+          "end_line": 97
+        }
+      ],
+      "width": 250
+    },
+    {
+      "id": "patient_memories",
+      "label": "patient_memories",
+      "sublabel": "short notes the assistant keeps",
+      "tag": "People & accounts",
+      "row": 4,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "patient_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "patients.id"
+        },
+        {
+          "name": "kind",
+          "type": "text"
+        },
+        {
+          "name": "content",
+          "type": "text"
+        },
+        {
+          "name": "source",
+          "type": "text"
+        },
+        {
+          "name": "conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 53,
+          "end_line": 62
+        }
+      ]
+    },
+    {
+      "id": "contact_changes",
+      "label": "contact_changes",
+      "sublabel": "new email/phone waiting for a code",
+      "tag": "People & accounts",
+      "row": 5,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "patient_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "patients.id"
+        },
+        {
+          "name": "field",
+          "type": "text"
+        },
+        {
+          "name": "new_value",
+          "type": "text"
+        },
+        {
+          "name": "code_hmac",
+          "type": "text"
+        },
+        {
+          "name": "attempts",
+          "type": "integer"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261029000200_dashboards.sql",
+          "line": 57,
+          "end_line": 67
+        }
+      ]
+    },
+    {
+      "id": "conversations",
+      "label": "conversations",
+      "sublabel": "one chat; state = pending action",
+      "tag": "Assistant chats",
+      "row": 0,
+      "col": 3,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "assistant",
+          "type": "assistant_kind"
+        },
+        {
+          "name": "profile_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "patient_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "patients.id"
+        },
+        {
+          "name": "language",
+          "type": "lang"
+        },
+        {
+          "name": "last_message_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "title",
+          "type": "text"
+        },
+        {
+          "name": "state",
+          "type": "jsonb"
+        },
+        {
+          "name": "turn_count",
+          "type": "integer"
+        },
+        {
+          "name": "off_topic_count",
+          "type": "integer"
+        },
+        {
+          "name": "blocked_until",
+          "type": "timestamptz"
+        },
+        {
+          "name": "summary",
+          "type": "text"
+        },
+        {
+          "name": "summary_embedding",
+          "type": "vector(768)"
+        },
+        {
+          "name": "summarized_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "reviewed_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "reviewed_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "review_note",
+          "type": "text"
+        },
+        {
+          "name": "taken_over_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "taken_over_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "visitor_hash",
+          "type": "text"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 3,
+          "end_line": 11
+        },
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 6,
+          "end_line": 20
+        },
+        {
+          "path": "supabase/migrations/20261029000200_dashboards.sql",
+          "line": 14,
+          "end_line": 16
+        }
+      ],
+      "width": 250
+    },
+    {
+      "id": "escalations",
+      "label": "escalations",
+      "sublabel": "handovers to the team",
+      "tag": "Assistant chats",
+      "row": 1,
+      "col": 3,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "patient_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "patients.id"
+        },
+        {
+          "name": "reason",
+          "type": "text"
+        },
+        {
+          "name": "urgency",
+          "type": "urgency"
+        },
+        {
+          "name": "status",
+          "type": "escalation_status"
+        },
+        {
+          "name": "resolved_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "resolved_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000400_bookings.sql",
+          "line": 62,
+          "end_line": 73
+        },
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 16,
+          "end_line": 18
+        }
+      ]
+    },
+    {
+      "id": "messages",
+      "label": "messages",
+      "sublabel": "masked text, tool calls, staff replies",
+      "tag": "Assistant chats",
+      "row": 2,
+      "col": 3,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "key": "pk"
+        },
+        {
+          "name": "conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "role",
+          "type": "message_role"
+        },
+        {
+          "name": "content",
+          "type": "text"
+        },
+        {
+          "name": "tool_name",
+          "type": "text"
+        },
+        {
+          "name": "tool_payload",
+          "type": "jsonb"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "author_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 20,
+          "end_line": 28
+        },
+        {
+          "path": "supabase/migrations/20261029000200_dashboards.sql",
+          "line": 1,
+          "end_line": 11
+        }
+      ]
+    },
+    {
+      "id": "assistant_reports",
+      "label": "assistant_reports",
+      "sublabel": "\"the assistant got this wrong\"",
+      "tag": "Assistant chats",
+      "row": 3,
+      "col": 3,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "message_id",
+          "type": "bigint",
+          "key": "fk",
+          "references": "messages.id"
+        },
+        {
+          "name": "kind",
+          "type": "text"
+        },
+        {
+          "name": "note",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "reported_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "resolved_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "resolved_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "owner_note",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261029000200_dashboards.sql",
+          "line": 35,
+          "end_line": 49
+        }
+      ]
+    },
+    {
+      "id": "agent_runs",
+      "label": "agent_runs",
+      "sublabel": "one row per turn (stats)",
+      "tag": "Assistant chats",
+      "row": 4,
+      "col": 3,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "assistant",
+          "type": "assistant_kind"
+        },
+        {
+          "name": "model",
+          "type": "text"
+        },
+        {
+          "name": "latency_ms",
+          "type": "integer"
+        },
+        {
+          "name": "iterations",
+          "type": "integer"
+        },
+        {
+          "name": "tool_calls",
+          "type": "jsonb"
+        },
+        {
+          "name": "outcome",
+          "type": "run_outcome"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "tokens_in",
+          "type": "integer"
+        },
+        {
+          "name": "tokens_out",
+          "type": "integer"
+        },
+        {
+          "name": "retries",
+          "type": "integer"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 33,
+          "end_line": 43
+        },
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 30,
+          "end_line": 33
+        }
+      ]
+    },
+    {
+      "id": "agent_traces",
+      "label": "agent_traces",
+      "sublabel": "every step of a turn (debugging)",
+      "tag": "Assistant chats",
+      "row": 5,
+      "col": 3,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "turn",
+          "type": "integer"
+        },
+        {
+          "name": "outcome",
+          "type": "run_outcome"
+        },
+        {
+          "name": "latency_ms",
+          "type": "integer"
+        },
+        {
+          "name": "trace",
+          "type": "jsonb"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261107000100_agent_traces.sql",
+          "line": 12,
+          "end_line": 20
+        }
+      ]
+    },
+    {
+      "id": "knowledge_docs",
+      "label": "knowledge_docs",
+      "sublabel": "one per topic + language",
+      "tag": "Assistant knowledge",
+      "row": 0,
+      "col": 4,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "group_key",
+          "type": "text"
+        },
+        {
+          "name": "language",
+          "type": "lang"
+        },
+        {
+          "name": "category",
+          "type": "text"
+        },
+        {
+          "name": "title",
+          "type": "text"
+        },
+        {
+          "name": "content",
+          "type": "text"
+        },
+        {
+          "name": "source_type",
+          "type": "text"
+        },
+        {
+          "name": "file_path",
+          "type": "text"
+        },
+        {
+          "name": "file_name",
+          "type": "text"
+        },
+        {
+          "name": "mime_type",
+          "type": "text"
+        },
+        {
+          "name": "ingest_status",
+          "type": "ingest_status"
+        },
+        {
+          "name": "ingest_error",
+          "type": "text"
+        },
+        {
+          "name": "is_published",
+          "type": "boolean"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 64,
+          "end_line": 87
+        }
+      ]
+    },
+    {
+      "id": "knowledge_chunks",
+      "label": "knowledge_chunks",
+      "sublabel": "searchable pieces (pgvector)",
+      "tag": "Assistant knowledge",
+      "row": 1,
+      "col": 4,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "doc_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "knowledge_docs.id"
+        },
+        {
+          "name": "chunk_index",
+          "type": "integer"
+        },
+        {
+          "name": "content",
+          "type": "text"
+        },
+        {
+          "name": "embedding",
+          "type": "vector(768)"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 94,
+          "end_line": 102
+        }
+      ]
+    },
+    {
+      "id": "knowledge_gaps",
+      "label": "knowledge_gaps",
+      "sublabel": "questions it could not answer",
+      "tag": "Assistant knowledge",
+      "row": 2,
+      "col": 4,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "question",
+          "type": "text"
+        },
+        {
+          "name": "normalized",
+          "type": "text"
+        },
+        {
+          "name": "language",
+          "type": "lang"
+        },
+        {
+          "name": "count",
+          "type": "integer"
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "last_conversation_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "conversations.id"
+        },
+        {
+          "name": "first_seen_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "last_seen_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 95,
+          "end_line": 106
+        }
+      ]
+    },
+    {
+      "id": "intake_fields",
+      "label": "intake_fields",
+      "sublabel": "questions the owner wants asked",
+      "tag": "Assistant knowledge",
+      "row": 3,
+      "col": 4,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "key",
+          "type": "text",
+          "key": "uk"
+        },
+        {
+          "name": "label_en",
+          "type": "text"
+        },
+        {
+          "name": "label_ar",
+          "type": "text"
+        },
+        {
+          "name": "kind",
+          "type": "text"
+        },
+        {
+          "name": "options",
+          "type": "jsonb"
+        },
+        {
+          "name": "required",
+          "type": "boolean"
+        },
+        {
+          "name": "sort_order",
+          "type": "integer"
+        },
+        {
+          "name": "is_active",
+          "type": "boolean"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 68,
+          "end_line": 80
+        }
+      ]
+    },
+    {
+      "id": "jobs",
+      "label": "jobs",
+      "sublabel": "background work queue",
+      "tag": "System",
+      "row": 4,
+      "col": 4,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "key": "pk"
+        },
+        {
+          "name": "type",
+          "type": "text"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb"
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "run_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "attempts",
+          "type": "integer"
+        },
+        {
+          "name": "max_attempts",
+          "type": "integer"
+        },
+        {
+          "name": "last_error",
+          "type": "text"
+        },
+        {
+          "name": "locked_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261026000100_part2a_chatbot.sql",
+          "line": 128,
+          "end_line": 140
+        }
+      ]
+    },
+    {
+      "id": "audit_log",
+      "label": "audit_log",
+      "sublabel": "who changed what (triggers)",
+      "tag": "System",
+      "row": 5,
+      "col": 4,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "key": "pk"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "via",
+          "type": "text"
+        },
+        {
+          "name": "action",
+          "type": "text"
+        },
+        {
+          "name": "entity",
+          "type": "text"
+        },
+        {
+          "name": "entity_id",
+          "type": "text"
+        },
+        {
+          "name": "before",
+          "type": "jsonb"
+        },
+        {
+          "name": "after",
+          "type": "jsonb"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023000500_ai.sql",
+          "line": 48,
+          "end_line": 58
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "profiles-patients",
+      "from": "profiles",
+      "to": "patients",
+      "label": "patient login",
+      "fromCardinality": "one",
+      "toCardinality": "one",
+      "toOptional": true
+    },
+    {
+      "id": "profiles-authsessions",
+      "from": "profiles",
+      "to": "auth_sessions",
+      "label": "sessions",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "patients-patientmemories",
+      "from": "patients",
+      "to": "patient_memories",
+      "label": "notes",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "services-staffservices",
+      "from": "services",
+      "to": "staff_services",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true,
+      "identifying": true
+    },
+    {
+      "id": "staff-staffservices",
+      "from": "staff",
+      "to": "staff_services",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true,
+      "identifying": true
+    },
+    {
+      "id": "staff-workinghours",
+      "from": "staff",
+      "to": "working_hours",
+      "label": "hours",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "staff-timeoff",
+      "from": "staff",
+      "to": "time_off",
+      "label": "time off",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "fromOptional": true,
+      "toOptional": true
+    },
+    {
+      "id": "services-appointments",
+      "from": "services",
+      "to": "appointments",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "staff-appointments",
+      "from": "staff",
+      "to": "appointments",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "patients-appointments",
+      "from": "patients",
+      "to": "appointments",
+      "label": "books",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "appointments-notifications",
+      "from": "appointments",
+      "to": "notifications",
+      "label": "emails",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "fromOptional": true,
+      "toOptional": true
+    },
+    {
+      "id": "patients-waitlist",
+      "from": "patients",
+      "to": "waitlist",
+      "label": "waits",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "services-waitlist",
+      "from": "services",
+      "to": "waitlist",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "patients-conversations",
+      "from": "patients",
+      "to": "conversations",
+      "label": "chats",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "fromOptional": true,
+      "toOptional": true
+    },
+    {
+      "id": "conversations-messages",
+      "from": "conversations",
+      "to": "messages",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "conversations-escalations",
+      "from": "conversations",
+      "to": "escalations",
+      "label": "handover",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "fromOptional": true,
+      "toOptional": true
+    },
+    {
+      "id": "messages-assistantreports",
+      "from": "messages",
+      "to": "assistant_reports",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "fromOptional": true,
+      "toOptional": true
+    },
+    {
+      "id": "knowledgedocs-knowledgechunks",
+      "from": "knowledge_docs",
+      "to": "knowledge_chunks",
+      "label": "chunks",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "toOptional": true
+    },
+    {
+      "id": "conversations-knowledgegaps",
+      "from": "conversations",
+      "to": "knowledge_gaps",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "fromOptional": true,
+      "toOptional": true
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "How to read it",
+      "items": [
+        "Each box is a table with every column, in the order the migrations add them",
+        "PK = primary key · FK = points to another table · UK = must be unique",
+        "Lines show the main links; a crow's foot means \"many\""
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Not drawn, to keep it readable",
+      "items": [
+        "created_by, resolved_by, reviewed_by, taken_over_by, author_id, reported_by and actor_id all point to profiles",
+        "staff.profile_id → profiles (team login) · login_codes.profile_id → profiles · conversations.profile_id → profiles",
+        "agent_runs, agent_traces and assistant_reports → conversations · contact_changes, escalations, notifications → patients",
+        "waitlist.staff_id → staff · waitlist and patient_memories.conversation_id → conversations"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Rules the database enforces",
+      "items": [
+        "No double bookings: exclusion constraints on appointments (per doctor and per patient)",
+        "Unique pairs: login_codes (purpose, email), contact_changes (patient_id, field), knowledge_docs (group_key, language), knowledge_chunks (doc_id, chunk_index)",
+        "A patient profile holds no email or phone: those live on patients",
+        "team emails are unique (partial index on profiles where role ≠ patient)"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "What changed since the first design",
+      "items": [
+        "Supabase Auth is gone: profiles no longer link to auth.users",
+        "Sign-in moved into the backend: auth_sessions and login_codes",
+        "Only the service role can read or write any table",
+        "patients.intake is a JSON object keyed by intake_fields.key"
+      ]
+    }
+  ]
+}

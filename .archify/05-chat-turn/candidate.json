@@ -1,0 +1,476 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "05 · One chat turn, step by step",
+    "locale": "en",
+    "output": ".archify/05-chat-turn/chat-turn.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Patient's browser + /api/chat"
+    },
+    {
+      "id": "turn",
+      "label": "Chat turn (chatService)"
+    },
+    {
+      "id": "tools",
+      "label": "Tools"
+    },
+    {
+      "id": "agent",
+      "label": "Agent loop"
+    },
+    {
+      "id": "fallback",
+      "label": "Fixed replies + handover",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "before",
+      "label": "Before the AI",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "think",
+      "label": "AI + tools",
+      "fromCol": 3,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "check",
+      "label": "Check",
+      "fromCol": 4,
+      "toCol": 4,
+      "variant": "security"
+    },
+    {
+      "id": "finish",
+      "label": "Save + send",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "groups": [
+    {
+      "id": "rewrite",
+      "label": "Rewrite loop",
+      "lane": "agent",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "msg",
+    "pre",
+    "prep",
+    "ask",
+    "checks",
+    "save"
+  ],
+  "nodes": [
+    {
+      "id": "msg",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Patient message",
+      "sublabel": "POST /api/chat/stream",
+      "sources": [
+        {
+          "path": "backend/src/routes/chat.js",
+          "line": 20,
+          "end_line": 31
+        },
+        {
+          "path": "backend/src/controllers/chatController.js",
+          "line": 24,
+          "end_line": 61
+        }
+      ]
+    },
+    {
+      "id": "reply",
+      "lane": "ui",
+      "col": 5,
+      "type": "frontend",
+      "label": "Reply on screen",
+      "sublabel": "real values back in",
+      "sources": [
+        {
+          "path": "backend/src/controllers/chatController.js",
+          "line": 30,
+          "end_line": 52,
+          "label": "SSE: status, cards, tokens, done"
+        },
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 396,
+          "end_line": 403
+        }
+      ]
+    },
+    {
+      "id": "pre",
+      "lane": "turn",
+      "col": 1,
+      "type": "security",
+      "label": "Checks first",
+      "sublabel": "lock · limits · emergency",
+      "tag": "budget + breaker",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 104,
+          "end_line": 150,
+          "label": "paused, lock, cooldown, 60 turns"
+        },
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 194,
+          "end_line": 225,
+          "label": "emergency, take-over, budget"
+        }
+      ]
+    },
+    {
+      "id": "prep",
+      "lane": "turn",
+      "col": 2,
+      "type": "backend",
+      "label": "Mask + context",
+      "sublabel": "placeholders · prompt",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 152,
+          "end_line": 250
+        },
+        {
+          "path": "backend/src/agent/masking.js",
+          "line": 1,
+          "end_line": 11
+        },
+        {
+          "path": "backend/src/agent/context.js",
+          "line": 1,
+          "end_line": 80
+        }
+      ]
+    },
+    {
+      "id": "save",
+      "lane": "turn",
+      "col": 5,
+      "type": "database",
+      "label": "Save the turn",
+      "sublabel": "messages · run · trace",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 361,
+          "end_line": 414
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "lane": "tools",
+      "col": 3,
+      "type": "security",
+      "label": "Run tools",
+      "sublabel": "23 tools · zod-checked",
+      "sources": [
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 186,
+          "end_line": 202
+        },
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 208,
+          "end_line": 245,
+          "label": "runTool"
+        },
+        {
+          "path": "backend/src/agent/tools/index.js",
+          "line": 16,
+          "end_line": 55
+        }
+      ]
+    },
+    {
+      "id": "ask",
+      "lane": "agent",
+      "col": 3,
+      "type": "backend",
+      "label": "Ask the AI",
+      "sublabel": "model chain · ≤ 8 rounds",
+      "sources": [
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 39,
+          "end_line": 108
+        },
+        {
+          "path": "backend/src/llm/LlmClient.js",
+          "line": 54,
+          "end_line": 100
+        }
+      ]
+    },
+    {
+      "id": "checks",
+      "lane": "agent",
+      "col": 4,
+      "type": "security",
+      "label": "Check the draft",
+      "sublabel": "code checks, then reviewer",
+      "sources": [
+        {
+          "path": "backend/src/agent/loop.js",
+          "line": 110,
+          "end_line": 183
+        },
+        {
+          "path": "backend/src/agent/reviewer.js",
+          "line": 1,
+          "end_line": 60
+        }
+      ]
+    },
+    {
+      "id": "team",
+      "lane": "fallback",
+      "col": 0,
+      "type": "external",
+      "label": "Waits for the team",
+      "sublabel": "a person took over",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 207,
+          "end_line": 215
+        }
+      ]
+    },
+    {
+      "id": "fixed",
+      "lane": "fallback",
+      "col": 1,
+      "type": "messagebus",
+      "label": "Fixed reply",
+      "sublabel": "the AI is skipped",
+      "tag": "emergency: urgent handover",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 194,
+          "end_line": 205
+        },
+        {
+          "path": "backend/src/agent/guardrails.js",
+          "line": 129
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "lane": "fallback",
+      "col": 3,
+      "type": "messagebus",
+      "label": "Try once more",
+      "sublabel": "next model · last 4 msgs",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 252,
+          "end_line": 300
+        }
+      ]
+    },
+    {
+      "id": "apology",
+      "lane": "fallback",
+      "col": 5,
+      "type": "messagebus",
+      "label": "Apology + handover",
+      "sublabel": "needs_attention",
+      "sources": [
+        {
+          "path": "backend/src/services/chatService.js",
+          "line": 305,
+          "end_line": 316
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "msg-pre",
+      "from": "msg",
+      "to": "pre",
+      "label": "one at a time",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "pre-prep",
+      "from": "pre",
+      "to": "prep",
+      "label": "AI may run",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "pre-fixed",
+      "from": "pre",
+      "to": "fixed",
+      "label": "stopped",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "pre-team",
+      "from": "pre",
+      "to": "team",
+      "label": "taken over",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "prep-ask",
+      "from": "prep",
+      "to": "ask",
+      "label": "prompt + 20 msgs",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "ask-tools",
+      "from": "ask",
+      "to": "tools",
+      "label": "calls · results",
+      "role": "branch"
+    },
+    {
+      "id": "ask-checks",
+      "from": "ask",
+      "to": "checks",
+      "label": "draft",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "checks-ask",
+      "from": "checks",
+      "to": "ask",
+      "label": "send back",
+      "variant": "security",
+      "role": "return"
+    },
+    {
+      "id": "checks-save",
+      "from": "checks",
+      "to": "save",
+      "label": "passes",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "ask-retry",
+      "from": "ask",
+      "to": "retry",
+      "label": "error / timeout",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "retry-ask",
+      "from": "retry",
+      "to": "ask",
+      "label": "attempt 2",
+      "variant": "dashed",
+      "role": "return"
+    },
+    {
+      "id": "retry-apology",
+      "from": "retry",
+      "to": "apology",
+      "label": "fails again",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "apology-save",
+      "from": "apology",
+      "to": "save",
+      "label": "fixed text",
+      "role": "branch"
+    },
+    {
+      "id": "save-reply",
+      "from": "save",
+      "to": "reply",
+      "label": "reply",
+      "variant": "emphasis",
+      "role": "main"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Checks first (no AI yet)",
+      "items": [
+        "Assistant paused by the owner, chat cooling down, or 60 turns used: fixed reply",
+        "Emergency words: fixed reply + urgent handover, the AI is skipped",
+        "A team member took over: the message waits for them",
+        "Daily budget used or the breaker open: fixed reply with the clinic's phone"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "AI + tools",
+      "items": [
+        "Phones, emails, birth dates and codes become [PHONE_1]-style placeholders",
+        "System prompt + last 20 messages + this message",
+        "Each tool round: the AI asks, the code checks the arguments and runs the tool",
+        "At most 8 rounds and 60 s for the whole turn"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Check the draft",
+      "items": [
+        "Broken text, a price the clinic doesn't have, or 'it's booked' with no confirm: sent back once",
+        "Wrong language: sent back once",
+        "Reviewer AI: may send it back up to 2 times",
+        "Still objected to but sent: staff get a low-urgency alert"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "What each turn saves",
+      "items": [
+        "messages: the masked user text, tool calls, the reply",
+        "conversations: state (pending action, placeholders), turn count, status",
+        "agent_runs: one row (model, time, tools, outcome, tokens)",
+        "agent_traces: every step, for debugging · then summary jobs are queued"
+      ]
+    }
+  ]
+}

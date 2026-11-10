@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "01 · BrightSmile system overview",
+    "locale": "en",
+    "output": ".archify/01-system-overview/system-overview.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "components": [
+    { "id": "people", "type": "external", "label": "Patients · team", "sublabel": "web browser", "pos": [40, 200], "size": [150, 64],
+      "sources": [{ "path": "frontend/lib/api/client.js", "line": 21, "end_line": 31, "label": "browser calls /api on the site" }] },
+    { "id": "web", "type": "frontend", "label": "Next.js website", "sublabel": "pages · /api forwarder", "tag": "Vercel", "pos": [300, 200], "size": [180, 64],
+      "sources": [
+        { "path": "frontend/next.config.mjs", "line": 10, "end_line": 16, "label": "/api rewrite" },
+        { "path": "frontend/proxy.js", "line": 4, "end_line": 37, "label": "language redirect + visitor IP" }
+      ] },
+    { "id": "github", "type": "external", "label": "GitHub repo", "sublabel": "code + render.yaml", "pos": [620, 40], "size": [140, 60],
+      "sources": [{ "path": "render.yaml", "line": 1, "end_line": 15, "label": "auto-deploy on push" }] },
+    { "id": "keepwarm", "type": "external", "label": "GitHub Actions", "sublabel": "keep-warm robot", "pos": [780, 40], "size": [150, 60],
+      "sources": [{ "path": ".github/workflows/keep-warm.yml", "line": 1, "end_line": 16 }] },
+    { "id": "backup", "type": "database", "label": "Hugging Face dataset", "sublabel": "encrypted engine backup", "pos": [1000, 40], "size": [170, 60],
+      "sources": [
+        { "path": "infra/render/start.sh", "line": 8, "end_line": 23, "label": "backup restore at boot" },
+        { "path": "render.yaml", "line": 24, "end_line": 32 }
+      ] },
+    { "id": "api", "type": "backend", "label": "Backend API", "sublabel": "Express 5 · the only public door", "tag": "+ job runner every 30 s", "pos": [630, 170], "size": [260, 110],
+      "sources": [
+        { "path": "backend/src/app.js", "line": 20, "end_line": 56, "label": "request pipeline" },
+        { "path": "backend/src/index.js", "line": 7, "end_line": 15, "label": "listen + job runner" },
+        { "path": "infra/render/start.sh", "line": 47, "end_line": 50, "label": "public port" }
+      ] },
+    { "id": "engine", "type": "backend", "label": "FreeLLMAPI engine", "sublabel": "private 127.0.0.1:3001", "pos": [1000, 200], "size": [170, 64],
+      "sources": [
+        { "path": "infra/render/start.sh", "line": 25, "end_line": 27, "label": "engine on localhost" },
+        { "path": "backend/src/llm/LlmClient.js", "line": 7, "end_line": 33, "label": "only caller of the engine" }
+      ] },
+    { "id": "providers", "type": "cloud", "label": "Free AI providers", "sublabel": "failover between them", "pos": [1270, 200], "size": [150, 64],
+      "sources": [{ "path": "infra/README.md", "line": 13, "end_line": 13 }] },
+    { "id": "db", "type": "database", "label": "Supabase", "sublabel": "Postgres · file storage", "pos": [560, 390], "size": [190, 64],
+      "sources": [
+        { "path": "backend/src/db/supabase.js", "line": 7, "end_line": 37, "label": "service-role client" },
+        { "path": "supabase/migrations/20261023001000_storage.sql", "line": 1, "end_line": 20, "label": "knowledge-files bucket" }
+      ] },
+    { "id": "email", "type": "external", "label": "Brevo", "sublabel": "email over HTTPS", "pos": [790, 390], "size": [150, 64],
+      "sources": [
+        { "path": "backend/src/services/email/emailService.js", "line": 11, "end_line": 31, "label": "provider adapter" },
+        { "path": "backend/src/services/email/adapters/brevo.js", "line": 1, "end_line": 21 }
+      ] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Vercel", "wraps": ["web"], "pad": 16 },
+    { "kind": "region", "label": "Render · one free Docker web service (Frankfurt)", "wraps": ["api", "engine"], "pad": 20 },
+    { "kind": "security-group", "label": "localhost only", "wraps": ["engine"], "pad": 10 }
+  ],
+  "connections": [
+    { "id": "people-web", "from": "people", "to": "web", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "web-api", "from": "web", "to": "api", "label": "/api rewrite + SSR", "variant": "emphasis" },
+    { "id": "api-engine", "from": "api", "to": "engine", "label": "AI calls", "variant": "emphasis" },
+    { "id": "engine-providers", "from": "engine", "to": "providers", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "api-db", "from": "api", "to": "db", "label": "SQL + RPC · service role", "variant": "security" },
+    { "id": "api-email", "from": "api", "to": "email", "label": "emails", "variant": "dashed" },
+    { "id": "engine-backup", "from": "engine", "to": "backup", "label": "backup · restore at boot", "variant": "dashed" },
+    { "id": "github-api", "from": "github", "to": "api", "label": "deploy on push", "variant": "dashed" },
+    { "id": "keepwarm-api", "from": "keepwarm", "to": "api", "label": "GET /health · 10 min", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "How a page reaches the backend", "items": [
+      "The browser only talks to the website, so there is no cross-site (CORS) problem",
+      "Next.js forwards every /api/* call to the Render backend (rewrite)",
+      "proxy.js adds the visitor's real IP, proved by PROXY_SHARED_SECRET",
+      "Server-rendered pages call the backend directly for public data"
+    ] },
+    { "dot": "emerald", "title": "One Render box, two programs", "items": [
+      "start.sh launches the LLM engine first, then the backend",
+      "The engine listens on 127.0.0.1:3001: the internet can't reach it",
+      "If either program stops, the whole container restarts",
+      "The job runner (reminders, waitlist, clean-up) lives inside the backend"
+    ] },
+    { "dot": "rose", "title": "Who holds the keys", "items": [
+      "Only the backend talks to Supabase, with the service role key",
+      "Supabase Auth is no longer used: sign-in lives in the backend (diagram 03)",
+      "Secrets are Render / Vercel settings, never in the code"
+    ] },
+    { "dot": "amber", "title": "Free-plan facts", "items": [
+      "Render sleeps after 15 min idle, so keep-warm pings /health every 10 min",
+      "A push touching backend/** or infra/render/** rebuilds the Render service",
+      "Email goes through Brevo's HTTPS API: Render's free plan blocks SMTP ports",
+      "Owner extra: /__llm-admin?key=… opens the engine dashboard (off without a key)"
+    ] }
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "07 · Background jobs: reminders, waitlist, memory, clean-up",
+    "locale": "en",
+    "output": ".archify/07-background-jobs/background-jobs.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/zeiad-E/brightsmile-clinic-assistant.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "84a7b06ce39778476c9019ea8499137e50ad6ac8"
+    }
+  },
+  "stages": [
+    { "label": "What queues work" },
+    { "label": "Queue (Postgres)" },
+    { "label": "Runner" },
+    { "label": "Job handlers" },
+    { "label": "Result" }
+  ],
+  "nodes": [
+    { "id": "pChat", "type": "backend", "label": "Chat turn saved", "sublabel": "every 5 turns · idle", "stage": 0, "row": 0,
+      "sources": [
+        { "path": "backend/src/services/chatService.js", "line": 393, "end_line": 394 },
+        { "path": "backend/src/services/memoryService.js", "line": 88, "end_line": 104, "label": "scheduleSummaries" }
+      ] },
+    { "id": "pKnowledge", "type": "frontend", "label": "Knowledge edit", "sublabel": "owner · text or file", "stage": 0, "row": 1,
+      "sources": [{ "path": "backend/src/services/knowledge/knowledgeService.js", "line": 1, "end_line": 23 }] },
+    { "id": "pCancel", "type": "backend", "label": "Cancel or move", "sublabel": "a time opens up", "stage": 0, "row": 2,
+      "sources": [
+        { "path": "backend/src/services/appointmentService.js", "line": 33, "end_line": 39 },
+        { "path": "backend/src/services/appointmentService.js", "line": 105, "end_line": 108 },
+        { "path": "backend/src/services/waitlistService.js", "line": 55, "end_line": 70, "label": "announceOpening" }
+      ] },
+    { "id": "pReminders", "type": "messagebus", "label": "Every 15 minutes", "sublabel": "recurring row", "stage": 0, "row": 3,
+      "sources": [
+        { "path": "backend/src/services/jobs/handlers.js", "line": 17, "end_line": 28 },
+        { "path": "backend/src/services/jobs/jobRunner.js", "line": 15, "end_line": 35, "label": "recurring jobs" }
+      ] },
+    { "id": "pNightly", "type": "messagebus", "label": "Every night 03:00", "sublabel": "clinic time", "stage": 0, "row": 4,
+      "sources": [
+        { "path": "backend/src/services/jobs/handlers.js", "line": 13, "end_line": 16 },
+        { "path": "backend/src/services/retentionService.js", "line": 22 }
+      ] },
+
+    { "id": "jobs", "type": "database", "label": "jobs table", "sublabel": "survives restarts", "tag": "one waiting copy per type", "stage": 1, "row": 2,
+      "sources": [
+        { "path": "supabase/migrations/20261026000100_part2a_chatbot.sql", "line": 128, "end_line": 144 },
+        { "path": "backend/src/models/jobModel.js", "line": 1, "end_line": 78 }
+      ] },
+    { "id": "runner", "type": "messagebus", "label": "Job runner", "sublabel": "every 30 s · 5 at a time", "tag": "skip locked", "stage": 2, "row": 2,
+      "sources": [
+        { "path": "backend/src/services/jobs/jobRunner.js", "line": 36, "end_line": 92 },
+        { "path": "supabase/migrations/20261026000100_part2a_chatbot.sql", "line": 146, "end_line": 162, "label": "claim_jobs" }
+      ] },
+
+    { "id": "hMemory", "type": "backend", "label": "Memory jobs", "sublabel": "summaries · note clean-up", "stage": 3, "row": 0,
+      "sources": [
+        { "path": "backend/src/services/memoryService.js", "line": 44, "end_line": 88 },
+        { "path": "backend/src/services/memoryService.js", "line": 174, "end_line": 212, "label": "consolidateMemories" }
+      ] },
+    { "id": "hIngest", "type": "backend", "label": "ingest_knowledge", "sublabel": "extract · chunk · embed", "stage": 3, "row": 1,
+      "sources": [
+        { "path": "backend/src/services/knowledge/knowledgeService.js", "line": 136, "end_line": 178 },
+        { "path": "backend/src/rag/ingest.js", "line": 1, "end_line": 49 }
+      ] },
+    { "id": "hWaitlist", "type": "backend", "label": "Waitlist job", "sublabel": "still free? who waits?", "stage": 3, "row": 2,
+      "sources": [{ "path": "backend/src/services/waitlistService.js", "line": 72, "end_line": 127 }] },
+    { "id": "hReminders", "type": "backend", "label": "Reminders", "sublabel": "queue, then send one", "stage": 3, "row": 3,
+      "sources": [
+        { "path": "backend/src/services/reminderService.js", "line": 1, "end_line": 62 },
+        { "path": "supabase/migrations/20261104000100_backend_auth.sql", "line": 602, "end_line": 643, "label": "queue_due_reminders" }
+      ] },
+    { "id": "hCleanup", "type": "backend", "label": "nightly_cleanup", "sublabel": "privacy + tidy-up", "stage": 3, "row": 4,
+      "sources": [
+        { "path": "backend/src/services/retentionService.js", "line": 1, "end_line": 42 },
+        { "path": "supabase/migrations/20261026000200_part2a_jobs.sql", "line": 81, "end_line": 108, "label": "purge_expired_conversations" }
+      ] },
+
+    { "id": "rMemory", "type": "database", "label": "Chat memory", "sublabel": "summaries · patient notes", "stage": 4, "row": 0,
+      "sources": [
+        { "path": "supabase/migrations/20261026000100_part2a_chatbot.sql", "line": 1, "end_line": 62 }
+      ] },
+    { "id": "rChunks", "type": "database", "label": "knowledge_chunks", "sublabel": "768-number vectors", "stage": 4, "row": 1,
+      "sources": [{ "path": "supabase/migrations/20261023000500_ai.sql", "line": 94, "end_line": 105 }] },
+    { "id": "rEmail", "type": "external", "label": "Patient emails", "sublabel": "Brevo · logged", "stage": 4, "row": 3,
+      "sources": [{ "path": "backend/src/services/email/emailService.js", "line": 11, "end_line": 69 }] },
+    { "id": "rDeleted", "type": "database", "label": "Old rows deleted", "sublabel": "chats · jobs · sessions", "stage": 4, "row": 4,
+      "sources": [{ "path": "backend/src/services/retentionService.js", "line": 26, "end_line": 40 }] }
+  ],
+  "flows": [
+    { "id": "chat-jobs", "from": "pChat", "to": "jobs", "label": "summary jobs", "variant": "dashed" },
+    { "id": "knowledge-jobs", "from": "pKnowledge", "to": "jobs", "label": "ingest_knowledge", "variant": "dashed" },
+    { "id": "cancel-jobs", "from": "pCancel", "to": "jobs", "label": "waitlist job", "variant": "dashed" },
+    { "id": "reminders-jobs", "from": "pReminders", "to": "jobs", "label": "queue_reminders", "variant": "dashed" },
+    { "id": "nightly-jobs", "from": "pNightly", "to": "jobs", "label": "nightly_cleanup", "variant": "dashed" },
+
+    { "id": "jobs-runner", "from": "jobs", "to": "runner", "label": "claim_jobs", "variant": "emphasis" },
+
+    { "id": "run-memory", "from": "runner", "to": "hMemory", "label": "summaries" },
+    { "id": "run-ingest", "from": "runner", "to": "hIngest", "label": "ingest" },
+    { "id": "run-waitlist", "from": "runner", "to": "hWaitlist", "label": "waitlist" },
+    { "id": "run-reminders", "from": "runner", "to": "hReminders", "label": "reminders" },
+    { "id": "run-cleanup", "from": "runner", "to": "hCleanup", "label": "clean-up" },
+
+    { "id": "memory-out", "from": "hMemory", "to": "rMemory", "label": "summary · notes", "variant": "security" },
+    { "id": "ingest-out", "from": "hIngest", "to": "rChunks", "label": "chunks + vectors" },
+    { "id": "waitlist-out", "from": "hWaitlist", "to": "rEmail", "label": "≤ 5 emails", "variant": "security" },
+    { "id": "reminders-out", "from": "hReminders", "to": "rEmail", "label": "reminder email", "variant": "security" },
+    { "id": "cleanup-out", "from": "hCleanup", "to": "rDeleted", "label": "delete old rows", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Why a table, not memory", "items": [
+      "A restart (deploy, free-plan sleep) would lose work kept in memory",
+      "In Postgres, unfinished jobs simply run after the restart",
+      "claim_jobs uses SKIP LOCKED: two runners never take the same job"
+    ] },
+    { "dot": "amber", "title": "Reminders, in two steps", "items": [
+      "queue_reminders (every 15 min) marks due bookings and queues one send_reminder job each, in one transaction",
+      "send_reminder emails one patient; a cancelled or moved booking is skipped",
+      "It goes out about a day before the online change deadline (24 h by default)"
+    ] },
+    { "dot": "emerald", "title": "Waitlist", "items": [
+      "join_waitlist (chat) saves a wish: service, maybe a doctor, a date range",
+      "A cancel or move queues waitlist_slot_opened for the freed time",
+      "The handler re-checks the time is free, then emails up to 5 waiting patients",
+      "At most one email per wish every 12 hours; whoever books first gets it"
+    ] },
+    { "dot": "rose", "title": "Failures and safety net", "items": [
+      "A failed job is retried after 1, 4, 9… minutes, up to its max attempts",
+      "Every hour: jobs stuck in 'running' go back to the queue",
+      "Nightly: chats past chat_retention_days are deleted, unless an escalation is open",
+      "Embeddings for knowledge and chat summaries come from the LLM engine"
+    ] }
+  ]
+}
