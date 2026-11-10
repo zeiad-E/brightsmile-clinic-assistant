@@ -600,6 +600,14 @@ exception when insufficient_privilege then
 end;
 $$;
 
+-- ---------- a handover follows its chat to the patient ----------
+insert into public.conversations (id, assistant) values ('00000000-0000-0000-0000-00000000d201', 'patient');
+insert into public.escalations (conversation_id, reason) values ('00000000-0000-0000-0000-00000000d201', 'Guest handover');
+update public.conversations set patient_id = '00000000-0000-0000-0000-0000000000e1' where id = '00000000-0000-0000-0000-00000000d201';
+select test.assert(
+  (select patient_id from public.escalations where reason = 'Guest handover') = '00000000-0000-0000-0000-0000000000e1',
+  'a guest who signs in takes their handover with them');
+
 -- ---------- views and masked twins ----------
 insert into public.conversations (id, assistant) values ('00000000-0000-0000-0000-00000000d101', 'patient');
 insert into public.messages (conversation_id, role, content, tool_name, tool_payload)
