@@ -25,6 +25,7 @@ const pendingBooking = (proposedAtTurn) => ({
 const ctxWith = (pending, turnNumber) => ({
   conversation: { id: 'conv-1' },
   state: { pending },
+  map: {},
   turnNumber,
   timeZone: 'Africa/Cairo',
   isPatient: false,

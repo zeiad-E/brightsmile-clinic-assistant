@@ -8,6 +8,7 @@ import DecodeText from '@/components/fx/DecodeText';
 import { intlLocale } from '@/i18n/config';
 import { formatPrice } from '@/lib/format';
 import CodeReveal from '@/components/card/CodeReveal';
+import DetailsForm from './DetailsForm';
 import styles from './Chat.module.css';
 
 /**
@@ -15,8 +16,9 @@ import styles from './Chat.module.css';
  *
  * - Replies type out live (Server-Sent Events, see lib/api/chat.js) with a status line while the
  *   assistant works ("Checking free times…").
- * - The assistant can attach cards: free times (tap one to ask for it), a booking summary (confirm
- *   or change), a confirmation, or your appointments.
+ * - The assistant can attach cards: free times (tap one to ask for it), a details form (DetailsForm.js:
+ *   name, birth date, phone, email, checked while typing), a booking summary (confirm or change),
+ *   a confirmation, or your appointments.
  * - If the assistant signs you in during the chat, the whole site learns it (useSession().signInWithTicket).
  * - Coming back: the server remembers the chat (GET /api/chat/current) — a guest's through a private
  *   cookie on this browser, a patient's in their account — so closing the site loses nothing.
@@ -117,10 +119,12 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
 
   const updateLast = (change) => setMessages((all) => [...all.slice(0, -1), { ...all.at(-1), ...change(all.at(-1)) }]);
 
+  // `form`: the details form's values, sent with the message. Returns { ok }, or { fieldErrors } when
+  // the server refused a field, so the form can show it (the message is then taken back off the screen).
   const send = useCallback(
-    async (text) => {
+    async (text, { form } = {}) => {
       const message = text.trim();
-      if (!message || busy) return;
+      if (!message || busy) return { ok: false };
       // Typing (the field has focus)? Then give the field back after the answer. Not after a tapped
       // chip or slot: on a phone that would pop the keyboard up over the answer.
       const typing = document.activeElement === inputRef.current;
@@ -129,8 +133,9 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
       setStatus(team ? null : t.thinking);
       setMessages((all) => [...all, { id: nextId++, role: 'user', content: message }, { id: nextId++, role: 'assistant', content: '', cards: [], streaming: true }]);
 
+      let outcome = { ok: true };
       await streamChat(
-        { message, conversationId: conversationId.current, token: await getToken().catch(() => null), language: locale },
+        { message, conversationId: conversationId.current, token: await getToken().catch(() => null), language: locale, form },
         {
           onConversation: (id) => {
             conversationId.current = id;
@@ -152,7 +157,16 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
             }
             updateLast(() => ({ content: result.reply, streaming: false }));
           },
-          onError: (err) => updateLast(() => ({ content: err.message || t.error, error: true, streaming: false })),
+          onError: (err) => {
+            const fieldErrors = form && err.error === 'validation_error' ? fieldErrorsOf(err.details) : null;
+            if (fieldErrors) {
+              outcome = { ok: false, fieldErrors };
+              setMessages((all) => all.slice(0, -2));
+              return;
+            }
+            outcome = { ok: false };
+            updateLast(() => ({ content: err.message || t.error, error: true, streaming: false }));
+          },
         },
       );
 
@@ -160,6 +174,7 @@ export default function Chat({ t, locale, variant = 'page', ask = null }) {
       setStatus(null);
       setBusy(false);
       if (typing) inputRef.current?.focus({ preventScroll: true });
+      return outcome;
     },
     [busy, getToken, locale, signInWithTicket, t, team],
   );
@@ -323,6 +338,7 @@ function Bubble({ role, error, streaming, children }) {
 
 const dayLabel = (date, locale) =>
   new Intl.DateTimeFormat(intlLocale(locale), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
+const dateLabel = (date, locale) => new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
 const weekdayOf = (date, locale) => new Intl.DateTimeFormat(intlLocale(locale), { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
 const timeLabel = (time, locale) => {
   const [h, m] = time.split(':').map(Number);
@@ -336,9 +352,26 @@ const timeLabel = (time, locale) => {
  * reply switches to English. Egyptian wording, like the patient would type it.
  */
 const CARD_PROMPTS = {
-  en: { confirm: 'Yes, please confirm the booking.', change: "I'd like to change something." },
-  ar: { confirm: 'أيوه، أكّد الحجز من فضلك.', change: 'عاوز أغيّر حاجة.' },
+  en: {
+    confirm: 'Yes, please confirm the booking.',
+    change: "I'd like to change something.",
+    form: { booking: 'Here are my details.', sign_in: 'Here are my sign-in details.', sign_up: 'Here are my details for the account.' },
+  },
+  ar: {
+    confirm: 'أيوه، أكّد الحجز من فضلك.',
+    change: 'عاوز أغيّر حاجة.',
+    form: { booking: 'دي بياناتي.', sign_in: 'دي بيانات الدخول بتاعتي.', sign_up: 'دي بياناتي للحساب.' },
+  },
 };
+
+/** The server's "form.phone: …" errors → { phone: '…' }, for the details form. */
+function fieldErrorsOf(details) {
+  const errors = {};
+  for (const { path, message } of Array.isArray(details) ? details : []) {
+    if (path?.startsWith('form.')) errors[path.slice(5)] = message;
+  }
+  return Object.keys(errors).length ? errors : null;
+}
 
 /** 'ar' or 'en' by which letters the text mostly uses; null when it has no letters. */
 export function chatLanguage(text) {
@@ -393,6 +426,21 @@ function Card({ card, t, locale, name, reply, active, onSend }) {
     );
   }
 
+  if (card.type === 'details_form') {
+    const lang = chatLanguage(reply) ?? locale;
+    return (
+      <DetailsForm
+        card={card}
+        t={t}
+        locale={locale}
+        active={active}
+        className={styles.card}
+        when={card.booking && `${dayLabel(card.booking.date, locale)} · ${timeLabel(card.booking.time, locale)}`}
+        onSubmit={(form) => onSend(CARD_PROMPTS[lang].form[form.purpose], { form })}
+      />
+    );
+  }
+
   if (card.type === 'booking_summary' || card.type === 'booking_confirmed') {
     const confirmed = card.type === 'booking_confirmed';
     return (
@@ -430,6 +478,25 @@ function Card({ card, t, locale, name, reply, active, onSend }) {
             <div>
               <dt>{t.patient}</dt>
               <dd>{card.patient_name}</dd>
+            </div>
+          )}
+          {/* a new patient checks their own details here too, before saying yes */}
+          {card.patient_dob && (
+            <div>
+              <dt>{t.form.dob}</dt>
+              <dd>{dateLabel(card.patient_dob, locale)}</dd>
+            </div>
+          )}
+          {card.patient_phone && (
+            <div>
+              <dt>{t.form.phone}</dt>
+              <dd dir="ltr">{card.patient_phone}</dd>
+            </div>
+          )}
+          {card.patient_email && (
+            <div>
+              <dt>{t.form.email}</dt>
+              <dd dir="ltr">{card.patient_email}</dd>
             </div>
           )}
         </dl>

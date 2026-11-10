@@ -7,6 +7,9 @@ export const LIMITS = Object.freeze({
   maxTurnsPerConversation: 60,
   maxSignInAttempts: 5,
   historyMessages: 20,
+  // The retry (after a failed first try, often a slow one) gets a shorter history, so it is quicker.
+  // The notebook keeps the important facts (name, choice), so 12 messages are plenty.
+  retryHistoryMessages: 12,
   maxReplyChars: 1500,
   maxTokens: 700,
 });

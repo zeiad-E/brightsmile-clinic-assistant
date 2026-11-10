@@ -14,7 +14,8 @@ const patient = buildSystemPrompt({ ...base, patient: { fullName: 'Ali Hassan', 
 describe('buildSystemPrompt', () => {
   it('gives a guest the sign-in and sign-up steps, not memory or intake', () => {
     expect(guest).toContain('YOU ARE TALKING TO A GUEST');
-    expect(guest).toContain('sign_in_with_phone');
+    expect(guest).toContain('show_details_form');
+    expect(guest).toContain('sign_in_with_code');
     expect(guest).toContain('start_sign_up');
     expect(guest).not.toContain('MEMORY');
     expect(guest).not.toContain('update_intake');
@@ -24,7 +25,8 @@ describe('buildSystemPrompt', () => {
     expect(patient).toContain('YOU ARE TALKING TO A SIGNED-IN PATIENT');
     expect(patient).toContain('remember');
     expect(patient).toContain('update_intake');
-    expect(patient).not.toContain('sign_in_with_phone');
+    expect(patient).not.toContain('sign_in_with_code');
+    expect(patient).not.toContain('show_details_form');
     expect(patient).not.toContain('start_sign_up');
   });
 

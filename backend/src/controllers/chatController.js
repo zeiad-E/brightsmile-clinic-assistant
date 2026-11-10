@@ -22,9 +22,9 @@ function visitorFor(req, res, { start = false } = {}) {
 }
 
 export async function send(req, res) {
-  const { conversation_id: conversationId, message, language } = req.valid.body;
+  const { conversation_id: conversationId, message, language, form } = req.valid.body;
   const visitor = visitorFor(req, res, { start: true });
-  res.json(await chatService.sendMessage({ user: req.user, ip: req.clientIp, evalCase: req.evalCase, visitorHash: visitor }, { conversationId, message, language }));
+  res.json(await chatService.sendMessage({ user: req.user, ip: req.clientIp, evalCase: req.evalCase, visitorHash: visitor }, { conversationId, message, language, form }));
 }
 
 /**
@@ -34,13 +34,13 @@ export async function send(req, res) {
  * carries the full result (the same JSON as the plain endpoint).
  */
 export async function stream(req, res) {
-  const { conversation_id: conversationId, message, language } = req.valid.body;
+  const { conversation_id: conversationId, message, language, form } = req.valid.body;
   const visitor = visitorFor(req, res, { start: true }); // before the stream: cookies travel in its headers
   const events = openEventStream(req, res);
   try {
     const result = await chatService.sendMessage(
       { user: req.user, ip: req.clientIp, evalCase: req.evalCase, visitorHash: visitor, onEvent: events.send },
-      { conversationId, message, language },
+      { conversationId, message, language, form },
     );
     const chunks = result.reply ? replyChunks(result.reply) : [];
     const pause = Math.min(30, 1200 / Math.max(chunks.length, 1)); // the whole reply types out in ≤ ~1.2 s

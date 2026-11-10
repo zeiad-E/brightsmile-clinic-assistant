@@ -8,14 +8,15 @@ import { ApiError, http } from './client.js';
  * and the reply types out live. No time limit: a busy assistant can take a while to answer.
  *
  * handlers: onConversation(id) · onStatus({ text, stage, position }) · onCard(card) ·
- *           onToken(text) · onDone(result) · onError({ status, error, message })
+ *           onToken(text) · onDone(result) · onError({ status, error, message, details })
+ * `form` (optional): what the patient sent from the assistant's details form (DetailsForm.js).
  */
-export async function streamChat({ message, conversationId, token, language, signal }, handlers = {}) {
+export async function streamChat({ message, conversationId, token, language, form, signal }, handlers = {}) {
   let stream;
   try {
     const response = await http.post(
       '/chat/stream',
-      { message, conversation_id: conversationId ?? undefined, language },
+      { message, conversation_id: conversationId ?? undefined, language, ...(form && { form }) },
       {
         adapter: 'fetch',
         responseType: 'stream',
@@ -27,7 +28,7 @@ export async function streamChat({ message, conversationId, token, language, sig
     stream = response.data;
   } catch (err) {
     // Errors before the stream opens (validation, rate limit, sign-in) arrive as ApiError.
-    if (err instanceof ApiError) handlers.onError?.({ status: err.status, error: err.code, message: err.message });
+    if (err instanceof ApiError) handlers.onError?.({ status: err.status, error: err.code, message: err.message, details: err.details });
     else if (err?.name !== 'CanceledError') handlers.onError?.({ status: 0, error: 'network_error', message: 'Could not reach the clinic assistant.' });
     return;
   }

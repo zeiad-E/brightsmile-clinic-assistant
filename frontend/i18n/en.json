@@ -446,7 +446,56 @@
     "teamLeft": "{name} handed you back to the assistant",
     "teamWith": "{name} from the clinic is with you",
     "teamWillReply": "{name} will reply here shortly",
-    "teamLabel": "{name} · BrightSmile team"
+    "teamLabel": "{name} · BrightSmile team",
+    "form": {
+      "title": {
+        "booking": "Almost there! Just a few details",
+        "sign_in": "Welcome back! Let’s find your file",
+        "sign_up": "Create your account"
+      },
+      "lead": {
+        "booking": "We use these to open your file at the clinic. Check what’s filled in and add the rest.",
+        "sign_in": "Use the phone number and date of birth you gave the clinic.",
+        "sign_up": "We’ll email you a code to finish."
+      },
+      "fullName": "Full name",
+      "namePlaceholder": "First and last name",
+      "dob": "Date of birth",
+      "day": "Day",
+      "month": "Month",
+      "year": "Year",
+      "phone": "Mobile number",
+      "country": "Country code",
+      "phonePlaceholder": "010 1234 5678",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "optional": "optional",
+      "emailWhy": "For your confirmation email.",
+      "submit": {
+        "booking": "Continue",
+        "sign_in": "Sign in",
+        "sign_up": "Continue"
+      },
+      "sending": "Sending…",
+      "sent": "Sent",
+      "private": "Sent straight to the clinic. The assistant never sees them.",
+      "notMatched": "We couldn’t find a file with these details. Please check the phone number and date of birth.",
+      "errors": {
+        "nameMissing": "Please write your full name.",
+        "nameShort": "Please write your first and last name.",
+        "dobMissing": "Please choose the day, month and year.",
+        "dobInvalid": "That date doesn’t exist. Please check it.",
+        "dobFuture": "That date is in the future.",
+        "phoneMissing": "Please add your phone number.",
+        "phoneEgLength": "Egyptian mobile numbers have 11 digits (like 010 1234 5678). This one has {n}.",
+        "phoneEgStart": "Egyptian mobile numbers start with 010, 011, 012 or 015.",
+        "phoneEgCheck": "That number looks incomplete. Please check it.",
+        "phoneShort": "That number looks too short. Please check it.",
+        "phoneLong": "That number looks too long. Please check it.",
+        "emailMissing": "Please add your email address.",
+        "emailInvalid": "That email doesn’t look right (like name@example.com)."
+      }
+    }
   },
   "loginPage": {
     "title": "Sign in",

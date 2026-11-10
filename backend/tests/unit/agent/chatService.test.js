@@ -194,6 +194,49 @@ describe('chatService.sendMessage', () => {
     expect(saved.runs[0].retries).toBe(1);
   });
 
+  it('gives the retry the last 12 messages, so it still knows what was said earlier', async () => {
+    const { recentDialogue } = await import('../../../src/models/messageModel.js');
+    recentDialogue.mockResolvedValueOnce(Array.from({ length: 20 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `m${i}` })));
+    runAgentTurn.mockRejectedValueOnce(new Error('model down')).mockResolvedValueOnce(ok('Here you go'));
+    await chatService.sendMessage(guest, { message: 'prices?' });
+
+    const [first, retry] = runAgentTurn.mock.calls.map(([args]) => args.messages);
+    expect(first).toHaveLength(22); // system + 20 + this message
+    expect(retry).toHaveLength(14); // system + 12 + this message
+    expect(retry[1].content).toBe('m8');
+  });
+
+  describe('the notebook and the details form', () => {
+    const stateGiven = () => buildContext.mock.calls.at(-1)[0].state;
+
+    it('writes down a phone the guest types, as a placeholder', async () => {
+      runAgentTurn.mockResolvedValue(ok('Thanks!'));
+      const res = await chatService.sendMessage(guest, { message: 'my number is 0100 123 4567' });
+
+      expect(stateGiven().notebook.patient).toEqual({ phone: '[PHONE_1]' });
+      expect(conversations.get(res.conversation_id).state.notebook.patient).toEqual({ phone: '[PHONE_1]' });
+    });
+
+    it('puts the form’s values in the notebook as placeholders and tells the AI the form just arrived, once', async () => {
+      runAgentTurn.mockResolvedValue(ok('Here is your summary'));
+      let formSent;
+      const original = buildContext.getMockImplementation();
+      buildContext.mockImplementationOnce(async (args) => {
+        formSent = args.state.formSent; // as the AI's context is built (it is cleared right after)
+        return original(args);
+      });
+      const form = { purpose: 'booking', full_name: 'Mona Ali', date_of_birth: '1990-03-15', phone: '+201001234567', email: 'mona@example.com' };
+      const res = await chatService.sendMessage(guest, { message: 'Here are my details.', form });
+
+      expect(formSent).toBe('booking');
+      expect(stateGiven()).toMatchObject({ notebook: { patient: { full_name: 'Mona Ali', date_of_birth: '[DOB_1]', phone: '[PHONE_1]', email: '[EMAIL_1]' } } });
+      const stored = conversations.get(res.conversation_id).state;
+      expect(stored.placeholders).toMatchObject({ '[DOB_1]': '1990-03-15', '[PHONE_1]': '+201001234567', '[EMAIL_1]': 'mona@example.com' });
+      expect(stored.formSent).toBeUndefined(); // news for that turn only
+      expect(saved.messages[0]).toMatchObject({ role: 'user', content: 'Here are my details.' });
+    });
+  });
+
   it('declines off-topic requests with a fixed reply, and reminds after the third', async () => {
     runAgentTurn.mockImplementation(async ({ ctx }) => {
       ctx.endTurn = { kind: 'off_topic' };

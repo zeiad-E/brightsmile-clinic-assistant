@@ -77,4 +77,25 @@ describe('privacy masking', () => {
       list: ['[PHONE_1]'],
     });
   });
+
+  it('hides every phone shape patients type, even a mistyped one, and never takes one for an email code', () => {
+    const map = {};
+    const masked = maskText('0100 123 4567 / 011-0123-4567 / 1201234567 / 201501234567 / 010000000000', map, { now: NOW });
+
+    expect(masked).toBe('[PHONE_1] / [PHONE_2] / [PHONE_3] / [PHONE_4] / [PHONE_5]');
+    expect(Object.keys(map).some((key) => key.startsWith('[CODE_'))).toBe(false);
+    expect(map['[PHONE_3]']).toBe('1201234567');
+    // The same number typed with other spaces keeps its placeholder.
+    expect(maskText('01001234567', map, { now: NOW })).toBe('[PHONE_1]');
+  });
+
+  it('still reads a 6-digit email code as a code', () => {
+    const map = {};
+    expect(maskText('my code is 482913', map, { now: NOW })).toBe('my code is [CODE_1]');
+  });
+
+  it('hides a birth date written with an Arabic month name', () => {
+    const map = {};
+    expect(maskText('مواليد 15 مارس 1990', map, { now: NOW })).toBe('مواليد [DOB_1]');
+  });
 });

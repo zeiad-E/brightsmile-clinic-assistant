@@ -14,7 +14,9 @@ import { AppError } from '../../utils/AppError.js';
 import { logger } from '../../utils/logger.js';
 import { addDays, dayInZone, isValidDay, timeInZone, weekdayName, zonedDateTime } from '../../utils/clinicTime.js';
 import { bestMatch } from '../../utils/text.js';
-import { DateOfBirth, Email, Phone } from '../../validators/common.js';
+import { DateOfBirth, Email, FullName, Phone } from '../../validators/common.js';
+import { showDetailsForm } from '../detailsForm.js';
+import { note, notebookOf, patientDetails } from '../notebook.js';
 import { defineTool, toolError } from './define.js';
 
 /**
@@ -30,12 +32,12 @@ import { defineTool, toolError } from './define.js';
 const Day = z.string().describe('Date as YYYY-MM-DD (clinic time, Cairo).');
 const Time = z.string().describe('Start time as HH:MM, 24-hour, clinic time.');
 
-async function resolveService(ctx, text) {
+export async function resolveService(ctx, text) {
   const services = await catalogService.listServices(ctx.db);
   return { match: bestMatch(services, text, ['slug', 'name_en', 'name_ar']), services };
 }
 
-async function resolveDoctor(ctx, text, serviceId) {
+export async function resolveDoctor(ctx, text, serviceId) {
   const doctors = (await catalogService.listDoctors(ctx.db)).filter((d) => !serviceId || d.service_ids.includes(serviceId));
   return { match: text ? bestMatch(doctors, text, ['full_name_en', 'full_name_ar']) : null, doctors };
 }
@@ -68,11 +70,14 @@ export const checkAvailability = defineTool({
 
     const start = from && isValidDay(from) ? from : dayInZone(new Date(), ctx.timeZone);
     let staffId;
+    let doctorName;
     if (doctor) {
       const { match: doc, doctors } = await resolveDoctor(ctx, doctor, match.id);
       if (!doc) return toolError('doctor_not_found', `No doctor offering ${match.name_en} matches "${doctor}".`, { doctors: doctors.map((d) => d.full_name_en) });
       staffId = doc.id;
+      doctorName = doc.full_name_en;
     }
+    note(ctx.state, { booking: { service: match.name_en, doctor: doctorName } });
 
     const result = await availabilityService.forRange(ctx.db, { serviceId: match.id, staffId, from: start, days });
     const doctorNames = new Map((await catalogService.listDoctors(ctx.db)).map((d) => [d.id, d]));
@@ -104,12 +109,12 @@ export const checkAvailability = defineTool({
   },
 });
 
-async function nextAlternatives(ctx, { serviceId, staffId, after }) {
+export async function nextAlternatives(ctx, { serviceId, staffId, after }) {
   const slots = await availabilityService.nextFreeSlots(ctx.db, { serviceId, staffId, after, timeZone: ctx.timeZone });
   return slots.map((s) => ({ date: dayInZone(new Date(s.starts_at), ctx.timeZone), time: timeInZone(s.starts_at) }));
 }
 
-async function isFree(ctx, { serviceId, staffId, day, startsAt }) {
+export async function isFree(ctx, { serviceId, staffId, day, startsAt }) {
   const slots = await availabilityModel.slotsFor(ctx.db, { serviceId, staffId, day });
   return slots.some((s) => new Date(s.slot_start).getTime() === new Date(startsAt).getTime());
 }
@@ -123,16 +128,16 @@ const alreadyProposed = (ctx, type, same) => {
 export const proposeBooking = defineTool({
   name: 'propose_booking',
   description:
-    'Prepare a booking (does NOT book yet). Checks the time is free and the details are valid, then returns a summary. Read the summary back and ask the patient to confirm; only after they agree, call confirm_pending_action. For a signed-in patient, omit the personal details.',
+    'Prepare a booking (does NOT book yet). Checks the time is free and the details are valid, then shows the patient a summary card to check. Ask them to confirm; only after they agree, call confirm_pending_action. Personal details can be left out: a signed-in patient’s come from their account, a guest’s from the NOTEBOOK. If a guest’s details are missing or wrong, this shows the details form instead (form_shown): then write one short line pointing to it.',
   schema: z.object({
     service: z.string().min(2).max(80),
     doctor: z.string().min(2).max(80).describe('The doctor chosen from check_availability.'),
     date: Day,
     time: Time,
-    full_name: z.string().max(120).optional().describe('Guests only: full name.'),
-    date_of_birth: z.string().max(40).optional().describe('Guests only: date of birth (as given, e.g. [DOB_1]).'),
-    email: z.string().max(254).optional().describe('Guests: email (e.g. [EMAIL_1]). Email or phone is required.'),
-    phone: z.string().max(40).optional().describe('Guests: phone (e.g. [PHONE_1]).'),
+    full_name: z.string().max(120).optional().describe('Guests: full name, if they told you and it is not in the NOTEBOOK yet.'),
+    date_of_birth: z.string().max(40).optional().describe('Guests: date of birth placeholder (e.g. [DOB_1]); not needed when the NOTEBOOK has it.'),
+    email: z.string().max(254).optional().describe('Guests: email placeholder (e.g. [EMAIL_1]); not needed when the NOTEBOOK has it.'),
+    phone: z.string().max(40).optional().describe('Guests: phone placeholder (e.g. [PHONE_1]); not needed when the NOTEBOOK has it.'),
     notes: z.string().max(300).optional().describe('Anything the patient wants the clinic to know (not medical history).'),
   }),
   run: async (args, ctx) => {
@@ -155,26 +160,29 @@ export const proposeBooking = defineTool({
       });
     }
 
+    // The choice (and any details the AI passed) go in the notebook first, so the form and the
+    // next turns have them even if this booking can't be prepared yet.
+    note(ctx.state, { patient: ctx.isPatient ? {} : args, booking: { service: service.name_en, doctor: doctor.full_name_en, date: args.date, time: args.time } }, ctx.map);
+
     let person;
     if (ctx.isPatient) {
       const patient = await patientModel.findById(requireAdmin(), ctx.user.patientId);
       person = { full_name: patient.full_name, email: patient.email, phone: patient.phone, preferred_language: patient.preferred_language };
     } else {
-      const dob = DateOfBirth.safeParse(normalizeDob(args.date_of_birth));
-      const email = args.email ? Email.safeParse(args.email) : null;
-      const phone = args.phone ? Phone.safeParse(args.phone) : null;
-      if (!args.full_name || args.full_name.trim().split(/\s+/).length < 2) return toolError('missing_full_name', 'Ask for the full name (first and last).');
-      if (!dob.success) return toolError('missing_date_of_birth', 'Ask for the date of birth (day, month, year).');
-      if (!email && !phone) return toolError('missing_contact', 'Ask for an email address or a phone number.');
-      if (email && !email.success) return toolError('invalid_email', 'That email address looks wrong; ask again.');
-      if (phone && !phone.success) return toolError('invalid_phone', 'Ask for the phone number with country code, e.g. +20 100 123 4567.');
-      person = {
-        full_name: args.full_name.trim(),
-        date_of_birth: dob.data,
-        email: email?.data,
-        phone: phone?.data,
-        preferred_language: ctx.language,
-      };
+      // Whatever the AI left out comes from the notebook, so the patient never repeats themselves.
+      const details = patientDetails(ctx.state, ctx.map);
+      const name = FullName.safeParse(details.full_name ?? '');
+      const dob = DateOfBirth.safeParse(details.date_of_birth ?? '');
+      const email = details.email ? Email.safeParse(details.email) : null;
+      const phone = details.phone ? Phone.safeParse(details.phone) : null;
+      const contactOk = (email?.success || phone?.success) && email?.success !== false && phone?.success !== false;
+      if (!name.success || !dob.success || !contactOk) {
+        // Missing or wrong: the form asks for it, filled in with what we have and showing what is
+        // wrong, instead of the AI asking again. A returning patient signs in to their own file.
+        const booking = { service: service.name_en, service_ar: service.name_ar, doctor: doctor.full_name_en, doctor_ar: doctor.full_name_ar, date: args.date, weekday: weekdayName(args.date), time: args.time };
+        return showDetailsForm(ctx, ctx.state.firstVisit === false ? 'sign_in' : 'booking', { booking });
+      }
+      person = { full_name: name.data, date_of_birth: dob.data, email: email?.data, phone: phone?.data, preferred_language: ctx.language };
     }
 
     const summary = {
@@ -195,24 +203,14 @@ export const proposeBooking = defineTool({
       input: { service_id: service.id, staff_id: doctor.id, starts_at: startsAt, notes: args.notes, ...person },
       summary,
     };
-    ctx.emit({ type: 'booking_summary', ...summary });
+    // The card also shows a guest's own details, so they check everything in one place. These go to
+    // their screen only, never into the AI's result below.
+    ctx.emit({ type: 'booking_summary', ...summary, ...(!ctx.isPatient && { patient_phone: person.phone, patient_email: person.email, patient_dob: person.date_of_birth }) });
     return { pending: true, summary, next: 'Read this back and ask the patient to confirm. Do not call confirm_pending_action until they reply yes.' };
   },
 });
 
 /** "1992-04-15", "15/04/1992", "15 April 1992" → "1992-04-15". */
-function normalizeDob(value) {
-  if (!value) return '';
-  const text = String(value).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-  const dmy = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(text);
-  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
-  const ymd = /^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/.exec(text);
-  if (ymd) return `${ymd[1]}-${ymd[2].padStart(2, '0')}-${ymd[3].padStart(2, '0')}`;
-  const parsed = new Date(`${text} 12:00 UTC`);
-  return Number.isNaN(parsed.getTime()) ? text : parsed.toISOString().slice(0, 10);
-}
-
 export const myAppointments = defineTool({
   name: 'my_appointments',
   description: 'List the signed-in patient’s bookings. Each has an id_for_tools (A1, A2…) to pass to propose_cancel / propose_reschedule — never show it to the patient.',
@@ -318,6 +316,7 @@ export const confirmPendingAction = defineTool({
       if (pending.type === 'book') {
         const { body, signIn } = await bookingService.bookAsVisitor({ user: ctx.isPatient ? ctx.user : null }, pending.input, idempotencyKeyFor(ctx.conversation.id, pending.input));
         delete ctx.state.pending;
+        notebookOf(ctx.state).booking = {}; // done: a next booking in this chat starts fresh
         // The booking has happened: a sign-in problem must not make it look as if it failed.
         if (signIn) await ctx.signIn(signIn).catch((err) => logger.warn(`Sign-in after a chat booking failed: ${err.message}`));
         // The patient's screen shows their code; it never goes into the AI's result below.

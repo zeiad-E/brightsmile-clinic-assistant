@@ -11,6 +11,7 @@ const registrationService = await import('../../src/services/registrationService
 const DETAILS = { full_name: 'Ahmed Ali', date_of_birth: '1990-01-01', phone: '+201001234567', email: 'a@b.co' };
 const chat = (state = {}) => ({
   state,
+  map: {},
   language: 'ar',
   visitor: '1.2.3.4',
   isPatient: false,
@@ -29,11 +30,24 @@ describe('start_sign_up', () => {
     expect(ctx.state.emailForSignUp).toBe('a@b.co');
   });
 
-  it('asks again for a bad detail instead of sending anything', async () => {
-    const result = await startSignUp.run({ ...DETAILS, phone: 'nope' }, chat());
+  it('shows the sign-up form, filled in, for a bad detail instead of sending anything', async () => {
+    const ctx = chat();
+    const result = await startSignUp.run({ ...DETAILS, phone: 'nope' }, ctx);
 
-    expect(result).toMatchObject({ error: 'invalid_phone' });
+    expect(result).toMatchObject({ form_shown: true, purpose: 'sign_up' });
+    expect(ctx.emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'details_form', purpose: 'sign_up', values: expect.objectContaining({ full_name: 'Ahmed Ali', phone: 'nope' }) }));
+    // The AI only learns that the form is up, never the values in it.
+    expect(JSON.stringify(result)).not.toContain('a@b.co');
     expect(registrationService.startRegistration).not.toHaveBeenCalled();
+  });
+
+  it('takes the details the patient already gave from the notebook', async () => {
+    const ctx = chat();
+    ctx.state.notebook = { patient: { full_name: 'Ahmed Ali', phone: '[PHONE_1]', email: '[EMAIL_1]', date_of_birth: '[DOB_1]' }, booking: {} };
+    Object.assign(ctx.map, { '[PHONE_1]': '01001234567', '[EMAIL_1]': 'a@b.co', '[DOB_1]': '1/1/1990' });
+
+    expect(await startSignUp.run({}, ctx)).toMatchObject({ sent: true });
+    expect(registrationService.startRegistration).toHaveBeenCalledWith({ ...DETAILS, preferred_language: 'ar' });
   });
 
   it('has nothing to do for someone already signed in', async () => {

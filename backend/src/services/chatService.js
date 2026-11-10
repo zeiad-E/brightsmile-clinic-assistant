@@ -21,6 +21,7 @@ import { runAgentTurn } from '../agent/loop.js';
 import { reviewReply } from '../agent/reviewer.js';
 import { checkReply, detectLanguage, detectVisitHistory, fixedReply, isEmergency, LIMITS } from '../agent/guardrails.js';
 import { maskText, restoreForPatient, withoutCodes } from '../agent/masking.js';
+import { note, noteFromMessage } from '../agent/notebook.js';
 import { progressEvent } from '../agent/progress.js';
 import { clip, finishTrace, startAttempt, startTrace, summarizeTrace } from '../agent/trace.js';
 import { AppError } from '../utils/AppError.js';
@@ -100,8 +101,9 @@ export async function claimVisitorChats({ visitorHash, profileId }) {
  * `onEvent(type, data)` (optional, used by the streaming endpoint) hears progress while the
  * turn runs: 'status' (place in line, what the assistant is doing) and 'card' (free times,
  * booking summary…). The JSON endpoint leaves it out and just waits for the result.
+ * `form` (optional) is what the patient sent from the details form (validators/chat.js DetailsForm).
  */
-export async function sendMessage({ user, ip, evalCase, visitorHash = null, onEvent }, { conversationId, message, language }) {
+export async function sendMessage({ user, ip, evalCase, visitorHash = null, onEvent }, { conversationId, message, language, form = null }) {
   const admin = requireAdmin();
   const settings = await clinicModel.getSettings(admin);
   // The patient's latest message decides. The page language only helps when it can't.
@@ -126,11 +128,11 @@ export async function sendMessage({ user, ip, evalCase, visitorHash = null, onEv
   const notify = onEvent ?? (() => {});
   notify('conversation', { conversation_id: conversation.id });
   return withConversationLock(conversation.id, () =>
-    runTurn({ admin, settings, user, lang, conversationId: conversation.id, message, keys, notify, visitor: evalCase ? null : ip }),
+    runTurn({ admin, settings, user, lang, conversationId: conversation.id, message, form, keys, notify, visitor: evalCase ? null : ip }),
   );
 }
 
-async function runTurn({ admin, settings, user, lang, conversationId, message, keys, visitor, notify = () => {} }) {
+async function runTurn({ admin, settings, user, lang, conversationId, message, form = null, keys, visitor, notify = () => {} }) {
   const startedAt = Date.now();
   const conversation = await conversationModel.findById(admin, conversationId); // fresh, inside the lock
   const patch = { last_message_at: new Date().toISOString(), language: lang };
@@ -154,6 +156,14 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
   const map = { ...(state.placeholders ?? {}) };
   const turnNumber = conversation.turn_count + 1;
   const maskedMessage = maskText(message, map);
+  // The notebook (agent/notebook.js): a guest's phone, email or birth date is written down the moment
+  // it is typed, and the details form's values (already checked) go in as placeholders too.
+  if (!isPatient(user)) noteFromMessage(state, maskedMessage);
+  if (form) {
+    const { purpose, ...details } = form;
+    note(state, { patient: details }, map);
+    state.formSent = purpose;
+  }
 
   const ctx = {
     conversation,
@@ -227,6 +237,7 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
   const context = await buildContext({ conversation, state, user: ctx.user, db: ctx.db, settings, language: lang });
   context.safeMode = ctx.safeMode;
   delete state.lastReview; // the assistant hears the verdict once, on the turn right after it
+  delete state.formSent; // "the form just arrived" is news for this turn only
   const system = { role: 'system', content: buildSystemPrompt(context) };
   // What a team member wrote reaches the AI as the clinic's own words.
   const history = (await messageModel.recentDialogue(admin, conversationId, LIMITS.historyMessages)).map((m) =>
@@ -259,11 +270,11 @@ async function runTurn({ admin, settings, user, lang, conversationId, message, k
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const attemptTrace = startAttempt(ctx.trace, {
           model: attempt === 0 ? 'chain' : (config.llm.chatModels[1] ?? 'chain'),
-          historyMessages: attempt === 0 ? history.length : Math.min(4, history.length),
+          historyMessages: attempt === 0 ? history.length : Math.min(LIMITS.retryHistoryMessages, history.length),
         });
         try {
           result = await runAgentTurn({
-            messages: attempt === 0 ? [system, ...history, userTurn] : [system, ...history.slice(-4), userTurn],
+            messages: attempt === 0 ? [system, ...history, userTurn] : [system, ...history.slice(-LIMITS.retryHistoryMessages), userTurn],
             ctx,
             model: attempt === 0 ? undefined : config.llm.chatModels[1],
             timeoutMs: config.agent.turnTimeoutMs,

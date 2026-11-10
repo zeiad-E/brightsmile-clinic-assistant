@@ -2,8 +2,10 @@ import { z } from 'zod';
 import * as authService from '../../services/authService.js';
 import * as registrationService from '../../services/registrationService.js';
 import { AppError } from '../../utils/AppError.js';
-import { DateOfBirth, Email, PersonName, Phone } from '../../validators/common.js';
+import { DateOfBirth, Email, FullName, PersonName, Phone } from '../../validators/common.js';
+import { showDetailsForm } from '../detailsForm.js';
 import { LIMITS } from '../guardrails.js';
+import { note, patientDetails } from '../notebook.js';
 import { defineTool, toolError } from './define.js';
 
 /**
@@ -22,7 +24,7 @@ function guard(ctx) {
   if (ctx.state.firstVisit) {
     return toolError(
       'first_visit',
-      'This patient said it is their first visit, so they have no account to sign in to. Collect full name, date of birth and email or phone, then use check_availability and propose_booking — booking creates their account.',
+      'This patient said it is their first visit, so they have no account to sign in to. Help them pick a time with check_availability, then call propose_booking: it shows the details form if needed, and booking creates their account.',
     );
   }
   if ((ctx.state.signInAttempts ?? 0) >= LIMITS.maxSignInAttempts) {
@@ -46,19 +48,25 @@ function signInFailure(ctx, err) {
 
 export const signInWithPhone = defineTool({
   name: 'sign_in_with_phone',
-  description: 'RETURNING patients only (they said they visited before). Sign in with phone number + full name + date of birth (pass the placeholders exactly as written).',
-  schema: z.object({ phone: z.string().max(40), full_name: z.string().min(2).max(120), date_of_birth: z.string().max(40) }),
-  run: async ({ phone, full_name: fullName, date_of_birth: dob }, ctx) => {
+  description:
+    'RETURNING patients only (they said they visited before). Sign in with phone number + full name + date of birth. Leave out what the NOTEBOOK already has (placeholders exactly as written otherwise). If something is missing or wrong, this shows the sign-in form instead (form_shown).',
+  schema: z.object({ phone: z.string().max(40).optional(), full_name: z.string().max(120).optional(), date_of_birth: z.string().max(40).optional() }),
+  run: async (args, ctx) => {
     const blocked = guard(ctx);
     if (blocked) return blocked;
-    const parsedPhone = Phone.safeParse(phone);
-    const parsedDob = DateOfBirth.safeParse(dob);
-    if (!parsedPhone.success) return toolError('invalid_phone', 'Ask for the phone number with country code.');
-    if (!parsedDob.success) return toolError('invalid_date_of_birth', 'Ask for the date of birth as day, month and year.');
+    note(ctx.state, { patient: args }, ctx.map);
+    const details = patientDetails(ctx.state, ctx.map);
+    const phone = Phone.safeParse(details.phone ?? '');
+    const dob = DateOfBirth.safeParse(details.date_of_birth ?? '');
+    const name = PersonName.safeParse(details.full_name ?? '');
+    // Missing or wrong: the form asks for it (filled in, problems shown), not the AI.
+    if (!phone.success || !dob.success || !name.success) return showDetailsForm(ctx, 'sign_in');
     try {
-      return await finish(ctx, await authService.phoneLogin({ phone: parsedPhone.data, full_name: fullName, date_of_birth: parsedDob.data }, { visitor: ctx.visitor }));
+      return await finish(ctx, await authService.phoneLogin({ phone: phone.data, full_name: name.data, date_of_birth: dob.data }, { visitor: ctx.visitor }));
     } catch (err) {
-      return signInFailure(ctx, err);
+      const failed = signInFailure(ctx, err);
+      // Didn't match: the form comes back filled in, so they fix one field instead of retyping all.
+      return failed.attempts_left > 0 ? { ...failed, ...showDetailsForm(ctx, 'sign_in', { notice: 'not_matched' }) } : failed;
     }
   },
 });
@@ -121,19 +129,19 @@ function signUpGuard(ctx) {
 
 export const startSignUp = defineTool({
   name: 'start_sign_up',
-  description: 'NEW patients who want an account now, without booking yet. Needs full name, date of birth, phone and email (pass the placeholders exactly as written). Emails a 6-digit code; then ask them to type it here and call finish_sign_up.',
-  schema: z.object({ full_name: z.string().min(2).max(120), date_of_birth: z.string().max(40), phone: z.string().max(40), email: z.string().max(254) }),
-  run: async ({ full_name: fullName, date_of_birth: dob, phone, email }, ctx) => {
+  description:
+    'NEW patients who want an account now, without booking yet. Needs full name, date of birth, phone and email: leave out what the NOTEBOOK already has. If something is missing or wrong, this shows the sign-up form instead (form_shown). Emails a 6-digit code; then ask them to type it here and call finish_sign_up.',
+  schema: z.object({ full_name: z.string().max(120).optional(), date_of_birth: z.string().max(40).optional(), phone: z.string().max(40).optional(), email: z.string().max(254).optional() }),
+  run: async (args, ctx) => {
     const blocked = signUpGuard(ctx);
     if (blocked) return blocked;
-    const name = PersonName.safeParse(fullName);
-    const parsedDob = DateOfBirth.safeParse(dob);
-    const parsedPhone = Phone.safeParse(phone);
-    const parsedEmail = Email.safeParse(email);
-    if (!name.success) return toolError('invalid_name', 'Ask for their full name.');
-    if (!parsedDob.success) return toolError('invalid_date_of_birth', 'Ask for the date of birth as day, month and year.');
-    if (!parsedPhone.success) return toolError('invalid_phone', 'Ask for the phone number with country code.');
-    if (!parsedEmail.success) return toolError('invalid_email', 'That email address looks wrong; ask again.');
+    note(ctx.state, { patient: args }, ctx.map);
+    const details = patientDetails(ctx.state, ctx.map);
+    const name = FullName.safeParse(details.full_name ?? '');
+    const parsedDob = DateOfBirth.safeParse(details.date_of_birth ?? '');
+    const parsedPhone = Phone.safeParse(details.phone ?? '');
+    const parsedEmail = Email.safeParse(details.email ?? '');
+    if (!name.success || !parsedDob.success || !parsedPhone.success || !parsedEmail.success) return showDetailsForm(ctx, 'sign_up');
     await registrationService.startRegistration({
       full_name: name.data,
       date_of_birth: parsedDob.data,

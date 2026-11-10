@@ -7,6 +7,7 @@ const TOOL_STATUS = {
   list_services: ['Checking our treatments…', 'أراجع خدماتنا…'],
   list_doctors: ['Checking our doctors…', 'أراجع أطباءنا…'],
   check_availability: ['Checking free times…', 'أبحث عن المواعيد المتاحة…'],
+  show_details_form: ['Preparing a short form…', 'أجهّز نموذجًا قصيرًا…'],
   propose_booking: ['Preparing your booking…', 'أجهّز الحجز…'],
   propose_cancel: ['Preparing the change…', 'أجهّز التعديل…'],
   propose_reschedule: ['Preparing the change…', 'أجهّز التعديل…'],

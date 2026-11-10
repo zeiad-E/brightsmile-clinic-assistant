@@ -1,0 +1,82 @@
+/*
+ * The details form card in the chat. The outer card look comes from Chat.module.css (.card);
+ * this file styles what is inside. Logical properties (inline-start/end) so it mirrors in Arabic.
+ * Each field shows its state: a mint tick when it is right, a soft red hint when something is wrong.
+ */
+
+.form { display: grid; gap: 14px; }
+
+.head { display: flex; align-items: flex-start; gap: 12px; }
+.badge { width: 36px; height: 36px; flex: none; border-radius: 12px; display: grid; place-items: center; background: var(--color-mint-soft); color: var(--color-mint-deep); }
+.badge svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.title { margin: 0; font-weight: 750; line-height: 1.35; }
+.lead { margin: 2px 0 0; font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5; }
+
+/* what the details are for: "Check-up · Dr. Sarah · Tuesday 1 Dec · 10:00 AM" */
+.booking { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--color-mint-soft); color: var(--color-mint-deep); font-size: 13.5px; }
+.booking strong { font-weight: 750; }
+.booking span::before { content: "·"; margin-inline-end: 10px; opacity: .6; }
+
+.notice { margin: 0; padding: 10px 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; font-size: 13.5px; line-height: 1.5; }
+
+.fields { display: grid; gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.fields:disabled { opacity: .6; }
+
+.field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; animation: fieldIn .45s cubic-bezier(.2, .8, .2, 1) both; }
+.field:nth-child(2) { animation-delay: .05s; }
+.field:nth-child(3) { animation-delay: .1s; }
+.field:nth-child(4) { animation-delay: .15s; }
+@keyframes fieldIn { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+
+.field label, .field legend { display: flex; align-items: center; gap: 8px; padding: 0; font-size: 13px; font-weight: 650; color: var(--color-ink-2); }
+.optional { padding: 1px 8px; border-radius: 99px; background: var(--color-page); color: var(--color-ink-3); font-size: 11.5px; font-weight: 600; }
+
+.control { position: relative; min-width: 0; }
+.field input, .field select {
+  width: 100%; min-width: 0; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--color-line); background: var(--color-page);
+  font-size: 15px; color: var(--color-ink); outline: none; transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.control input { padding-inline-end: 38px; }
+.field input::placeholder { color: var(--color-ink-3); }
+.field input:focus, .field select:focus { border-color: var(--color-mint); background: #fff; box-shadow: 0 0 0 4px rgb(20 184 166 / .15); }
+
+/* the tick appears when a field is right */
+.tick { position: absolute; inset-inline-end: 12px; top: 50%; width: 18px; height: 18px; margin-top: -9px; fill: none; stroke: var(--color-mint); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; scale: .6; transition: opacity .2s, scale .25s cubic-bezier(.2, .8, .2, 1.4); pointer-events: none; }
+.good .tick { opacity: 1; scale: 1; }
+.good input, .good select { border-color: rgb(20 184 166 / .45); }
+
+.bad input, .bad select { border-color: #f2b8b5; background: #fff8f7; }
+.bad input:focus, .bad select:focus { border-color: #e5766f; box-shadow: 0 0 0 4px rgb(229 118 111 / .15); }
+.problem { margin: 0; font-size: 13px; line-height: 1.45; color: #b42318; animation: fieldIn .25s ease-out both; }
+.why { margin: 0; font-size: 12.5px; color: var(--color-ink-3); }
+
+/* birth date: day · month · year */
+/* the day column is wide enough for "اليوم" on a phone, next to the browser's own arrow */
+.dob { display: grid; grid-template-columns: 1.25fr 1.6fr 1.3fr; gap: 6px; }
+.dob select { padding: 0 6px 0 8px; cursor: pointer; }
+.dob select.empty { color: var(--color-ink-3); }
+
+/* phone: "+20 ▾" picker + the number (always left-to-right, even on the Arabic page) */
+.phone { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+.country { position: relative; display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 0 10px 0 14px; border-radius: 12px; border: 1px solid var(--color-line); background: var(--color-page); font: 650 15px var(--font-mono); color: var(--color-ink); transition: border-color .2s, box-shadow .2s; }
+.country svg { width: 16px; height: 16px; fill: none; stroke: var(--color-ink-3); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.country select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.country:focus-within { border-color: var(--color-mint); box-shadow: 0 0 0 4px rgb(20 184 166 / .15); }
+.phone input { font-family: var(--font-mono); letter-spacing: .02em; }
+
+.private { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--color-ink-3); }
+.private svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 99px; background: var(--color-ink); color: #fff; font-size: 15px; font-weight: 700; transition: background .25s, transform .2s, opacity .2s; }
+.submit[aria-disabled="true"]:not(:disabled) { opacity: .55; }
+.submit:disabled { opacity: .55; cursor: default; }
+@media (hover: hover) { .submit:not(:disabled):hover { background: var(--color-mint-deep); transform: translateY(-1px); } }
+.submit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.sent, .sent:disabled { background: var(--color-mint); opacity: 1; }
+
+.form:lang(ar) .country, .form:lang(ar) .phone input { letter-spacing: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .field, .problem { animation: none; }
+  .tick { transition: none; }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Phone, Email } from '../../src/validators/common.js';
+import { DateOfBirth, Email, FullName, Phone } from '../../src/validators/common.js';
 import { StaffAppointmentsQuery, TimeOffQuery } from '../../src/validators/staff.js';
 import { StaffBookBody } from '../../src/validators/appointments.js';
 import { WorkingHoursBody, ServiceBody } from '../../src/validators/admin.js';
@@ -13,6 +13,46 @@ describe('common rules', () => {
     expect(Phone.parse('010 0123 4567')).toBe('+201001234567');
     expect(Phone.parse('00201001234567')).toBe('+201001234567');
     expect(Phone.safeParse('12345').success).toBe(false);
+  });
+
+  it('fixes the phone shapes patients really type instead of rejecting them', () => {
+    expect(Phone.parse('1001234567')).toBe('+201001234567'); // the 0 left out
+    expect(Phone.parse('201001234567')).toBe('+201001234567'); // 20 without the +
+    expect(Phone.parse('٠١٠٠١٢٣٤٥٦٧')).toBe('+201001234567'); // Arabic digits
+    expect(Phone.parse('0223456789')).toBe('+20223456789'); // a Cairo landline
+    expect(Phone.parse('+44 7911 123456')).toBe('+447911123456'); // another country
+  });
+
+  it('names what is really wrong with a phone, never just "add the country code"', () => {
+    const problem = (value) => Phone.safeParse(value).error?.issues[0].message;
+    expect(problem('010000000000')).toMatch(/11 digits.*this one has 12/);
+    expect(problem('0100123456')).toMatch(/this one has 10/);
+    expect(problem('01301234567')).toMatch(/start with 010, 011, 012 or 015/);
+    expect(problem('+2010000000000')).toMatch(/this one has 12/);
+  });
+
+  it('reads birth dates the way Egyptians write them', () => {
+    for (const typed of ['15/3/1990', '15-3-1990', '15.3.1990', '1990-03-15', '1990/3/15', '15 March 1990', 'March 15, 1990', '15 مارس 1990', '١٥/٣/١٩٩٠']) {
+      expect(DateOfBirth.parse(typed)).toBe('1990-03-15');
+    }
+    expect(DateOfBirth.safeParse('31/2/1990').success).toBe(false); // no 31 February
+    expect(DateOfBirth.safeParse('15/3/2999').success).toBe(false); // in the future
+  });
+
+  it('checks the chat details form and names the field that is wrong', async () => {
+    const { ChatBody } = await import('../../src/validators/chat.js');
+    const form = { purpose: 'booking', full_name: 'Mona Ali', date_of_birth: '15/3/1990', phone: '0100 123 4567', email: '' };
+
+    expect(ChatBody.parse({ message: 'Here are my details.', form }).form).toEqual({ ...form, date_of_birth: '1990-03-15', phone: '+201001234567' });
+    const bad = ChatBody.safeParse({ message: 'x', form: { ...form, phone: '010000000000' } });
+    expect(bad.error.issues[0]).toMatchObject({ path: ['form', 'phone'], message: expect.stringMatching(/this one has 12/) });
+    // an account needs an email
+    expect(ChatBody.safeParse({ message: 'x', form: { ...form, purpose: 'sign_up' } }).error.issues[0].path).toEqual(['form', 'email']);
+  });
+
+  it('asks for a first and last name for a patient file', () => {
+    expect(FullName.parse('  Mona Ali ')).toBe('Mona Ali');
+    expect(FullName.safeParse('Mona').error?.issues[0].message).toMatch(/first and last name/);
   });
 
   it('lower-cases and trims emails', () => {

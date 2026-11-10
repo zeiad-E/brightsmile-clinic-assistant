@@ -11,6 +11,7 @@ import {
 import { finishSignUp, sendEmailCode, signInWithCode, signInWithPhone, startSignUp, verifyEmailCode } from './accountTools.js';
 import { declineRequest, escalateToHuman } from './supportTools.js';
 import { proposeForgetMe, recallPastConversations, remember, updateIntake } from './memoryTools.js';
+import { noteDetails, showDetailsFormTool } from './formTools.js';
 import { toOpenAiDefinition } from './define.js';
 
 /**
@@ -23,6 +24,8 @@ export const patientTools = [
   listServices,
   listDoctors,
   checkAvailability,
+  showDetailsFormTool,
+  noteDetails,
   proposeBooking,
   myAppointments,
   proposeCancel,

@@ -1,3 +1,6 @@
+/** "٠١٠٠" → "0100": Arabic-Indic digits, as many Egyptian phones type them, become 0–9. */
+export const toLatinDigits = (text) => String(text ?? '').replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+
 /**
  * Loose text matching for what patients type: "cleaning", "Teeth Cleaning", "تنظيف",
  * "dr sarah", "د. سارة" should all find the right service or doctor.

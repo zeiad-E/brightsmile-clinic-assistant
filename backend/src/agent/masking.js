@@ -10,20 +10,24 @@
  * (stored history keeps only "[CODE_1]").
  */
 
-const ARABIC_DIGITS = /[٠-٩]/g;
-const toLatinDigits = (text) => text.replace(ARABIC_DIGITS, (d) => String(d.charCodeAt(0) - 0x0660));
+import { toLatinDigits } from '../utils/text.js';
+import { ARABIC_MONTHS } from '../validators/common.js';
 
 const MONTHS = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
 
 const PATTERNS = [
   { kind: 'EMAIL', regex: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g },
-  // +20 100 123 4567, 0020…, 01001234567
-  { kind: 'PHONE', regex: /(?:\+|00)\d[\d\s-]{7,16}\d|\b01\d{9}\b/g },
+  // +20 100 123 4567, 0020…; local 01001234567, "0100 123 4567", "010-0123-4567" (also one digit
+  // too few or too many, so a mistyped number is still hidden); 201001234567 (20 without the +);
+  // 1001234567 (the 0 left out; before the CODE rule, which would take it for an email code).
+  { kind: 'PHONE', regex: /(?:\+|00)\d[\d\s-]{7,16}\d|\b01\d(?:[\s-]?\d){7,9}\b|\b201\d{9}\b|\b1[0125]\d{8}\b/g },
   // Dates with a year at least 3 years back are birth dates; booking dates (this/next year) stay visible.
   { kind: 'DOB', regex: /\b(?:19|20)\d{2}[-/.](?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01])\b/g, dob: true },
   { kind: 'DOB', regex: /\b(?:0?[1-9]|[12]\d|3[01])[-/.](?:0?[1-9]|1[0-2])[-/.](?:19|20)\d{2}\b/g, dob: true },
   { kind: 'DOB', regex: new RegExp(`\\b(?:0?[1-9]|[12]\\d|3[01])\\s+(?:${MONTHS})\\.?,?\\s+(?:19|20)\\d{2}\\b`, 'gi'), dob: true },
   { kind: 'DOB', regex: new RegExp(`\\b(?:${MONTHS})\\.?\\s+(?:0?[1-9]|[12]\\d|3[01]),?\\s+(?:19|20)\\d{2}\\b`, 'gi'), dob: true },
+  // "15 مارس 1990"
+  { kind: 'DOB', regex: new RegExp(`\\b(?:0?[1-9]|[12]\\d|3[01])\\s+(?:${Object.keys(ARABIC_MONTHS).join('|')})\\s+(?:19|20)\\d{2}\\b`, 'g'), dob: true },
   // Personal codes (K7Q4-9M2X, K7Q49M2X, k7q4 9m2x): checked by isPersonalCode, so ordinary
   // word pairs like "Read this" or "make sure" are never mistaken for a code. The lookbehind/
   // lookahead let "code K7Q4 9M2X" be checked at every word start, not just the first match.
@@ -85,6 +89,21 @@ export function maskText(text, map = {}, { now = new Date() } = {}) {
     });
   }
   return maskSpacedCodes(masked, (value) => assign('CODE', value));
+}
+
+/**
+ * The placeholder for a value whose kind we already know (a form field, a tool argument), added to
+ * `map` if it is new. Unlike maskText it doesn't depend on the value's shape: a birth date from
+ * the form is hidden even if it is too recent for the "is this a birth date?" rule above.
+ */
+export function placeholderFor(map, kind, value) {
+  if (/^\[(EMAIL|PHONE|DOB|CODE)_\d+\]$/.test(value)) return value;
+  const existing = Object.keys(map).find((key) => key.startsWith(`[${kind}_`) && map[key] === value);
+  if (existing) return existing;
+  const used = Object.keys(map).map((key) => Number(new RegExp(`^\\[${kind}_(\\d+)\\]$`).exec(key)?.[1] ?? 0));
+  const key = `[${kind}_${Math.max(0, ...used) + 1}]`;
+  map[key] = value;
+  return key;
 }
 
 /** "my code k7q4 9m2x": checks every pair of neighbouring 4-character words. */
