@@ -358,10 +358,11 @@ export const confirmPendingAction = defineTool({
         notebookOf(ctx.state).booking = {}; // done: a next booking in this chat starts fresh
         // The booking has happened: a sign-in problem must not make it look as if it failed.
         if (signIn) await ctx.signIn(signIn).catch((err) => logger.warn(`Sign-in after a chat booking failed: ${err.message}`));
-        // The patient's screen shows their code; it never goes into the AI's result below.
-        if (body.personal_code) ctx.emit({ type: 'personal_code', code: body.personal_code });
         ctx.events.booked = true;
         ctx.emit({ type: 'booking_confirmed', appointment_id: body.appointment.id, ...pending.summary });
+        // Then a new patient's code, last, with how to sign in next time. It goes to their screen
+        // only, never into the AI's result below.
+        if (body.personal_code) ctx.emit({ type: 'personal_code', code: body.personal_code });
         return {
           booked: true,
           ...pending.summary,

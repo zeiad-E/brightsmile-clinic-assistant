@@ -544,7 +544,7 @@ function CardBody({ card, t, locale, name, active, onSend }) {
     );
   }
 
-  if (card.type === 'personal_code') return <CodeReveal code={card.code} name={name} locale={locale} />;
+  if (card.type === 'personal_code') return <CodeReveal code={card.code} name={name} locale={locale} signInTips />;
 
   if (card.type === 'appointments') {
     return (

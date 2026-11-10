@@ -59,7 +59,7 @@ export default function RegisterForms({ t, locale }) {
     return (
       <GlassCard className={styles.card}>
         <p className={styles.signedIn}>{t.ready}</p>
-        <CodeReveal code={personalCode} name={form.full_name} locale={locale} />
+        <CodeReveal code={personalCode} name={form.full_name} locale={locale} signInTips />
         <div className={styles.row} style={{ marginTop: 18 }}>
           <Link className={styles.link} href={localePath(locale, '/book')}>
             {t.book}

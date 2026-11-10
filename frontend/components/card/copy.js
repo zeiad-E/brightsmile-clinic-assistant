@@ -15,6 +15,8 @@ export const COPY = {
     wayEmail: 'Your email, with a code we send you',
     wayPhone: 'Your phone number, full name and date of birth',
     private: 'Keep this card private. Anyone with this code can open your account.',
+    nextTime: 'Next time, sign in any of these ways, on the Sign in page or in the chat:',
+    neverShare: 'Never share this code with anyone. Whoever has it can open your account.',
   },
   ar: {
     title: 'رمزك الشخصي',
@@ -28,5 +30,7 @@ export const COPY = {
     wayEmail: 'بريدك الإلكتروني، مع رمز نرسله إليك',
     wayPhone: 'رقم هاتفك واسمك الكامل وتاريخ ميلادك',
     private: 'احتفظ بهذه البطاقة لنفسك. أي شخص لديه هذا الرمز يستطيع فتح حسابك.',
+    nextTime: 'في المرة القادمة، سجّل دخولك بأيٍّ من هذه الطرق، من صفحة تسجيل الدخول أو من المحادثة:',
+    neverShare: 'لا تشارك هذا الرمز مع أي شخص، فمن لديه هذا الرمز يستطيع فتح حسابك.',
   },
 };

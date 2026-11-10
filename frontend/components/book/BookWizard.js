@@ -175,7 +175,7 @@ export default function BookWizard({ services, doctors, t, loginText, locale }) 
         </p>
         <p className={styles.muted}>{t.doneText}</p>
         {done.isNew && <p className={styles.notice}>{t.newPatient}</p>}
-        {done.code && <CodeReveal code={done.code} name={done.name} locale={locale} />}
+        {done.code && <CodeReveal code={done.code} name={done.name} locale={locale} signInTips />}
         {done.matched && (
           <p className={styles.notice}>
             {t.matched} <Link href={localePath(locale, '/login')}>{t.signIn}</Link>

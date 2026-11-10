@@ -5,6 +5,14 @@
 .code { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: clamp(24px, 5vw, 32px); font-weight: 750; letter-spacing: .08em; text-align: center; color: var(--color-ink); }
 .keep { margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-ink-2); }
 .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* how to sign in next time, and "never share it" (patient screens only) */
+.tips { display: grid; gap: 8px; padding-top: 12px; border-top: 1px dashed rgb(15 118 110 / .25); font-size: 14px; line-height: 1.55; color: var(--color-ink-2); }
+.tips p { margin: 0; }
+.tips ul { display: grid; gap: 4px; margin: 0; padding-inline-start: 20px; list-style: disc; } /* the site's base styles remove bullets */
+.tips li::marker { color: var(--color-mint-deep); }
+.never { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #fff; color: var(--color-ink); font-weight: 650; }
+.never svg { width: 16px; height: 16px; flex: none; margin-top: 3px; fill: none; stroke: var(--color-mint-deep); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .buttons button { padding: 8px 14px; border-radius: 99px; background: #fff; font-size: 14px; font-weight: 650; box-shadow: inset 0 0 0 1.5px var(--color-line); transition: box-shadow .25s; }
 @media (hover: hover) { .buttons button:hover { box-shadow: inset 0 0 0 1.5px var(--color-mint); } }
 
