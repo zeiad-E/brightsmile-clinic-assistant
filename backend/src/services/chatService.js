@@ -50,10 +50,16 @@ const withConversationLock = createKeyedLock();
  */
 const LASTING_CARDS = new Set(['booking_confirmed', 'personal_code']);
 const lastingOnly = (cards) => cards.filter((card) => LASTING_CARDS.has(card.type));
-/** One card of each kind per reply (the latest), so a tool called twice never shows two forms. */
-function onePerKind(cards) {
+/**
+ * What the reply shows: one card of each kind (the latest), so a tool called twice never shows two
+ * forms; and no free times once the reply moved on to the form, the summary or the booking (the
+ * patient already picked a time: the AI may re-check it, but showing the times again confuses).
+ */
+const LATER_STEPS = new Set(['details_form', 'booking_summary', 'booking_confirmed']);
+function finalCards(cards) {
   const last = new Map(cards.map((card, i) => [card.type, i]));
-  return cards.filter((card, i) => last.get(card.type) === i);
+  const movedOn = cards.some((card) => LATER_STEPS.has(card.type));
+  return cards.filter((card, i) => last.get(card.type) === i && !(movedOn && card.type === 'slots'));
 }
 
 const notFound = () => AppError.notFound('conversation_not_found', 'Conversation not found.');
@@ -420,7 +426,7 @@ async function save({ admin, conversationId, ctx, patch, maskedMessage, reply, s
   return {
     conversation_id: conversationId,
     reply: restoreForPatient(reply, ctx.map),
-    cards: onePerKind(ctx.cards),
+    cards: finalCards(ctx.cards),
     sign_in_ticket: ctx.signInTicket,
     status: update.status ?? ctx.conversation.status,
   };

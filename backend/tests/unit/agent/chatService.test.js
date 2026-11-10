@@ -173,21 +173,28 @@ describe('chatService.sendMessage', () => {
     expect(res.cards).toEqual([{ type: 'details_form', purpose: 'booking', try: 2 }]);
   });
 
-  it('shows one card of each kind per reply, but keeps a booking that really happened', async () => {
+  it('shows one card of each kind per reply (the latest)', async () => {
+    runAgentTurn.mockImplementationOnce(async ({ ctx }) => {
+      ctx.emit({ type: 'slots', n: 1 });
+      ctx.emit({ type: 'slots', n: 2 });
+      return ok('Here are the free times.');
+    });
+    expect((await chatService.sendMessage(guest, { message: 'free times?' })).cards).toEqual([{ type: 'slots', n: 2 }]);
+  });
+
+  it('keeps a booking that really happened through a retry, and drops free times once the reply moved on', async () => {
     runAgentTurn
       .mockImplementationOnce(async ({ ctx }) => {
         ctx.emit({ type: 'booking_confirmed', appointment_id: 'a1' });
-        ctx.emit({ type: 'slots', n: 1 });
         throw new Error('model down');
       })
       .mockImplementationOnce(async ({ ctx }) => {
-        ctx.emit({ type: 'slots', n: 2 });
-        ctx.emit({ type: 'slots', n: 3 });
+        ctx.emit({ type: 'slots', n: 1 }); // the AI re-checked the time: the patient already picked it
         return ok('Booked!');
       });
     const res = await chatService.sendMessage(guest, { message: 'yes' });
 
-    expect(res.cards).toEqual([{ type: 'booking_confirmed', appointment_id: 'a1' }, { type: 'slots', n: 3 }]);
+    expect(res.cards).toEqual([{ type: 'booking_confirmed', appointment_id: 'a1' }]);
   });
 
   it('never stores one-time codes, even in the conversation state', async () => {
