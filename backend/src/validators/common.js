@@ -13,12 +13,18 @@ export const Language = z.enum(['en', 'ar']);
 
 export const Email = z.string().trim().toLowerCase().max(254).pipe(z.email('Please enter a valid email address.'));
 
-// "+20 100-123 4567" → "+201001234567" (international E.164 format, as stored in the database)
+// "+20 100-123 4567" → "+201001234567" (international E.164 format, as stored in the database).
+// The clinic is in Egypt, so a local number ("01001234567", or "00201001234567") is read as Egyptian.
 export const Phone = z
   .string()
   .trim()
-  .transform((value) => value.replace(/[\s().-]/g, ''))
-  .pipe(z.string().regex(/^\+[1-9]\d{6,14}$/, 'Use international format, e.g. +201001234567.'));
+  .transform((value) =>
+    value
+      .replace(/[\s().-]/g, '')
+      .replace(/^00/, '+')
+      .replace(/^0(\d{9,10})$/, '+20$1'),
+  )
+  .pipe(z.string().regex(/^\+[1-9]\d{6,14}$/, 'Enter a phone number like 01001234567 or +201001234567.'));
 
 export const PersonName = z.string().trim().min(2, 'Please enter the full name.').max(120);
 

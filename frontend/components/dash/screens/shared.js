@@ -196,6 +196,8 @@ function BookingForm({ patient: given, onBooked, onClose }) {
   const offering = doctors.filter((d) => !serviceId || d.service_ids.includes(serviceId));
   const who = patient ?? form;
   const ready = serviceId && picked && who.full_name && who.date_of_birth && (who.phone || who.email);
+  // The API names each wrong field (e.g. { path: 'phone', message }); show it under that field.
+  const fieldError = (name) => error?.details?.find((d) => d.path === name)?.message;
 
   async function book() {
     setBusy(true);
@@ -218,7 +220,7 @@ function BookingForm({ patient: given, onBooked, onClose }) {
       if (result.personal_code) setNewCode(result.personal_code);
       else onClose();
     } catch (err) {
-      setError(err.message);
+      setError(err);
       if (err.code === 'slot_taken') {
         setPicked(null);
         setPickerKey((k) => k + 1);
@@ -277,10 +279,10 @@ function BookingForm({ patient: given, onBooked, onClose }) {
             )}
             <p className={s.muted}>{t.orNew}</p>
             <FormGrid>
-              <TextField label={w.patient.fullName} value={form.full_name} onChange={set('full_name')} autoComplete="off" />
-              <TextField label={w.patient.dob} type="date" value={form.date_of_birth} onChange={set('date_of_birth')} />
-              <TextField label={w.patient.phone} hint={w.patient.phoneHint} dir="ltr" value={form.phone} onChange={set('phone')} />
-              <TextField label={w.patient.email} type="email" dir="ltr" value={form.email} onChange={set('email')} />
+              <TextField label={w.patient.fullName} value={form.full_name} onChange={set('full_name')} error={fieldError('full_name')} autoComplete="off" />
+              <TextField label={w.patient.dob} type="date" value={form.date_of_birth} onChange={set('date_of_birth')} error={fieldError('date_of_birth')} />
+              <TextField label={w.patient.phone} hint={w.patient.phoneHint} dir="ltr" value={form.phone} onChange={set('phone')} error={fieldError('phone')} />
+              <TextField label={w.patient.email} type="email" dir="ltr" value={form.email} onChange={set('email')} error={fieldError('email')} />
               <SelectField label={w.patient.language} value={form.preferred_language} onChange={set('preferred_language')} options={[['en', w.common.en], ['ar', w.common.ar]]} />
             </FormGrid>
           </>
@@ -315,7 +317,7 @@ function BookingForm({ patient: given, onBooked, onClose }) {
         <TextField label={t.notes} value={notes} onChange={setNotes} multiline maxLength={500} />
       </section>
 
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <Notice tone="error">{error.details?.length ? error.details.map((d) => d.message).join(' ') : error.message}</Notice>}
       <div className={s.rowEnd}>
         <Button onClick={onClose}>{w.common.cancel}</Button>
         <WriteButton kind="primary" disabled={!ready} busy={busy} onClick={book}>

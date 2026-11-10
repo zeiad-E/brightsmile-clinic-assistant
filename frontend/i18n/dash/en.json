@@ -86,7 +86,7 @@
     "fullName": "Full name",
     "dob": "Date of birth",
     "phone": "Phone",
-    "phoneHint": "International format, e.g. +201001234567",
+    "phoneHint": "e.g. 01001234567 or +201001234567",
     "email": "Email",
     "language": "Language",
     "notes": "Private clinic notes",

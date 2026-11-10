@@ -8,7 +8,11 @@ import { startOfDayInZone } from '../../src/utils/clinicTime.js';
 describe('common rules', () => {
   it('normalises phone numbers to the stored international format', () => {
     expect(Phone.parse(' +20 (100) 123-4567 ')).toBe('+201001234567');
-    expect(Phone.safeParse('01001234567').success).toBe(false); // no country code
+    // A local Egyptian number is what the desk types most often.
+    expect(Phone.parse('01001234567')).toBe('+201001234567');
+    expect(Phone.parse('010 0123 4567')).toBe('+201001234567');
+    expect(Phone.parse('00201001234567')).toBe('+201001234567');
+    expect(Phone.safeParse('12345').success).toBe(false);
   });
 
   it('lower-cases and trims emails', () => {
