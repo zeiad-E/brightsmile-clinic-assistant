@@ -4,3 +4,8 @@ Dockerfile text eol=lf
 
 # Test fixtures are exact bytes (PDF byte offsets, zip files): never convert line endings.
 backend/tests/fixtures/** binary
+
+# Leave these out of GitHub's language bar: the diagrams are generated HTML pages
+# and the drafts are early design trials, not the app's code.
+.archify/** linguist-generated
+frontend-drafts/** linguist-documentation
