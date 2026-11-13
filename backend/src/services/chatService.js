@@ -593,6 +593,19 @@ export async function staffReply(ctx, id, { message }) {
   return { ...saved, author_name: user.fullName ?? null };
 }
 
+/**
+ * The owner deletes a chat for good. Its messages, reports and debug traces go with it (the
+ * database cascades); handovers, booking stats, patient notes and waitlist entries stay, just no
+ * longer linked to it. Inside the conversation's lock, so a reply being written right now finishes
+ * first instead of saving into a chat that no longer exists. Bookings are never touched.
+ */
+export async function removeForOwner(_ctx, id) {
+  await withConversationLock(id, async () => {
+    await loadForTeam(id);
+    await conversationModel.removeMany(requireAdmin(), [id]);
+  });
+}
+
 /** Marks a conversation reviewed (G2), with an optional note the owner sees; reviewed=false undoes it. */
 export async function review(ctx, id, { reviewed, note }) {
   const { user } = ctx;

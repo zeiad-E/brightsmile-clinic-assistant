@@ -73,6 +73,8 @@ export function staffRouter(limits) {
   router.post('/conversations/:id/messages', requirePermission('conversations.respond'), validate({ params: IdParams, body: StaffReplyBody }), conversations.reply);
   router.post('/conversations/:id/review', requirePermission('conversations.respond'), validate({ params: IdParams, body: ReviewBody }), conversations.review);
   router.post('/conversations/:id/reports', requirePermission('assistant_reports.create'), validate({ params: IdParams, body: ReportBody }), reports.create);
+  // The owner deletes a chat for good (its messages, reports and traces go with it).
+  router.delete('/conversations/:id', requirePermission('conversations.delete'), id, conversations.remove);
 
   return router;
 }

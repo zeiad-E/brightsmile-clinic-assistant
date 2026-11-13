@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useApi, useDash, usePolling } from '../DashProvider';
-import { Badge, Button, Empty, LiveDot, Loaded, PageHead, Segmented, StatusBadge } from '../kit';
+import { useAction, useApi, useDash, usePolling } from '../DashProvider';
+import { Badge, Button, Confirm, Empty, LiveDot, Loaded, PageHead, Segmented, StatusBadge } from '../kit';
 import { ChatPanel } from './shared';
 import s from './screens.module.css';
 
@@ -24,11 +24,14 @@ const FILTERS = {
 /**
  * S5 Conversations: every chat with the assistant. "Live" shows chats active in the last 10 minutes
  * and updates by itself. Open one to read it (with what the assistant did), take it over and
- * answer, mark it reviewed, or report a wrong answer to the owner.
+ * answer, mark it reviewed, or report a wrong answer to the owner. The owner can also delete a chat
+ * for good (bookings are never touched).
  */
 export default function Conversations() {
-  const { w, fmt } = useDash();
+  const { w, fmt, can, api } = useDash();
   const t = w.conversations;
+  const [deleting, setDeleting] = useState(false);
+  const [run, busy] = useAction();
   const [filter, setFilter] = useState('all');
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState(() => fromUrl('c'));
@@ -88,9 +91,16 @@ export default function Conversations() {
         <div className={s.splitDetail}>
           {picked ? (
             <div className={s.stack}>
-              <Button size="sm" kind="ghost" className={s.showOnPhone} onClick={() => choose(null)}>
-                ← {w.shell.nav.conversations}
-              </Button>
+              <div className={s.rowWrap}>
+                <Button size="sm" kind="ghost" className={s.showOnPhone} onClick={() => choose(null)}>
+                  ← {w.shell.nav.conversations}
+                </Button>
+                {can.deleteChats && (
+                  <Button size="sm" kind="danger" onClick={() => setDeleting(true)}>
+                    {t.delete}
+                  </Button>
+                )}
+              </div>
               <div className={s.chatCardBig}>
                 <ChatPanel key={picked} conversationId={picked} onChanged={list.reload} />
               </div>
@@ -100,6 +110,23 @@ export default function Conversations() {
           )}
         </div>
       </div>
+      <Confirm
+        open={deleting}
+        danger
+        title={t.deleteTitle}
+        text={t.deleteText}
+        confirmLabel={w.common.delete}
+        busy={busy}
+        onClose={() => setDeleting(false)}
+        onConfirm={async () => {
+          const done = await run(() => api(`/staff/conversations/${picked}`, { method: 'DELETE' }), { success: t.deleted });
+          setDeleting(false);
+          if (done !== undefined) {
+            choose(null);
+            list.reload();
+          }
+        }}
+      />
     </>
   );
 }

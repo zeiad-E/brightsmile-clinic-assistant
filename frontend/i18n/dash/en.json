@@ -325,7 +325,11 @@
     "pick": "Pick a chat from the list.",
     "topic": "Started with",
     "last": "Last message",
-    "review": "Review"
+    "review": "Review",
+    "delete": "Delete chat",
+    "deleteTitle": "Delete this chat for good?",
+    "deleteText": "Its messages, notes from the team and reports will be deleted and can’t be brought back. Bookings made in it stay.",
+    "deleted": "Chat deleted"
   },
   "chat": {
     "turns": "{n} messages",

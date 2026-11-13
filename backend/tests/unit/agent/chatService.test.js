@@ -28,6 +28,7 @@ vi.mock('../../../src/models/conversationModel.js', () => ({
     for (const c of moved) Object.assign(c, { profile_id: profileId, patient_id: patientId, visitor_hash: null });
     return moved.map((c) => c.id);
   }),
+  removeMany: vi.fn(async (_db, ids) => ids.filter((id) => conversations.delete(id)).length),
   update: vi.fn(async (_db, id, patch) => {
     const c = { ...conversations.get(id), ...patch };
     conversations.set(id, c);
@@ -361,6 +362,35 @@ describe('chatService.sendMessage', () => {
 
     expect(res.status).toBe('turn_limit');
     expect(runAgentTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe('the owner deletes a chat', () => {
+  it('deletes it for good, and says "not found" for one that does not exist', async () => {
+    runAgentTurn.mockResolvedValue(ok('Hi'));
+    const { conversation_id: id } = await chatService.sendMessage(guest, { message: 'hello' });
+
+    await chatService.removeForOwner({}, id);
+    expect(conversations.has(id)).toBe(false);
+    await expect(chatService.removeForOwner({}, id)).rejects.toMatchObject({ code: 'conversation_not_found' });
+  });
+
+  it('waits for a reply that is being written, instead of cutting it off', async () => {
+    runAgentTurn.mockResolvedValue(ok('Hi'));
+    const { conversation_id: id } = await chatService.sendMessage(guest, { message: 'hello' });
+    let release;
+    runAgentTurn.mockImplementationOnce(() => new Promise((resolve) => (release = () => resolve(ok('Still here')))));
+
+    const turn = chatService.sendMessage(guest, { conversationId: id, message: 'are you there?' });
+    await new Promise((r) => setTimeout(r, 20)); // the turn is now running, inside the lock
+    const removal = chatService.removeForOwner({}, id);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(conversations.has(id)).toBe(true); // not yet: the reply is still being written
+
+    release();
+    await turn;
+    await removal;
+    expect(conversations.has(id)).toBe(false);
   });
 });
 

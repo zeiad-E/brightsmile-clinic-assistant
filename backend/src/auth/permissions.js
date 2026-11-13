@@ -50,6 +50,7 @@ const OWNER_WRITE = [
   'knowledge.write',
   'intake.write',
   'agent_memory.manage',
+  'conversations.delete',
 ];
 
 const ROLE_PERMISSIONS = Object.freeze({

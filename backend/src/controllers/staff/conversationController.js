@@ -23,6 +23,11 @@ export async function reply(req, res) {
   res.status(201).json(await chatService.staffReply(ctxOf(req), req.valid.params.id, req.valid.body));
 }
 
+export async function remove(req, res) {
+  await chatService.removeForOwner(ctxOf(req), req.valid.params.id);
+  res.status(204).end();
+}
+
 export async function review(req, res) {
   res.json(await chatService.review(ctxOf(req), req.valid.params.id, req.valid.body));
 }

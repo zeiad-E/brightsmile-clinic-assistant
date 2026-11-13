@@ -58,7 +58,7 @@ vi.mock('../../src/services/knowledge/knowledgeService.js', () =>
 );
 vi.mock('../../src/services/intakeService.js', () => stubModule(['listFields', 'createField', 'updateField', 'removeField', 'missingFor', 'saveAnswers'], LIST));
 vi.mock('../../src/services/chatService.js', () =>
-  stubModule(['sendMessage', 'getConversation', 'listMine', 'listForStaff', 'getForStaff', 'takeOver', 'handBack', 'staffReply', 'review'], LIST),
+  stubModule(['sendMessage', 'getConversation', 'listMine', 'listForStaff', 'getForStaff', 'takeOver', 'handBack', 'staffReply', 'review', 'removeForOwner'], LIST),
 );
 
 const { createApp } = await import('../../src/app.js');
@@ -191,6 +191,7 @@ const MATRIX = [
   ['post', `/api/staff/conversations/${ID}/messages`, { message: 'Hello, this is Sara from the clinic.' }, STAFF_WRITE],
   ['post', `/api/staff/conversations/${ID}/review`, { note: 'Good' }, STAFF_WRITE],
   ['post', `/api/staff/conversations/${ID}/reports`, { kind: 'wrong_answer', note: 'Wrong price' }, STAFF_WRITE],
+  ['delete', `/api/staff/conversations/${ID}`, null, OWNER],
   ['get', '/api/staff/stats/ai-outcomes', null, STAFF_READ],
 
   // Memory: the agent's notes are owner-only (not even the viewer); "forget me" is the patient's.

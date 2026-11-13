@@ -55,6 +55,7 @@ export default function DashProvider({ words, locale, children }) {
         viewer: user?.role === 'viewer',
         viewCode: has.has('patients.code.view'),
         newCode: has.has('patients.code.regenerate'),
+        deleteChats: has.has('conversations.delete'),
       },
       fmt: {
         date: (iso, options = { day: 'numeric', month: 'short', year: 'numeric' }) => (iso ? dates(options).format(new Date(iso)) : '—'),
