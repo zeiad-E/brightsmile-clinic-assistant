@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { ViewTransition } from 'react';
-import { getDictionary, getLocale } from '@/i18n/dictionaries';
+import { getDictionary, getLocale, getServiceContent } from '@/i18n/dictionaries';
 import { localePath } from '@/i18n/config';
 import { getDoctors, getFreeTimes, getServices } from '@/lib/api/public';
 import { describeSlot, formatPrice, shortName } from '@/lib/format';
@@ -62,7 +62,7 @@ export default async function ServicePage({ params }) {
   if (!service) notFound(); // a wrong slug shows the 404 page
 
   const { servicePage: t, servicesPage, home, nav, meta } = await getDictionary();
-  const [services, doctors] = await Promise.all([getServices(), getDoctors()]);
+  const [services, doctors, content] = await Promise.all([getServices(), getDoctors(), getServiceContent(service.slug)]);
   const name = (record, field) => record[`${field}_${locale}`];
   const digits = locale === 'ar' ? 'ar-EG' : 'en-US';
 
@@ -94,6 +94,14 @@ export default async function ServicePage({ params }) {
     areaServed: { '@type': 'City', name: locale === 'ar' ? 'القاهرة' : 'Cairo' },
     offers: { '@type': 'Offer', price: service.price_egp, priceCurrency: 'EGP', url: `${SITE_URL}${bookBase}` },
   };
+  // The questions shown on the page, as an FAQPage (only ever the same questions people can read).
+  const faqData = content?.faq?.length
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: content.faq.map(({ q, a }) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+      }
+    : null;
   const crumbs = breadcrumbSchema(locale, [
     { name: nav.home, path: '' },
     { name: nav.services, path: '/services' },
@@ -104,6 +112,7 @@ export default async function ServicePage({ params }) {
     <div className={styles.page}>
       <JsonLd data={serviceData} />
       <JsonLd data={crumbs} />
+      {faqData && <JsonLd data={faqData} />}
       <section className={styles.intro}>
         <div className={styles.blobs} aria-hidden="true">
           <i />
@@ -131,6 +140,15 @@ export default async function ServicePage({ params }) {
 
       <div className={`wrap ${styles.layout}`}>
         <div className={styles.main}>
+          {content?.intro?.length > 0 && (
+            <section className={styles.about}>
+              <h2>{t.aboutTitle}</h2>
+              {content.intro.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </section>
+          )}
+
           {steps.length > 0 && (
             <section>
               <h2>{t.expectTitle}</h2>
@@ -157,6 +175,21 @@ export default async function ServicePage({ params }) {
                       </Link>
                     </div>
                   </article>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* <details>: each answer opens on click, with no JavaScript, and stays readable by search engines */}
+          {content?.faq?.length > 0 && (
+            <section>
+              <h2>{t.faqTitle}</h2>
+              <div className={styles.faq}>
+                {content.faq.map(({ q, a }) => (
+                  <details key={q}>
+                    <summary>{q}</summary>
+                    <p>{a}</p>
+                  </details>
                 ))}
               </div>
             </section>

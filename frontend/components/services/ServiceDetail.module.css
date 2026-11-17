@@ -43,6 +43,21 @@
 .step[data-lit] p { border-color: rgb(20 184 166 / .35); box-shadow: 0 12px 30px rgb(11 37 69 / .06); }
 @keyframes dotPop { 0% { scale: 1; } 45% { scale: 1.25; } 100% { scale: 1; } }
 
+/* "About this treatment": plain reading text */
+.about p { max-width: 68ch; margin: 0 0 14px; font-size: 16.5px; line-height: 1.75; color: var(--color-ink-2); }
+.about p:last-child { margin-bottom: 0; }
+
+/* common questions: <details> cards, a "+" that turns into "−" when open */
+.faq { display: grid; gap: 10px; }
+.faq details { border-radius: 18px; background: #fff; border: 1px solid var(--color-line); transition: border-color .3s, box-shadow .3s; }
+.faq details[open] { border-color: rgb(20 184 166 / .35); box-shadow: 0 12px 30px rgb(11 37 69 / .06); }
+.faq summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 44px; padding: 16px 20px; font-weight: 650; line-height: 1.45; cursor: pointer; list-style: none; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--color-mint-soft); color: var(--color-mint-deep); font: 600 18px/1 var(--font-mono); }
+.faq details[open] summary::after { content: "−"; background: var(--color-mint); color: #fff; }
+@media (hover: hover) { .faq summary:hover { color: var(--color-mint-deep); } }
+.faq details p { margin: 0; padding: 0 20px 18px; line-height: 1.7; color: var(--color-ink-2); }
+
 .team { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
 .doctor { display: flex; gap: 16px; padding: 20px; border-radius: 20px; background: #fff; border: 1px solid var(--color-line); transition: transform .4s cubic-bezier(.2, .8, .2, 1), box-shadow .4s; }
 @media (hover: hover) { .doctor:hover { transform: translateY(-3px); box-shadow: 0 18px 40px rgb(11 37 69 / .08); } }
@@ -94,6 +109,7 @@
 .page:lang(ar) h1, .page:lang(ar) h2 { letter-spacing: 0; }
 .page:lang(ar) h1 { line-height: 1.2; }
 .page:lang(ar) .role { letter-spacing: 0; font-size: 13px; }
+.page:lang(ar) .about p, .page:lang(ar) .faq details p { line-height: 1.9; }
 
 @media (prefers-reduced-motion: reduce) {
   .blobs i { animation: none; }

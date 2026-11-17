@@ -1,0 +1,98 @@
+{
+  "teeth-cleaning": {
+    "intro": [
+      "A professional cleaning removes the hard tartar that brushing and flossing can't shift. Tartar holds bacteria against your gums, and it is the main cause of bleeding gums, bad breath and, over time, gum disease.",
+      "Most adults benefit from a cleaning every six months, often on the same visit as a check-up. If you build up tartar quickly, smoke, or have gum problems, you may need it more often; your dentist or hygienist will tell you what suits you."
+    ],
+    "faq": [
+      { "q": "Does a scaling and polishing hurt?", "a": "Most people feel only vibration, cool water and some pressure. If your gums are sensitive or inflamed, tell us: we can go more slowly or numb the area." },
+      { "q": "Will a cleaning damage my enamel?", "a": "No. The ultrasonic scaler removes tartar, not tooth. Your teeth may feel smoother, or a little sensitive for a day or two, and that passes on its own." },
+      { "q": "Why do my gums bleed after a cleaning?", "a": "Some bleeding is normal when the gums were inflamed. It usually settles within a few days as they heal, especially if you keep brushing and flossing gently." },
+      { "q": "Will a cleaning make my teeth whiter?", "a": "It removes surface stains from tea, coffee and smoking, so teeth often look brighter. It doesn't change the natural colour of the tooth; that needs whitening." }
+    ]
+  },
+  "filling": {
+    "intro": [
+      "A filling repairs a tooth that has a cavity (decay) or a small chip. The dentist removes the soft, decayed part and rebuilds the tooth with a tooth-coloured composite that bonds to the tooth and blends in with it.",
+      "Treating a cavity early keeps the repair small. Left alone, decay grows towards the nerve, and what could have been a simple filling can turn into a root canal treatment or an extraction."
+    ],
+    "faq": [
+      { "q": "How do I know I need a filling?", "a": "Signs include sensitivity to sweet, hot or cold things, a sharp pain when you bite, or a dark spot or hole you can see or feel. Many small cavities cause no pain at all, which is why regular check-ups matter." },
+      { "q": "Does getting a filling hurt?", "a": "The tooth is numbed first, so you should feel pressure but no pain. The numbness wears off within a few hours." },
+      { "q": "When can I eat after a filling?", "a": "A composite filling is hardened with a blue light, so it is fully set before you leave. Wait until the numbness wears off, so you don't bite your cheek or tongue by accident." },
+      { "q": "How long does a composite filling last?", "a": "Usually many years. It depends on the size of the filling, your bite, and how well you brush and floss. Grinding your teeth and biting very hard foods shorten its life." }
+    ]
+  },
+  "extraction": {
+    "intro": [
+      "An extraction removes a tooth that can't be saved: one that is badly broken or decayed, loose because of gum disease, or in the way, for example before braces. The area is numbed with a local anaesthetic first, so you feel pressure but not pain.",
+      "Before anything is removed, the dentist tells you whether the tooth could be kept instead, and what could replace it afterwards, such as an implant or a bridge."
+    ],
+    "faq": [
+      { "q": "Does a tooth extraction hurt?", "a": "The local anaesthetic numbs the tooth and gum, so the extraction itself should not hurt; you will feel pushing and pressure. Some soreness afterwards is normal and is usually eased with ordinary painkillers your dentist recommends." },
+      { "q": "How long does it take to heal?", "a": "The gum usually feels much better within a few days and closes over in one to two weeks. The bone underneath takes a few months to fill in completely." },
+      { "q": "What should I avoid after an extraction?", "a": "For the first 24 hours, don't rinse hard, spit, smoke or drink through a straw, so the blood clot stays in place. Eat soft, lukewarm food and chew on the other side. You get written aftercare advice before you leave." },
+      { "q": "Do I need to replace the missing tooth?", "a": "Not always, but a gap can let the teeth beside it lean and the opposite tooth drift. The dentist will explain your options, such as an implant or a bridge, so you can decide." }
+    ]
+  },
+  "root-canal": {
+    "intro": [
+      "A root canal treatment saves a tooth whose nerve (the pulp) is infected or badly inflamed, usually because of deep decay, a crack or an old injury. Instead of removing the tooth, the dentist cleans the infection out of the roots and seals them.",
+      "Typical signs are a strong toothache, pain that lingers after something hot or cold, swelling near the tooth, or a tooth that has turned darker. Sometimes there are no symptoms at all and the problem shows up on an X-ray."
+    ],
+    "faq": [
+      { "q": "Is a root canal treatment painful?", "a": "The tooth is fully numbed, so the treatment feels much like a long filling. It is the infection that hurts, and the treatment relieves that pain. The tooth may be tender for a few days afterwards." },
+      { "q": "How many visits does it take?", "a": "Many teeth are finished in one visit. Some, especially back teeth with several roots or a strong infection, need a second visit. The dentist tells you before starting." },
+      { "q": "Why do I need a crown afterwards?", "a": "A tooth that has had a root canal is more brittle and can crack, especially a back tooth. A crown covers and protects it. The crown is a separate treatment and isn't included in this price." },
+      { "q": "Isn't it better to just pull the tooth out?", "a": "Keeping your own tooth is usually best for chewing and for the teeth around it. Replacing an extracted tooth with an implant or a bridge also takes longer and costs more." }
+    ]
+  },
+  "whitening": {
+    "intro": [
+      "In-clinic whitening lightens the natural colour of your teeth with a professional whitening gel, applied by the dentist while your gums are protected. It works on stains from coffee, tea, smoking and age.",
+      "Before whitening, the dentist checks that your teeth and gums are healthy. Whitening doesn't change the colour of fillings, crowns or veneers, so if you have any on your front teeth, we talk about that first."
+    ],
+    "faq": [
+      { "q": "Is teeth whitening safe?", "a": "Yes, when it is done or supervised by a dentist after a check-up. The gel lightens the stains inside the tooth without removing enamel." },
+      { "q": "Will my teeth be sensitive afterwards?", "a": "Some people feel short, sharp twinges for a day or two. They go away on their own, and a toothpaste for sensitive teeth helps." },
+      { "q": "How long do the results last?", "a": "Usually from several months to a couple of years. Coffee, tea, cola and smoking bring stains back faster; regular cleanings help the results last." },
+      { "q": "Who shouldn't have their teeth whitened?", "a": "It isn't advised during pregnancy or breastfeeding, for children, or for anyone with untreated decay or gum disease. Those problems are treated first." }
+    ]
+  },
+  "kids-check-up": {
+    "intro": [
+      "A gentle check-up for children: we look at their teeth and gums, see how the new teeth are coming in, and paint on fluoride varnish to make the enamel stronger against decay. We take our time and explain everything in words a child understands.",
+      "Children should first see a dentist when the first tooth appears or by their first birthday, then about every six months. Early visits catch decay while it is small, and help children feel at ease at the dentist."
+    ],
+    "faq": [
+      { "q": "Why care for baby teeth if they fall out anyway?", "a": "Baby teeth help children chew and speak, and they hold the space for the adult teeth. Decay in baby teeth can hurt, spread, and affect the teeth growing underneath." },
+      { "q": "What is fluoride varnish?", "a": "A thin protective coating painted on the teeth in a few seconds. It strengthens the enamel and helps prevent cavities. We tell you how long your child should wait before eating or drinking." },
+      { "q": "How can I prepare my child for the visit?", "a": "Talk about the visit in a positive, simple way and avoid words like \"pain\" or \"needle\". A favourite toy can help a younger child feel safe." },
+      { "q": "When should my child start brushing?", "a": "As soon as the first tooth appears, twice a day with a fluoride toothpaste: a smear the size of a grain of rice under age 3, and a pea-sized amount from 3 to 6. Help them brush until they are about 7 or 8." }
+    ]
+  },
+  "braces-consultation": {
+    "intro": [
+      "At a braces consultation the dentist checks your teeth, bite and jaw, explains what could be improved and why, and goes through your options: fixed metal or tooth-coloured braces, or clear aligners.",
+      "You leave knowing roughly how long treatment would take and what it would cost, so you can decide in your own time. The consultation doesn't commit you to anything."
+    ],
+    "faq": [
+      { "q": "Am I too old for braces?", "a": "No. Teeth can be moved at any age, as long as the teeth and gums are healthy. Many adults choose clear aligners or tooth-coloured braces because they are less visible." },
+      { "q": "When should a child first be checked for braces?", "a": "Around age 7 is a good time for a first check. Most children who need braces start between about 10 and 14, but some problems are easier to correct earlier." },
+      { "q": "Braces or clear aligners: which is better?", "a": "Both work well in many cases. Aligners are almost invisible and removable, but must be worn about 22 hours a day; fixed braces can handle more complex tooth movements. The dentist tells you which suits your teeth." },
+      { "q": "How long does orthodontic treatment take?", "a": "Often between one and two years, depending on how far the teeth need to move. You get an estimate for your own case at the consultation." }
+    ]
+  },
+  "dental-implant": {
+    "intro": [
+      "A dental implant replaces a missing tooth from the root up. A small titanium post is placed in the jawbone, the bone grows around it over the following months, and a crown on top gives you a tooth that looks and works like a natural one.",
+      "Unlike a bridge, an implant doesn't need the neighbouring teeth to be filed down, and it helps stop the jawbone from shrinking where the tooth was lost. Before planning an implant, the dentist checks your gums and the bone with an X-ray."
+    ],
+    "faq": [
+      { "q": "Can I have a dental implant?", "a": "Most adults with healthy gums and enough jawbone can. Heavy smoking, uncontrolled diabetes and some medicines can slow healing, so tell the dentist about your health. If there is too little bone, it can sometimes be built up first." },
+      { "q": "Does getting an implant hurt?", "a": "The area is numbed, so placing the implant feels like pressure rather than pain. Some swelling and soreness for a few days afterwards is normal." },
+      { "q": "How long does the whole process take?", "a": "Usually a few months, because the implant needs time to join with the bone before the final crown is fitted. The dentist gives you a timeline for your own case." },
+      { "q": "How long does an implant last?", "a": "With good brushing, flossing and regular check-ups, an implant can last for many years, often decades. The crown on top may need replacing after some years of wear." }
+    ]
+  }
+}

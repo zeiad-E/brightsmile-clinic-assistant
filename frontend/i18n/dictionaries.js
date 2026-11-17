@@ -32,6 +32,19 @@ export async function getChatWords() {
   return { en: en.assistantPage, ar: ar.assistantPage };
 }
 
+// Longer text for each treatment page ("About this treatment" + common questions), by slug.
+// Kept in its own files (i18n/services/) so other pages never load it.
+const serviceContent = {
+  en: () => import('./services/en.json').then((module) => module.default),
+  ar: () => import('./services/ar.json').then((module) => module.default),
+};
+
+/** { intro: [paragraph, …], faq: [{ q, a }, …] } for one service, or null if none is written yet. */
+export async function getServiceContent(slug) {
+  const all = await serviceContent[await getLocale()]();
+  return all[slug] ?? null;
+}
+
 // The team dashboards have their own (long) word lists, so the public pages never carry them.
 const dashDictionaries = {
   en: () => import('./dash/en.json').then((module) => module.default),
