@@ -129,7 +129,9 @@ export function useFrameWhileVisible(ref, frame, deps = []) {
     let running = false;
     let id = 0;
     const tick = (now) => {
-      if (!running) return;
+      // React empties the refs a moment before it runs the clean-up below, so one last frame can
+      // arrive with nothing to draw on. Skip it instead of crashing on a null element.
+      if (!running || !ref.current) return;
       tickScroll(now);
       frame(now);
       id = requestAnimationFrame(tick);
