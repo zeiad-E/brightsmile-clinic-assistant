@@ -2,6 +2,7 @@ import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import { getDoctors, getServices } from '@/lib/api/public';
 import { formatPrice } from '@/lib/format';
 import BookWizard from '@/components/book/BookWizard';
+import { pageMetadata } from '@/lib/seo';
 import styles from '@/components/book/Book.module.css';
 
 /**
@@ -10,8 +11,9 @@ import styles from '@/components/book/Book.module.css';
  */
 
 export async function generateMetadata() {
-  const { bookPage: t } = await getDictionary();
-  return { title: t.title };
+  const locale = await getLocale();
+  const { seo, meta, brand } = await getDictionary();
+  return pageMetadata({ locale, path: '/book', title: seo.bookTitle, description: seo.bookDescription, siteName: meta.title, brand });
 }
 
 export default async function BookPage() {

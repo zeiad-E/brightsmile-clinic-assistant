@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, IBM_Plex_Sans_Arabic } from 'next/font/google';
 import { dirOf, locales } from '@/i18n/config';
 import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import SessionProvider from '@/components/providers/SessionProvider';
+import { SITE_URL } from '@/lib/seo';
 import '../globals.css';
 
 /**
@@ -32,9 +33,15 @@ export const viewport = {
   viewportFit: 'cover',
 };
 
+// metadataBase turns the short addresses pages give ("/en/about") into full ones
+// ("https://…/en/about"), which canonical links, hreflang and share previews need.
+// The tab icon and iPhone icon come from files (app/icon.svg, app/apple-icon.png): Next.js adds
+// their <link> tags itself. Each page's canonical, hreflang and share tags come from lib/seo.js.
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {
+    metadataBase: new URL(SITE_URL),
+    applicationName: dict.meta.title,
     title: { default: dict.meta.title, template: `%s · ${dict.meta.short}` },
     description: dict.meta.description,
   };

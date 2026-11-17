@@ -6,6 +6,7 @@ import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import { localePath } from '@/i18n/config';
 import { getDoctors, getFreeTimes, getServices } from '@/lib/api/public';
 import { describeSlot, formatPrice, shortName } from '@/lib/format';
+import { JsonLd, SITE_URL, CLINIC_ID, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { FallbackServiceIcon, SERVICE_ICONS } from '@/components/home/icons';
 import StepsTimeline from '@/components/services/StepsTimeline';
 import styles from '@/components/services/ServiceDetail.module.css';
@@ -29,10 +30,30 @@ async function findService(params) {
   return (await getServices()).find((service) => service.slug === slug);
 }
 
+// "Teeth cleaning in Heliopolis, Cairo · BrightSmile" and a description with the price and length,
+// so the search result already answers "how much, how long, where".
 export async function generateMetadata({ params }) {
   const [service, locale] = await Promise.all([findService(params), getLocale()]);
   if (!service) return {};
-  return { title: service[`name_${locale}`], description: service[`description_${locale}`] };
+  const { seo, meta, brand } = await getDictionary();
+  const serviceName = service[`name_${locale}`];
+  return pageMetadata({
+    locale,
+    path: `/services/${service.slug}`,
+    title: seo.serviceTitle.replace('{service}', serviceName),
+    description: seo.serviceDescription
+      .replace('{description}', sentence(service[`description_${locale}`]))
+      .replace('{minutes}', service.duration_minutes.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US'))
+      .replace('{price}', formatPrice(service.price_egp, locale)),
+    siteName: meta.title,
+    brand,
+  });
+}
+
+/** Ends a description with a full stop, so the sentence after it reads right. */
+function sentence(text = '') {
+  const trimmed = text.trim();
+  return /[.!?؟。]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
 export default async function ServicePage({ params }) {
@@ -40,7 +61,7 @@ export default async function ServicePage({ params }) {
   const service = await findService(params);
   if (!service) notFound(); // a wrong slug shows the 404 page
 
-  const { servicePage: t, servicesPage, home } = await getDictionary();
+  const { servicePage: t, servicesPage, home, nav, meta } = await getDictionary();
   const [services, doctors] = await Promise.all([getServices(), getDoctors()]);
   const name = (record, field) => record[`${field}_${locale}`];
   const digits = locale === 'ar' ? 'ar-EG' : 'en-US';
@@ -61,8 +82,28 @@ export default async function ServicePage({ params }) {
   const at = services.indexOf(service);
   const others = [1, 2, 3].map((step) => services[(at + step) % services.length]).filter((s) => s !== service);
 
+  // For search engines: this treatment, its price, and who offers it (the clinic, same id on every page).
+  const serviceData = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: name(service, 'name'),
+    description: name(service, 'description'),
+    url: `${SITE_URL}/${locale}/services/${service.slug}`,
+    serviceType: service.name_en,
+    provider: { '@type': 'Dentist', '@id': CLINIC_ID, name: meta.title, url: `${SITE_URL}/${locale}` },
+    areaServed: { '@type': 'City', name: locale === 'ar' ? 'القاهرة' : 'Cairo' },
+    offers: { '@type': 'Offer', price: service.price_egp, priceCurrency: 'EGP', url: `${SITE_URL}${bookBase}` },
+  };
+  const crumbs = breadcrumbSchema(locale, [
+    { name: nav.home, path: '' },
+    { name: nav.services, path: '/services' },
+    { name: name(service, 'name'), path: `/services/${service.slug}` },
+  ]);
+
   return (
     <div className={styles.page}>
+      <JsonLd data={serviceData} />
+      <JsonLd data={crumbs} />
       <section className={styles.intro}>
         <div className={styles.blobs} aria-hidden="true">
           <i />

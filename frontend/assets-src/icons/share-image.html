@@ -1,0 +1,51 @@
+<!doctype html>
+<!--
+  Source of public/og-image.png: the picture WhatsApp, Facebook, LinkedIn and X show when
+  someone shares a link to the site. One image for both languages, so it carries both.
+  Re-render (1200×630) with Chrome or Edge, from this folder:
+    chrome --headless=new --hide-scrollbars --window-size=1200,630 --screenshot=og-image.png share-image.html
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+      body {
+        position: relative;
+        background: #f6fafb;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        color: #0b2545;
+      }
+      .blob { position: absolute; border-radius: 50%; filter: blur(70px); }
+      .blob.a { width: 620px; height: 620px; right: -160px; top: -200px; background: #c9f3ec; }
+      .blob.b { width: 420px; height: 420px; right: 180px; bottom: -260px; background: #e6faf7; }
+      .card {
+        position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 300px;
+        align-items: center; padding: 0 80px; gap: 40px;
+      }
+      .eyebrow { font-size: 26px; font-weight: 600; color: #0f766e; letter-spacing: 0.02em; margin: 0 0 18px; }
+      h1 { font-size: 96px; line-height: 1; margin: 0; font-weight: 800; letter-spacing: -0.03em; }
+      .tag { font-size: 34px; color: #4a5d78; margin: 22px 0 0; }
+      .ar { font-size: 36px; color: #0b2545; margin: 34px 0 0; font-weight: 600; direction: rtl; text-align: left; unicode-bidi: plaintext; white-space: nowrap; }
+      .pills { display: flex; gap: 12px; margin-top: 38px; }
+      .pills span { font-size: 22px; font-weight: 600; padding: 10px 20px; border-radius: 999px; background: #ffffff; border: 2px solid #e1ebee; white-space: nowrap; }
+      .tooth { width: 300px; height: 300px; filter: drop-shadow(0 30px 40px rgb(20 184 166 / 0.35)); }
+    </style>
+  </head>
+  <body>
+    <div class="blob a"></div>
+    <div class="blob b"></div>
+    <div class="card">
+      <div>
+        <p class="eyebrow">Dental clinic · Heliopolis, Cairo</p>
+        <h1>BrightSmile</h1>
+        <p class="tag">Clear prices. Book online at any hour.</p>
+        <p class="ar">عيادة برايت سمايل لطب الأسنان</p>
+        <div class="pills"><span>Check-ups</span><span>Whitening</span><span>Implants</span><span>24/7 assistant</span></div>
+      </div>
+      <svg class="tooth" viewBox="-20 -2 240 240">
+        <path fill="#14b8a6" d="M40 30 C60 5 85 20 100 22 C115 20 140 5 160 30 C182 58 175 105 160 130 C150 150 148 175 142 205 C138 225 122 232 116 210 C110 185 106 165 100 165 C94 165 90 185 84 210 C78 232 62 225 58 205 C52 175 50 150 40 130 C25 105 18 58 40 30 Z" />
+      </svg>
+    </div>
+  </body>
+</html>

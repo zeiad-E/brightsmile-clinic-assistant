@@ -1,5 +1,6 @@
 import { getChatWords, getDictionary, getLocale } from '@/i18n/dictionaries';
 import Chat from '@/components/assistant/Chat';
+import { pageMetadata } from '@/lib/seo';
 import styles from '@/components/assistant/AssistantPage.module.css';
 
 /**
@@ -8,8 +9,9 @@ import styles from '@/components/assistant/AssistantPage.module.css';
  */
 
 export async function generateMetadata() {
-  const { assistantPage: t } = await getDictionary();
-  return { title: t.title, description: t.lead };
+  const locale = await getLocale();
+  const { seo, meta, brand } = await getDictionary();
+  return pageMetadata({ locale, path: '/assistant', title: seo.assistantTitle, description: seo.assistantDescription, siteName: meta.title, brand });
 }
 
 export default async function AssistantPage() {

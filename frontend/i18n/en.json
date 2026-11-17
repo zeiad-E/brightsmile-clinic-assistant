@@ -4,6 +4,22 @@
     "short": "BrightSmile",
     "description": "Gentle dentistry in Heliopolis, Cairo, with clear prices and an assistant that answers questions and books visits at any hour."
   },
+  "seo": {
+    "homeTitle": "BrightSmile Dental Clinic in Heliopolis, Cairo",
+    "homeDescription": "Gentle dentistry in Heliopolis, Cairo: check-ups, cleaning, fillings, whitening, braces and implants, with clear prices. Book online or ask our assistant at any hour.",
+    "servicesTitle": "Dental services & prices in Heliopolis",
+    "servicesDescription": "Every treatment at BrightSmile in Heliopolis, Cairo, with its price in EGP, how long it takes and which dentist does it. Book online in a minute.",
+    "serviceTitle": "{service} in Heliopolis, Cairo",
+    "serviceDescription": "{description} Takes {minutes} minutes and costs {price}. Book online at BrightSmile Dental Clinic in Heliopolis, Cairo.",
+    "aboutTitle": "About us: our dentists in Heliopolis",
+    "aboutDescription": "Meet the BrightSmile dentists in Heliopolis, Cairo: who treats you, how we work, our opening hours, address and phone number.",
+    "bookTitle": "Book a dental appointment online",
+    "bookDescription": "Pick a treatment, a dentist and a free time, and book your visit to BrightSmile in Heliopolis, Cairo in about a minute.",
+    "assistantTitle": "Ask our dental assistant, day or night",
+    "assistantDescription": "Ask about prices, free times or what a treatment involves. The BrightSmile assistant checks the real clinic data and can book your visit at any hour.",
+    "privacyTitle": "Privacy policy",
+    "privacyDescription": "What BrightSmile Dental Clinic keeps about you, why, for how long, and what the assistant can see. In plain words."
+  },
   "brand": "BrightSmile",
   "clinicName": "BrightSmile Dental Clinic",
   "common": {

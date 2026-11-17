@@ -3,6 +3,7 @@ import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import { localePath } from '@/i18n/config';
 import { getDoctors, getServices } from '@/lib/api/public';
 import { formatPrice, shortName } from '@/lib/format';
+import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import ServiceGrid from '@/components/services/ServiceGrid';
 import styles from '@/components/services/Services.module.css';
 
@@ -13,13 +14,14 @@ import styles from '@/components/services/Services.module.css';
  */
 
 export async function generateMetadata() {
-  const { servicesPage: t } = await getDictionary();
-  return { title: t.title, description: t.lead };
+  const locale = await getLocale();
+  const { seo, meta, brand } = await getDictionary();
+  return pageMetadata({ locale, path: '/services', title: seo.servicesTitle, description: seo.servicesDescription, siteName: meta.title, brand });
 }
 
 export default async function ServicesPage() {
   const locale = await getLocale();
-  const { servicesPage: t } = await getDictionary();
+  const { servicesPage: t, nav } = await getDictionary();
   const [services, doctors] = await Promise.all([getServices(), getDoctors()]);
   const digits = locale === 'ar' ? 'ar-EG' : 'en-US';
 
@@ -43,6 +45,12 @@ export default async function ServicesPage() {
 
   return (
     <div className={styles.page}>
+      <JsonLd
+        data={breadcrumbSchema(locale, [
+          { name: nav.home, path: '' },
+          { name: nav.services, path: '/services' },
+        ])}
+      />
       <section className={styles.intro}>
         <div className={styles.blobs} aria-hidden="true">
           <i />

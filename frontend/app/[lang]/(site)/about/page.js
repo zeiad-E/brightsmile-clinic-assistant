@@ -3,6 +3,7 @@ import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import { localePath } from '@/i18n/config';
 import { getClinic, getDoctors, getMapPoint, getServices } from '@/lib/api/public';
 import { shortName } from '@/lib/format';
+import { JsonLd, clinicSchema, pageMetadata } from '@/lib/seo';
 import Scribble from '@/components/fx/Scribble';
 import Marquee from '@/components/fx/Marquee';
 import Magnetic from '@/components/fx/Magnetic';
@@ -17,8 +18,9 @@ import styles from '@/components/about/About.module.css';
  */
 
 export async function generateMetadata() {
-  const { aboutPage: t } = await getDictionary();
-  return { title: t.title, description: t.lead };
+  const locale = await getLocale();
+  const { seo, meta, brand } = await getDictionary();
+  return pageMetadata({ locale, path: '/about', title: seo.aboutTitle, description: seo.aboutDescription, siteName: meta.title, brand });
 }
 
 export default async function AboutPage() {
@@ -42,6 +44,7 @@ export default async function AboutPage() {
 
   return (
     <div className={styles.page}>
+      {clinic && <JsonLd data={clinicSchema({ clinic, services, locale, point })} />}
       <section className={styles.intro}>
         <div className={styles.blobs} aria-hidden="true">
           <i />

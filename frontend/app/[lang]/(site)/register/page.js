@@ -2,13 +2,16 @@ import Link from 'next/link';
 import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import { localePath } from '@/i18n/config';
 import RegisterForms from '@/components/login/RegisterForms';
+import { pageMetadata } from '@/lib/seo';
 import styles from '@/components/login/Login.module.css';
 
 /** /en/register · /ar/register — a new patient creates an account. */
 
+// Like /login: kept out of search results, links still followed.
 export async function generateMetadata() {
-  const { registerPage: t } = await getDictionary();
-  return { title: t.title, description: t.lead };
+  const locale = await getLocale();
+  const { registerPage: t, meta, brand } = await getDictionary();
+  return pageMetadata({ locale, path: '/register', title: t.title, description: t.lead, siteName: meta.title, brand, noindex: true });
 }
 
 export default async function RegisterPage() {

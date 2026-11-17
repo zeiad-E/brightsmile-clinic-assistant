@@ -1,4 +1,5 @@
-import { getDictionary } from '@/i18n/dictionaries';
+import { getDictionary, getLocale } from '@/i18n/dictionaries';
+import { pageMetadata } from '@/lib/seo';
 import { getClinic } from '@/lib/api/public';
 import Scribble from '@/components/fx/Scribble';
 import Toc from '@/components/privacy/Toc';
@@ -10,8 +11,9 @@ import styles from '@/components/privacy/Privacy.module.css';
  */
 
 export async function generateMetadata() {
-  const { privacyPage: t } = await getDictionary();
-  return { title: t.title, description: t.lead };
+  const locale = await getLocale();
+  const { seo, meta, brand } = await getDictionary();
+  return pageMetadata({ locale, path: '/privacy', title: seo.privacyTitle, description: seo.privacyDescription, siteName: meta.title, brand });
 }
 
 export default async function PrivacyPage() {

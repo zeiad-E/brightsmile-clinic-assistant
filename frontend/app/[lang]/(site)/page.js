@@ -1,7 +1,8 @@
 import { cacheLife } from 'next/cache';
 import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import { localePath } from '@/i18n/config';
-import { getClinic, getDoctors, getNextFreeSlot, getServices } from '@/lib/api/public';
+import { getClinic, getDoctors, getMapPoint, getNextFreeSlot, getServices } from '@/lib/api/public';
+import { JsonLd, SITE_URL, CLINIC_ID, clinicSchema, pageMetadata } from '@/lib/seo';
 import { describeSlot, formatPrice, shortName, summarizeOpeningHours } from '@/lib/format';
 import HomeEffects from '@/components/home/HomeEffects';
 import Hero from '@/components/home/Hero';
@@ -22,6 +23,12 @@ import styles from '@/components/home/Home.module.css';
 
 // The booking card shows the next free teeth-whitening slot, as in the trial's design.
 const FEATURED_SERVICE = 'whitening';
+
+export async function generateMetadata() {
+  const locale = await getLocale();
+  const { seo, meta } = await getDictionary();
+  return pageMetadata({ locale, title: seo.homeTitle, description: seo.homeDescription, siteName: meta.title, absolute: true });
+}
 
 export default async function HomePage() {
   const locale = await getLocale();
@@ -49,8 +56,15 @@ export default async function HomePage() {
   const featured = services.find((s) => s.slug === FEATURED_SERVICE);
   const slot = await nextSlotCard(locale, featured, doctors, t);
 
+  // For search engines: the clinic (address, phone, hours, prices) and the website itself.
+  const point = await getMapPoint(clinic?.address_en);
+  const website = { '@context': 'https://schema.org', '@type': 'WebSite', url: `${SITE_URL}/${locale}`, name: clinic?.[`name_${locale}`] ?? 'BrightSmile', inLanguage: locale, publisher: { '@id': CLINIC_ID } };
+  const clinicData = clinicSchema({ clinic, services, locale, point });
+
   return (
     <div className={styles.home}>
+      <JsonLd data={website} />
+      {clinicData && <JsonLd data={clinicData} />}
       <HomeEffects />
       <Hero
         t={t}

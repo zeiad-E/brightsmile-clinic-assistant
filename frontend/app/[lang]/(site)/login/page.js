@@ -2,13 +2,17 @@ import Link from 'next/link';
 import { getDictionary, getLocale } from '@/i18n/dictionaries';
 import { localePath } from '@/i18n/config';
 import LoginForms from '@/components/login/LoginForms';
+import { pageMetadata } from '@/lib/seo';
 import styles from '@/components/login/Login.module.css';
 
 /** /en/login · /ar/login — sign in for patients (code or details) and the team (password). */
 
+// A sign-in form is no answer to anything people search for, so it stays out of results (noindex);
+// search engines still follow its links.
 export async function generateMetadata() {
-  const { loginPage: t } = await getDictionary();
-  return { title: t.title, description: t.lead };
+  const locale = await getLocale();
+  const { loginPage: t, meta, brand } = await getDictionary();
+  return pageMetadata({ locale, path: '/login', title: t.title, description: t.lead, siteName: meta.title, brand, noindex: true });
 }
 
 export default async function LoginPage() {
