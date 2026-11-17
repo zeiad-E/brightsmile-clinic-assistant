@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  Source of app/apple-icon.png (the icon an iPhone shows when someone adds the site to the home screen).
+  iOS paints transparent corners black and rounds the corners itself, so this is a full white square.
+  Re-render (180×180) with Chrome or Edge, from this folder:
+    chrome --headless=new --hide-scrollbars --window-size=180,180 --screenshot=apple-icon.png apple-icon.html
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html, body { margin: 0; width: 180px; height: 180px; background: #ffffff; }
+      body { display: grid; place-items: center; }
+      svg { width: 116px; height: 116px; }
+    </style>
+  </head>
+  <body>
+    <svg viewBox="-20 -2 240 240">
+      <path fill="#14b8a6" d="M40 30 C60 5 85 20 100 22 C115 20 140 5 160 30 C182 58 175 105 160 130 C150 150 148 175 142 205 C138 225 122 232 116 210 C110 185 106 165 100 165 C94 165 90 185 84 210 C78 232 62 225 58 205 C52 175 50 150 40 130 C25 105 18 58 40 30 Z" />
+    </svg>
+  </body>
+</html>
